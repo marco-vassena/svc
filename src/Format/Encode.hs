@@ -34,6 +34,11 @@ instance (Monoid i, Encode i a) => Encode i (Many a) where
 instance (Monoid i, Encode i a) => Encode i (Some a) where
   gencode (Some a as) = mconcat (fmap gencode (a : as))
 
+-- Optional presence
+instance (Monoid i, Encode i a) => Encode i (Maybe a) where
+  gencode (Just a) = gencode a
+  gencode Nothing = mempty
+
 --------------------------------------------------------------------------------
 -- ByteString instances
 
@@ -49,6 +54,9 @@ instance (KnownSymbol s) => Encode ByteString (Proxy s) where
 instance (KnownNat n) => Encode ByteString (Proxy n) where
   gencode = B.pack . show . natVal 
 
+instance Encode ByteString (NoneOf s) where
+  gencode (NoneOf _ s) = B.singleton s
+
 --------------------------------------------------------------------------------
 -- Text instances 
 
@@ -62,4 +70,7 @@ instance (KnownSymbol s) => Encode Text (Proxy s) where
   gencode = T.pack . symbolVal
 
 instance (KnownNat n) => Encode Text (Proxy n) where
-  gencode = T.pack . show . natVal 
+  gencode = T.pack . show . natVal
+
+instance Encode Text (NoneOf s) where
+  gencode (NoneOf _ s) = T.singleton s

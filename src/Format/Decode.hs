@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Format.Decode where
 
@@ -34,27 +35,38 @@ instance (Monoid i, Decode i a) => Decode i (Many a) where
 instance (Monoid i, Decode i a) => Decode i (Some a) where
   gdecode = Some <$> gdecode <*> many gdecode
 
+instance (Stream i Identity t, Decode i a) => Decode i (Maybe a) where
+  gdecode = optionMaybe gdecode
+
 instance Stream i Identity Char => Decode i Int where
   gdecode = read <$> many1 digit
 
 instance Stream i Identity Char => Decode i Char where
   gdecode = anyChar
 
-instance DecodeKindLit i s => Decode i (Proxy s) where
-  gdecode = decodeKind Proxy
+instance WithProxy i Proxy s => Decode i (Proxy s) where
+  gdecode = withProxy Proxy
+
+instance (Stream i Identity Char, KnownSymbol s, WithProxy i NoneOf s) => Decode i (NoneOf s) where
+  gdecode = withProxy Proxy
 
 --------------------------------------------------------------------------------
 
--- An auxiliary class used to recognize type level strings and numbers.
-class DecodeKindLit i s  where
-  decodeKind :: Proxy s -> Parser i (Proxy s)
+-- An auxiliary class needed to deal with type level information.
+-- In order to satisfy the type-checker the argument Proxy s is required
+class WithProxy i (f :: k -> *) (s :: k) where
+  withProxy :: Proxy s -> Parser i (f s)
 
-instance (Stream i Identity Char, KnownSymbol s) => DecodeKindLit i s where
-  decodeKind p = string (symbolVal p) *> return Proxy
+instance (Stream i Identity Char, KnownSymbol s) => WithProxy i NoneOf s where
+  withProxy p = NoneOf Proxy <$> (noneOf cs)
+    where cs = symbolVal p
 
-instance (Stream i Identity Char, KnownNat s) => DecodeKindLit i s where
+instance (Stream i Identity Char, KnownSymbol s) => WithProxy i Proxy s where
+  withProxy p = string (symbolVal p) *> return Proxy
+
+instance (Stream i Identity Char, KnownNat s) => WithProxy i Proxy s where
   -- TODO not sure if this is a sensible definition
-  decodeKind p = string (show (natVal p)) *> return Proxy
+  withProxy p = string (show (natVal p)) *> return Proxy
 
 --------------------------------------------------------------------------------
 

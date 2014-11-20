@@ -44,15 +44,18 @@ instance Encode ByteString Image where
                           (pre, []) -> pre
                           (pre, suf) -> pre ++ trim70 suf
 
-type WhiteSpace = Some (Proxy " " :+: Proxy "\t" :+: Proxy "\n" :+: Proxy "\r")
-type PbmMagic = Proxy "P1" 
--- type Comment = Proxy "#"  
-type PbmHeader = PbmMagic :*: WhiteSpace :*: Int :*: WhiteSpace :*: Int :*: WhiteSpace
+type WhiteSpace = Many (Proxy " " :+: Proxy "\t" :+: Proxy "\n" :+: Proxy "\r")
+type PbmMagic = Proxy "P1\n" 
+type Comment = Proxy "#" :*: Many (NoneOf "\n") :*: Proxy "\n"
+type PbmHeader = PbmMagic :*: Maybe (Comment) :*: WhiteSpace :*: Int :*: WhiteSpace :*: Int :*: WhiteSpace
 type Pbm = PbmHeader :~>: Image
 
+-- Maybe I could use datatypes a la carte to provide a sort of search mechanism,
+-- so that the user can specify only the part of the header that he really needs.
+-- In this example an instance for Int :*: WhiteSpace :*: Int would be enough.
 instance DecodeWith ByteString PbmHeader Image where
   decodeWith :: PbmHeader -> Parser Image
-  decodeWith (_ :*: _ :*: width :*: _ :*: height :*: _) = Image <$> count height parseRow
+  decodeWith (_ :*: _ :*:  _ :*: width :*: _ :*: height :*: _) = Image <$> count height parseRow
     where parseRow :: Parser [Bit]
           parseRow = count width (decode <* spaces)
 
