@@ -9,13 +9,13 @@
 module NetPbm where
 
 import Control.Applicative
-import Format.Types
-import Format.ByteString
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
-import Data.Attoparsec.ByteString
-import Data.Attoparsec.ByteString.Char8
 import Data.Proxy
+import Format.Types hiding (Parser)
+import Text.Parsec.Char
+import Text.Parsec.Combinator
+import Text.Parsec.ByteString
 
 -- I define a new data-type so that I can write an instance for 
 -- DataFormat in which precisely only "1" and "0" are recognized
@@ -38,28 +38,30 @@ instance DataFormat ByteString Image where
     where trim70 :: [ a ] -> [ a ]
           trim70 bits = case splitAt 70 bits of
                           (pre, []) -> pre
-                          (pre, suf) -> pre ++ trim70 bits
+                          (pre, suf) -> pre ++ trim70 suf
           
     
   decode = undefined -- not used
 
-type WhiteSpace = Proxy " " :+: Proxy "\t" :+: Proxy "\n" :+: Proxy "\r"
+type WhiteSpace = Some (Proxy " " :+: Proxy "\t" :+: Proxy "\n" :+: Proxy "\r")
 type PbmMagic = Proxy "P1" 
+-- type Comment = Proxy "#"  
 type PbmHeader = PbmMagic :*: WhiteSpace :*: Int :*: WhiteSpace :*: Int :*: WhiteSpace
 type Pbm = PbmHeader :~>: Image
 
 instance DecodeWith ByteString PbmHeader Image where
   decodeWith :: PbmHeader -> Parser Image
-  decodeWith (_ :*: _ :*: height :*: _ :*: width :*: _) = Image <$> count height parseRow
+  decodeWith (_ :*: _ :*: width :*: _ :*: height :*: _) = Image <$> count height parseRow
     where parseRow :: Parser [Bit]
-          parseRow = count width (decode <* skipSpace)
+          parseRow = count width (decode <* spaces)
 
 parsePbm :: Parser Pbm
 parsePbm = decode
 
 test :: String -> IO ()
-test file  = do
-  s <- B.readFile file
-  case parseFormat parsePbm s of
-    Left s -> fail s
-    Right r -> B.putStrLn (encode r)
+test f = do
+  s <- B.readFile f
+  case parseFormat parsePbm s of 
+    Right r -> B.putStrLn $ encode r `asTypeOf` s
+    Left l -> fail (show l)
+  parseTest parsePbm s
