@@ -52,16 +52,16 @@ data a :~>: b = a :~>: b
 
 -- Used to parse a format described in a DataFormat instance.
 -- It requires the whole input to be consumed.
-parseFormat :: (DataFormat i a, Stream i Identity ()) => Parser i a -> i -> Either ParseError a
+parseFormat :: (DataFormat i a, Stream i Identity t, Show t) => Parser i a -> i -> Either ParseError a
 parseFormat p = parse (p <* eof) ""
 
-parseTest :: (DataFormat i a, Stream i Identity (), Show i) => Parser i a -> i -> IO ()
+parseTest :: (DataFormat i a, Stream i Identity t, Show i, Show t) => Parser i a -> i -> IO ()
 parseTest p input = 
   case parseFormat p input of
     Left err -> do 
       putStr "parse error at "
       print err
-    Right x -> putStr $ show $ (encode x) `asTypeOf` input
+    Right x -> putStrLn $ show $ (encode x) `asTypeOf` input
 
 -- Defines the encoding / decoding functions for a DataFormat
 class DataFormat i a where
@@ -85,12 +85,19 @@ instance (Monoid i, DataFormat i a) => DataFormat i (Some a) where
   decode = Some <$> decode <*> many decode
   encode (Some a as) = mconcat (fmap encode (a : as))
 
+decodeInt :: Stream i Identity Char => Parser i Int
+decodeInt = read <$> many1 digit
+
 --------------------------------------------------------------------------------
 -- ByteString instances
 
 instance DataFormat ByteString Char where
   decode = anyChar
   encode = B.singleton
+
+instance DataFormat ByteString Int where
+  decode = decodeInt
+  encode = B.pack . show
 
 instance (KnownSymbol s, DecodeKindLit ByteString s) => DataFormat ByteString (Proxy s) where
   decode = decodeKind Proxy
@@ -106,6 +113,10 @@ instance (KnownNat n, DecodeKindLit ByteString n) => DataFormat ByteString (Prox
 instance DataFormat Text Char where
   decode = anyChar
   encode = T.singleton
+
+instance DataFormat Text Int where
+  decode = decodeInt
+  encode = T.pack . show
 
 instance (KnownSymbol s, DecodeKindLit Text s) => DataFormat Text (Proxy s) where
   decode = decodeKind Proxy

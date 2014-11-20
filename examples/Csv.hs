@@ -6,14 +6,12 @@
 module Csv where
 
 import Control.Applicative
-import Data.Attoparsec.ByteString.Char8
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as B
 import Data.Proxy
 import Format.Types
-import Format.ByteString
 
-type CsvRow = (Many (Int :*: Proxy ",")) :*: Int
+type CsvRow = Int :*: (Many (Proxy "," :*: Int)) -- (Many (Int :*: Proxy ",")) :*: Int
 type Csv = Many (CsvRow :*: Proxy "\n")
 
 csvRow1, csvRow2 :: ByteString
@@ -32,11 +30,13 @@ output :: DataFormat ByteString a => Either String a -> IO ()
 output (Left s) = putStrLn $ "Failed:\t" ++ s
 output (Right r) = putStrLn $ B.unpack $ encode r
 
+parseCsv :: Parser ByteString Csv
+parseCsv = decode
+
+parseFoo :: Parser ByteString Foo
+parseFoo = decode
+
 main :: IO ()
 main = do
-  let r = parseFormat decode csv1 :: Either String Csv
-  let p = parseFormat decode foo1 :: Either String Foo
-  output r
-  output p
-  
-
+  parseTest parseCsv csv1
+  parseTest parseFoo foo1
