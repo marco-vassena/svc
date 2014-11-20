@@ -7,11 +7,14 @@ module Format.Encode where
 import Text.Parsec.ByteString ()
 import Text.Parsec.Text ()
 import Data.ByteString (ByteString)
+import qualified Data.ByteString as W (singleton)
 import qualified Data.ByteString.Char8 as B
+import Data.Foldable
 import Data.Monoid
 import Data.Proxy
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Word
 import GHC.TypeLits
 import Format.Base
 
@@ -39,6 +42,11 @@ instance (Monoid i, Encode i a) => Encode i (Maybe a) where
   gencode (Just a) = gencode a
   gencode Nothing = mempty
 
+-- This instance triggers overlapping instances due to the open-world assumption.
+-- What is the best way to deal with this?
+--instance (Monoid i, Foldable t, Encode i a) => Encode i (t a) where
+--  gencode = foldMap gencode
+
 --------------------------------------------------------------------------------
 -- ByteString instances
 
@@ -47,6 +55,9 @@ instance Encode ByteString Char where
 
 instance Encode ByteString Int where
   gencode = B.pack . show
+
+instance Encode ByteString Word8 where
+  gencode = W.singleton
 
 instance (KnownSymbol s) => Encode ByteString (Proxy s) where
   gencode = B.pack . symbolVal

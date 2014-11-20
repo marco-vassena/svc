@@ -10,8 +10,13 @@ module Format.Decode where
 
 import Control.Applicative ((<$>), (<*>), (*>), (<*))
 import Control.Monad.Identity
+import Data.ByteString
+import qualified Data.ByteString.Char8 as C
+import qualified Data.ByteString as W
 import Data.Monoid
 import Data.Proxy
+import Data.Word
+import Data.Char
 import Format.Base
 import GHC.TypeLits
 import Text.Parsec.Prim
@@ -81,3 +86,11 @@ instance (Decode i a, DecodeWith i a b) => Decode i (a :~>: b) where
     a <- gdecode
     b <- decodeWith a
     return (a :~>: b)
+
+--------------------------------------------------------------------------------
+instance Decode ByteString Word8 where
+  gdecode = anyChar >>= return . char2Word8
+
+-- Converts an ascii character to its ascii code 
+char2Word8 :: Char -> Word8
+char2Word8 = fromIntegral . ord

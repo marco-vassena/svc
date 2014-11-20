@@ -4,6 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE InstanceSigs #-}
 
 module NetPbm where
@@ -11,7 +12,10 @@ module NetPbm where
 import Control.Applicative
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
+import Data.Foldable
+import Data.List
 import Data.Proxy
+import Data.Word
 import Format.Base
 import Format.DataFormat
 import Format.Decode hiding (Parser)
@@ -33,7 +37,6 @@ instance Decode ByteString Bit where
     where zeroP = char '1' *> return One
           oneP = char '0' *> return Zero 
 
-
 data Image = Image [[Bit]]
 
 -- The format specification states that no line should be longer than 70 characters.
@@ -48,6 +51,7 @@ type WhiteSpace = Many (Proxy " " :+: Proxy "\t" :+: Proxy "\n" :+: Proxy "\r")
 type PbmMagic = Proxy "P1\n" 
 type Comment = Proxy "#" :*: Many (NoneOf "\n") :*: Proxy "\n"
 type PbmHeader = PbmMagic :*: Maybe (Comment) :*: WhiteSpace :*: Int :*: WhiteSpace :*: Int :*: WhiteSpace
+-- Ascii Portable Bit map
 type Pbm = PbmHeader :~>: Image
 
 -- Maybe I could use datatypes a la carte to provide a sort of search mechanism,
@@ -59,13 +63,42 @@ instance DecodeWith ByteString PbmHeader Image where
     where parseRow :: Parser [Bit]
           parseRow = count width (decode <* spaces)
 
+--------------------------------------------------------------------------------
+
+data PgmImage = PgmImage [[ Word8 ]]
+
+type PgmMagic = Proxy "P5" :*: WhiteSpace
+type PgmHeader = Int :*: WhiteSpace :*: Int :*: WhiteSpace :*: Int :*: WhiteSpace
+-- Binary Portable Gray Map
+type Pgm = PgmMagic :*: Maybe Comment :*: (PgmHeader :~>: PgmImage)
+
+instance Encode ByteString PgmImage where
+  gencode (PgmImage img) = foldMap (foldMap gencode) img
+
+instance DecodeWith ByteString PgmHeader PgmImage where
+  decodeWith (width :*: _ :*: height :*: _ :*: maxVal :*: _) = 
+    PgmImage <$> count height (count width decode)
+
 parsePbm :: Parser Pbm
 parsePbm = decode
+
+parsePgm :: Parser Pgm
+parsePgm = decode
+
+data ImageType = PbmType
+               | PgmType
+
+getImageType :: String -> ImageType
+getImageType s | "ascii.pbm" `isSuffixOf` s = PbmType
+getImageType s | "pgm" `isSuffixOf` s = PgmType
+getImageType s | otherwise = error $ "Unsupported format: " ++ s
+
+report :: (DataFormat ByteString a, Show e) => Either e a -> IO ()
+report = either print (B.putStr . encode)
 
 test :: String -> IO ()
 test f = do
   s <- B.readFile f
-  case parseFormat parsePbm s of 
-    Right r -> B.putStrLn $ encode r `asTypeOf` s
-    Left l -> fail (show l)
-  parseTest parsePbm s
+  case getImageType f of
+    PbmType -> report $ parseFormat parsePbm s
+    PgmType -> report $ parseFormat parsePgm s
