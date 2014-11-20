@@ -12,7 +12,10 @@ import Control.Applicative
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
 import Data.Proxy
-import Format.Types hiding (Parser)
+import Format.Base
+import Format.DataFormat
+import Format.Decode hiding (Parser)
+import Format.Encode
 import Text.Parsec.Char
 import Text.Parsec.Combinator
 import Text.Parsec.ByteString
@@ -21,11 +24,12 @@ import Text.Parsec.ByteString
 -- DataFormat in which precisely only "1" and "0" are recognized
 data Bit = Zero | One
 
-instance DataFormat ByteString Bit where
-  encode Zero = "0"
-  encode One = "1"
+instance Encode ByteString Bit where
+  gencode Zero = "0"
+  gencode One = "1"
 
-  decode = zeroP <|> oneP
+instance Decode ByteString Bit where
+  gdecode = zeroP <|> oneP
     where zeroP = char '1' *> return One
           oneP = char '0' *> return Zero 
 
@@ -33,15 +37,12 @@ instance DataFormat ByteString Bit where
 data Image = Image [[Bit]]
 
 -- The format specification states that no line should be longer than 70 characters.
-instance DataFormat ByteString Image where
-  encode (Image img) = B.unlines . trim70 $ map (B.unwords . map encode) img
+instance Encode ByteString Image where
+  gencode (Image img) = B.unlines . trim70 $ map (B.unwords . map encode) img
     where trim70 :: [ a ] -> [ a ]
           trim70 bits = case splitAt 70 bits of
                           (pre, []) -> pre
                           (pre, suf) -> pre ++ trim70 suf
-          
-    
-  decode = undefined -- not used
 
 type WhiteSpace = Some (Proxy " " :+: Proxy "\t" :+: Proxy "\n" :+: Proxy "\r")
 type PbmMagic = Proxy "P1" 

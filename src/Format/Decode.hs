@@ -40,18 +40,21 @@ instance Stream i Identity Char => Decode i Int where
 instance Stream i Identity Char => Decode i Char where
   gdecode = anyChar
 
+instance DecodeKindLit i s => Decode i (Proxy s) where
+  gdecode = decodeKind Proxy
+
 --------------------------------------------------------------------------------
 
 -- An auxiliary class used to recognize type level strings and numbers.
 class DecodeKindLit i s  where
-  gdecodeKind :: Proxy s -> Parser i (Proxy s)
+  decodeKind :: Proxy s -> Parser i (Proxy s)
 
 instance (Stream i Identity Char, KnownSymbol s) => DecodeKindLit i s where
-  gdecodeKind p = string (symbolVal p) *> return Proxy
+  decodeKind p = string (symbolVal p) *> return Proxy
 
 instance (Stream i Identity Char, KnownNat s) => DecodeKindLit i s where
   -- TODO not sure if this is a sensible definition
-  gdecodeKind p = string (show (natVal p)) *> return Proxy
+  decodeKind p = string (show (natVal p)) *> return Proxy
 
 --------------------------------------------------------------------------------
 

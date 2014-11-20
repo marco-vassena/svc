@@ -9,7 +9,9 @@ import Control.Applicative
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as B
 import Data.Proxy
-import Format.Types
+import Format.Base
+import Format.DataFormat
+import Format.Decode
 
 type CsvRow = Int :*: (Many (Proxy "," :*: Int)) -- (Many (Int :*: Proxy ",")) :*: Int
 type Csv = Many (CsvRow :*: Proxy "\n")

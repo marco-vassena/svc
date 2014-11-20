@@ -25,6 +25,9 @@ instance (Monoid i, Encode i a, Encode i b) => Encode i (a :+: b) where
   gencode (L a) = gencode a
   gencode (R b) = gencode b
 
+instance (Monoid i, Encode i a, Encode i b) => Encode i (a :~>: b) where
+  gencode (a :~>: b) = gencode a <> gencode b
+
 instance (Monoid i, Encode i a) => Encode i (Many a) where
   gencode (Many as) = mconcat (fmap gencode as)
 

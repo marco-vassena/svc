@@ -38,7 +38,3 @@ class DataFormat i a where
 instance (Encode i a, Decode i a) => DataFormat i a where
   decode = gdecode
   encode = gencode
-
-instance (Monoid i, Decode i (a :~>: b), Encode i a, Encode i b) => DataFormat i (a :~>: b) where
-  decode = gdecode
-  encode (a :~>: b) = gencode a <> gencode b
