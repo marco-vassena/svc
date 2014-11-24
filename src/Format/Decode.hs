@@ -4,15 +4,12 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE TypeFamilies #-}
 
 module Format.Decode where
 
 import Control.Applicative ((<$>), (<*>), (*>), (<*))
 import Control.Monad.Identity
-import Data.ByteString
-import qualified Data.ByteString.Char8 as C
-import qualified Data.ByteString as W
+import Data.ByteString (ByteString)
 import Data.Monoid
 import Data.Proxy
 import Data.Word
@@ -30,6 +27,12 @@ class Decode i a where
 
 instance (Monoid i, Decode i a, Decode i b) => Decode i (a :*: b) where
   gdecode = (:*:) <$> gdecode <*> gdecode
+
+instance (Monoid i, Decode i a, Decode i b) => Decode i (a :*>: b) where
+  gdecode = (:*>:) <$> gdecode <*> gdecode
+
+instance (Monoid i, Decode i a, Decode i b) => Decode i (a :<*: b) where
+  gdecode = (:<*:) <$> gdecode <*> gdecode
 
 instance (Monoid i, Decode i a, Decode i b) => Decode i (a :+: b) where
   gdecode = (L <$> gdecode) <|> (R <$> gdecode)

@@ -7,7 +7,7 @@
 
 module Format.DataFormat where
 
-import Control.Applicative ((<*))
+import Control.Applicative ((<*), (<$>))
 import Control.Monad.Identity
 import Data.Monoid
 import Format.Base

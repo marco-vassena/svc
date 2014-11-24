@@ -13,8 +13,8 @@ import Format.Base
 import Format.DataFormat
 import Format.Decode
 
-type CsvRow = Int :*: (Many (Proxy "," :*: Int)) -- (Many (Int :*: Proxy ",")) :*: Int
-type Csv = Many (CsvRow :*: Proxy "\n")
+type CsvRow = Int :*: (Many (Proxy "," :*>: Int))
+type Csv = Many (CsvRow :<*: Proxy "\n")
 
 csvRow1, csvRow2 :: ByteString
 csvRow1 = "1,2,3"
