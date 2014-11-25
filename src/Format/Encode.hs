@@ -1,6 +1,10 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Format.Encode where
 
@@ -17,6 +21,7 @@ import qualified Data.Text as T
 import Data.Word
 import GHC.TypeLits
 import Format.Base
+import Format.HList
 
 class Encode i a where
   gencode :: a -> i
@@ -91,3 +96,40 @@ instance (KnownNat n) => Encode Text (Proxy n) where
 
 instance Encode Text (NoneOf s) where
   gencode (NoneOf _ s) = T.singleton s
+
+--------------------------------------------------------------------------------
+class ToConcrete a xs where
+  to :: (HList xs) -> a
+
+class Fill a where
+  fill :: a
+
+instance KnownSymbol s => Fill (Proxy s) where
+  fill = Proxy
+
+instance KnownNat n => Fill (Proxy n) where
+  fill = Proxy
+
+instance Fill (Many a) where
+  fill = Many []
+
+instance (Fill a) => Fill (Some a) where
+  fill = Some fill []
+
+instance (ToConcrete b xs, Fill a) => ToConcrete (a :*>: b) xs where
+  to xs = fill :*>: (to xs)
+
+instance (ToConcrete a xs, Fill b) => ToConcrete (a :<*: b) xs where
+  to xs = (to xs) :<*: fill
+
+instance ToConcrete [a] xs => ToConcrete (Many a) xs where
+  to xs = Many (to xs)
+
+instance ToConcrete a (a ': xs) where
+  to (Cons a _) = a
+
+type FooFormat = Many (Int :<*: Proxy "a")
+data Foo = Foo [Int]
+
+--foobar :: Foo -> FooFormat
+--foobar (Foo xs) = to $ Cons xs Nil

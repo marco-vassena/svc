@@ -4,6 +4,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE RankNTypes #-}
 
 -- | This module defines types for describing formats
 
@@ -49,11 +50,13 @@ data a :<*: b = a :<*: b
 
 type family Collect a :: [ * ] where
   Collect (a :*: b) = Append (Collect a) (Collect b)
-  Collect (Many a) = Map [] (Collect a)
+  Collect (Many a) = Collect [ a ] 
   Collect (a :*>: b) = Collect b
   Collect (a :<*: b) = Collect a
   Collect (Proxy s) = '[]
+  Collect [ a ] = Map [] (Collect a)
   Collect a = '[ a ]
+
 
 class Children a where
   children :: a -> HList (Collect a)
@@ -67,8 +70,25 @@ instance Children a => Children (a :<*: b) where
 instance Children b => Children (a :*>: b) where
   children (a :*>: b) = children b
 
+--hmap' :: Children a => (a -> [a]) -> HList (Collect a) -> HList (Map [] (Collect a))
+--hmap' f Nil = Nil
+--hmap' f (Cons x xs) = Cons (f x) (hmap f xs)
+
 instance Children a => Children (Many a) where
-  children (Many xs) = undefined -- Cons (concatMap children xs) Nil
+  children (Many xs) = children xs
+
+instance Children a => Children [ a ] where
+
+--  children (x:xs) = case (hmap (:[]) (children x), children xs) of
+--                         (ys, Nil) -> ys
+--                         (ys, Cons x xs) -> ys
+  children xs = undefined 
+-- Cons (map children xs) Nil
+--case children x of
+--                      Nil -> children xs
+--                      Cons y ys -> hmap (:[]) (Cons y ys) 
+--    where y = children x
+--          ys = children xs
 
 instance Children (Proxy x) where
   children _ = Nil

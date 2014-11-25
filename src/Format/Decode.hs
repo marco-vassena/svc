@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE DataKinds #-}
 
 module Format.Decode where
 
@@ -15,6 +16,7 @@ import Data.Proxy
 import Data.Word
 import Data.Char
 import Format.Base
+import Format.HList
 import GHC.TypeLits
 import Text.Parsec.Prim
 import Text.Parsec.Combinator
@@ -97,3 +99,15 @@ instance Decode ByteString Word8 where
 -- Converts an ascii character to its ascii code 
 char2Word8 :: Char -> Word8
 char2Word8 = fromIntegral . ord
+
+--------------------------------------------------------------------------------
+
+-- Can be used to convert the format parsed to the user abstrac data type
+from :: (HUncurry a (Collect fmt) c, Children fmt) => a -> fmt -> c
+from f fmt = huncurry f $ children fmt
+
+type FooFormat = Many (Int :<*: Proxy "a")
+data Foo = Foo [ Int ]
+
+foobar :: FooFormat -> Foo
+foobar fmt = from Foo fmt
