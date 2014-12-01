@@ -1,3 +1,3 @@
 module Format where
 
-import Format.DataFormat
+import Format.Base

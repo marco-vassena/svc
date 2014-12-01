@@ -43,6 +43,9 @@ hmap f (Cons x xs) = Cons (f x) (hmap f xs)
 hconcat :: (HList '[HList xs]) -> HList xs
 hconcat (Cons x Nil) = x
 
+hsingleton :: a -> HList '[ a ]
+hsingleton a = Cons a Nil
+
 class FromList (n :: Nat) where
   fromList :: [ a ] -> Proxy n -> HList (Replicate n a)
 
