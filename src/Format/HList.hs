@@ -43,6 +43,7 @@ hmap' (SCons s) f (Cons x xs) = Cons (f x) (hmap' s f xs)
 hsingleton :: a -> HList '[ a ]
 hsingleton a = Cons a Nil
 
+--------------------------------------------------------------------------------
 -- The singleton type of lists, which allows us to take a list as a
 -- term-level and a type-level argument at the same time (although
 -- we're not interested in the elements here, only the structure)
@@ -67,10 +68,20 @@ unlist (SCons s) [] = Cons [] (unlist s [])
 unlist s (x:xs) = hmap' s reverse hs
   where hs = foldr (merge s) (hmap (:[]) x) xs
 
+-- The lists in the given HList are supposed to have the same length.
+toList :: SList xs -> HList (Map [] xs) -> [HList xs]
+toList SNil Nil = repeat Nil
+toList (SCons s) (Cons xs xss) = zipWith Cons xs (toList s xss)
+
 merge :: SList xs -> HList xs -> HList (Map [] xs) -> HList (Map [] xs)
 merge SNil Nil Nil = Nil
 merge (SCons s) (Cons x xs) (Cons ys yss) = Cons (x : ys) (merge s xs yss)
   
+-- Split an hlist in two sub-hlist
+split :: SList xs -> SList ys -> HList (Append xs ys) -> (HList xs, HList ys)
+split SNil s hs = (Nil, hs)
+split (SCons s1) s2 (Cons h hs) = (Cons h hs1, hs2)
+  where (hs1, hs2) = split s1 s2 hs
 
 -- Apply an uncurried function to an heterogeneous list.
 -- This function is type safe and will result in a missing

@@ -17,6 +17,7 @@ import Text.Parsec hiding (parse, many)
 import Control.Applicative
 import Data.Type.Equality 
 import Data.Functor.Identity
+import Data.Monoid
 
 -- Issue with many combinator : 
 -- the operator * does not actually distribute over concatenation
@@ -27,19 +28,28 @@ import Data.Functor.Identity
 
 data Format (xs :: [ * ]) where
   Seq :: Format xs -> Format ys -> Format (Append xs ys)
-  SkipR :: Format xs -> Format ys -> Format xs
-  SkipL :: Format xs -> Format ys -> Format ys
+  SkipR :: Fill ys => Format xs -> Format ys -> Format xs
+  SkipL :: Fill xs => Format xs -> Format ys -> Format ys
   Many :: Format xs -> Format (Map [] xs)
-  Target :: Parsable a => Format '[ a ]  
-  Meta :: Match a => a -> Format '[]
+  Target :: (Parsable a, Printable a) => Format '[ a ]
+  Meta :: (Match a, Printable a) => a -> Format '[]
 
 type Parser i a = Parsec i () a
 
 class Parsable a where
   parse :: Parser i a
 
+class Printable a where
+  printer :: Printer i a
+
 class Match a where
   match :: a -> Parser i a
+
+class Fill xs where
+  fill :: HList xs
+
+instance Fill '[] where
+  fill = Nil
 
 toSList :: Format xs -> SList xs
 toSList (Seq f1 f2) = sappend (toSList f1) (toSList f2)
@@ -57,4 +67,14 @@ mkParser (Many f) = unlist <$> pure (toSList f) <*> many (mkParser f)
 mkParser Target = hsingleton <$> parse
 mkParser (Meta a) = match a *> pure Nil
 
---------------------------------------------------------------------------------
+type Printer i a = a -> i
+
+mkPrinter :: Monoid i => Format xs -> Printer i (HList xs)
+mkPrinter (Seq f1 f2) hs = mkPrinter f1 hs1 <> mkPrinter f2 hs2
+  where (hs1, hs2) = split (toSList f1) (toSList f2) hs
+mkPrinter (SkipR x y) xs = mkPrinter x xs <> mkPrinter y fill
+mkPrinter (SkipL x y) ys = mkPrinter x fill <> mkPrinter y ys
+mkPrinter (Many f) hs = mconcat $ map (mkPrinter f) xs
+  where xs = toList (toSList f) hs
+mkPrinter Target (Cons x Nil) = printer x
+mkPrinter (Meta x) Nil = printer x
