@@ -19,7 +19,7 @@ import Data.Proxy
 data HList (xs :: [ * ]) where
   Nil :: HList '[]
   Cons :: x -> HList xs -> HList (x ': xs)
-
+ 
 type family Append (xs :: [ * ]) (ys :: [ * ]) :: [ * ] where
   Append '[] ys = ys
   Append (x ': xs) ys = x ': Append xs ys
@@ -27,10 +27,6 @@ type family Append (xs :: [ * ]) (ys :: [ * ]) :: [ * ] where
 type family Map (f :: * -> *) (xs :: [ * ]) :: [ * ] where
   Map f '[] = '[]
   Map f (x ': xs) = f x ': Map f xs
-
-type family Replicate (n :: Nat) (a :: *) :: [ * ] where
-  Replicate 0 a = '[]
-  Replicate n a = a ': Replicate (n - 1) a
 
 append :: HList xs -> HList ys -> HList (Append xs ys)
 append Nil ys = ys
@@ -40,20 +36,41 @@ hmap :: (forall a . a -> f a) -> HList xs -> HList (Map f xs)
 hmap f Nil = Nil
 hmap f (Cons x xs) = Cons (f x) (hmap f xs)
 
-hconcat :: (HList '[HList xs]) -> HList xs
-hconcat (Cons x Nil) = x
+hmap' :: SList xs -> (forall a . f a -> f a) -> HList (Map f xs) -> HList (Map f xs)
+hmap' SNil f Nil = Nil
+hmap' (SCons s) f (Cons x xs) = Cons (f x) (hmap' s f xs)
 
 hsingleton :: a -> HList '[ a ]
 hsingleton a = Cons a Nil
 
-class FromList (n :: Nat) where
-  fromList :: [ a ] -> Proxy n -> HList (Replicate n a)
+-- The singleton type of lists, which allows us to take a list as a
+-- term-level and a type-level argument at the same time (although
+-- we're not interested in the elements here, only the structure)
+data SList xs where
+ SNil :: SList '[]
+ SCons :: SList xs -> SList (x ': xs)
 
-instance FromList 0 where
-  fromList [] p = Nil
+sappend :: SList xs -> SList ys -> SList (Append xs ys)
+sappend SNil ys = ys
+sappend (SCons xs) ys = SCons (sappend xs ys)
 
-instance KnownNat n => FromList n where
-  fromList xs p = undefined
+-- This function is lazy in the injecting function.
+smap :: (forall a . a -> f a) -> SList xs -> SList (Map f xs)
+smap _ SNil = SNil
+smap f (SCons xs) = SCons (smap f xs) 
+
+--------------------------------------------------------------------------------
+
+unlist :: SList xs -> [HList xs] -> HList (Map [] xs)
+unlist SNil _ = Nil
+unlist (SCons s) [] = Cons [] (unlist s [])
+unlist s (x:xs) = hmap' s reverse hs
+  where hs = foldr (merge s) (hmap (:[]) x) xs
+
+merge :: SList xs -> HList xs -> HList (Map [] xs) -> HList (Map [] xs)
+merge SNil Nil Nil = Nil
+merge (SCons s) (Cons x xs) (Cons ys yss) = Cons (x : ys) (merge s xs yss)
+  
 
 -- Apply an uncurried function to an heterogeneous list.
 -- This function is type safe and will result in a missing
@@ -76,3 +93,10 @@ instance HUncurry a '[] a where
 instance HUncurry b xs c => HUncurry (a -> b) (a ': xs) c where
   huncurry f (Cons x xs) = huncurry (f x) xs
 
+--------------------------------------------------------------------------------
+-- Debugging
+instance Show (HList '[]) where
+  show Nil = "Nil"
+
+instance (Show x, Show (HList xs)) => Show (HList (x ': xs)) where
+  show (Cons x xs) = unwords ["Cons", show x, show xs]
