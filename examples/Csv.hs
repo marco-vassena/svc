@@ -1,44 +1,41 @@
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module Csv where
 
-import Control.Applicative
-import Data.ByteString.Char8 (ByteString)
-import qualified Data.ByteString.Char8 as B
-import Data.Proxy
 import Format.Base
-import Format.DataFormat
-import Format.Decode
+import Format.Combinator
+import Format.HList
+import Data.Functor
+import Text.Parsec.Prim
 
-type CsvRow = Int :*: (Many (Proxy "," :*>: Int))
-type Csv = Many (CsvRow :<*: Proxy "\n")
+data Csv = Csv [[Int]]
+  deriving Show
 
-csvRow1, csvRow2 :: ByteString
-csvRow1 = "1,2,3"
-csvRow2 = "4,5,6"
+csvFormat :: Format String '[ [[Int]] ]
+csvFormat = Many (csvRow <@ Meta '\n') -- TODO Some
+  where csvRow = Many (int <@ Meta ',')
 
-csv1 :: ByteString
-csv1 = B.unlines [csvRow1, csvRow2]
+-- | Unwraps a proper HList and build a Csv
+toCsv :: HList '[ [[Int]] ] -> Csv
+toCsv = huncurry Csv 
 
-type Foo = Proxy 1 :*: Char
+-- | We can target directly the user-defined data type
+csvParser :: Parser String Csv
+csvParser = toCsv <$> mkParser csvFormat
 
-foo1 :: ByteString
-foo1 = "1a"
+-- | Once the content of a data-type is added in an HList 
+-- we can print directly from the user data-type.
+csvPrinter :: Printer String Csv
+csvPrinter (Csv xss) = mkPrinter csvFormat $ Cons xss Nil
 
-output :: DataFormat ByteString a => Either String a -> IO ()
-output (Left s) = putStrLn $ "Failed:\t" ++ s
-output (Right r) = putStrLn $ B.unpack $ encode r
-
-parseCsv :: Parser ByteString Csv
-parseCsv = decode
-
-parseFoo :: Parser ByteString Foo
-parseFoo = decode
+csvText :: String
+csvText = unlines [csvRow1, csvRow2]
+  where csvRow1 = "1,2,3"
+        csvRow2 = "4,5,6"
 
 main :: IO ()
-main = do
-  parseTest parseCsv csv1
-  parseTest parseFoo foo1
+main = parseTest csvParser csvText
+ 
+
+foo :: Format String '[]
+foo = Many (Meta 'a')

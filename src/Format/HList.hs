@@ -70,7 +70,8 @@ unlist s (x:xs) = hmap' s reverse hs
 
 -- The lists in the given HList are supposed to have the same length.
 toList :: SList xs -> HList (Map [] xs) -> [HList xs]
-toList SNil Nil = repeat Nil
+toList SNil Nil = [Nil]
+toList (SCons SNil) (Cons xs Nil) = zipWith Cons xs (repeat Nil)
 toList (SCons s) (Cons xs xss) = zipWith Cons xs (toList s xss)
 
 merge :: SList xs -> HList xs -> HList (Map [] xs) -> HList (Map [] xs)
