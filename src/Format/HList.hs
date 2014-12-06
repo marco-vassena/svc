@@ -19,7 +19,7 @@ import Data.Proxy
 data HList (xs :: [ * ]) where
   Nil :: HList '[]
   Cons :: x -> HList xs -> HList (x ': xs)
- 
+
 type family Append (xs :: [ * ]) (ys :: [ * ]) :: [ * ] where
   Append '[] ys = ys
   Append (x ': xs) ys = x ': Append xs ys
@@ -70,7 +70,7 @@ unlist s (x:xs) = hmap' s reverse hs
 
 -- The lists in the given HList are supposed to have the same length.
 toList :: SList xs -> HList (Map [] xs) -> [HList xs]
-toList SNil Nil = [Nil]
+toList SNil Nil = [Nil] -- TODO also [] would work, distinguish between Many and Some
 toList (SCons SNil) (Cons xs Nil) = zipWith Cons xs (repeat Nil)
 toList (SCons s) (Cons xs xss) = zipWith Cons xs (toList s xss)
 
