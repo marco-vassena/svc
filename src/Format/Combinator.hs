@@ -47,13 +47,13 @@ cons :: HList '[a , [a]] -> [ a ]
 cons (Cons x (Cons xs Nil)) = x:xs
 
 many :: (Stream i Identity Char, StringLike i) => Format i '[ a ] -> Format i '[ [ a ] ]
-many p = DF $   nil  <$> empty 
-           <|> (cons <$> (p <@> many p))
+many p = DF $ (cons <$> (p <@> many p))
+           <|> (nil  <$> empty)
   
 sepBy :: (Stream i Identity Char, StringLike i, Fill ys) => 
             Format i '[ a ] -> Format i ys -> Format i '[ [ a ] ]
-sepBy p sep = DF $   nil  <$> empty
-                <|>  (cons <$> (p <@> many (sep @> p)))
+sepBy p sep = DF $   (cons <$> (p <@> many (sep @> p)))
+                <|>  (nil  <$> empty)
 
 -- These instances can be automatically derived using TH
 instance Proj [ a ] '[] where

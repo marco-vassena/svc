@@ -29,6 +29,8 @@ import Data.Maybe
 -- Format representation for data-types
 -- Supports total alternatives
 
+-- TODO define synonym for Format with a singleton list
+
 data DFormat i a where
   CFormat :: Proj a args => (HList args -> a) -> Format i args -> DFormat i a
   Alt :: DFormat i a -> DFormat i a -> DFormat i a

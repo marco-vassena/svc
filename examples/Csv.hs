@@ -1,41 +1,45 @@
-{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Csv where
 
 import Format.Base
 import Format.Combinator
 import Format.HList
-import Data.Functor
 import Text.Parsec.Prim
 
 data Csv = Csv [[Int]]
   deriving Show
 
-csvFormat :: Format String '[ [[Int]] ]
-csvFormat = Many (csvRow <@ Meta '\n') -- TODO Some
-  where csvRow = Many (int <@ Meta ',')
-
 -- | Unwraps a proper HList and build a Csv
-toCsv :: HList '[ [[Int]] ] -> Csv
-toCsv = huncurry Csv 
+csv :: HList '[ [[Int]] ] -> Csv
+csv = huncurry Csv 
+
+instance Proj Csv '[ [[ Int ]] ] where
+  proj (Csv xs) = Just $ Cons xs Nil
+
+-- | Targets a raw HList '[ [[Int]] ]
+rawFormat :: Format String '[ [[Int]] ]
+rawFormat = sepBy row (Meta '\n')
+  where row = sepBy int (Meta ',')
+
+-- | Targets directly the CSV data type
+csvFormat :: Format String '[ Csv ]
+csvFormat = DF $ csv <$> rawFormat
 
 -- | We can target directly the user-defined data type
-csvParser :: Parser String Csv
-csvParser = toCsv <$> mkParser csvFormat
+csvParser :: Parser String (HList '[ Csv ])
+csvParser = mkParser csvFormat
 
 -- | Once the content of a data-type is added in an HList 
 -- we can print directly from the user data-type.
-csvPrinter :: Printer String Csv
-csvPrinter (Csv xss) = mkPrinter csvFormat $ Cons xss Nil
+csvPrinter :: Printer String (HList '[ Csv ])
+csvPrinter = mkPrinter csvFormat
 
 csvText :: String
-csvText = unlines [csvRow1, csvRow2]
+csvText = csvRow1 ++ "\n" ++ csvRow2
   where csvRow1 = "1,2,3"
         csvRow2 = "4,5,6"
 
 main :: IO ()
 main = parseTest csvParser csvText
- 
-
-foo :: Format String '[]
-foo = Many (Meta 'a')
