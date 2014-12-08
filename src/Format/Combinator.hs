@@ -21,19 +21,20 @@ int = Target
 between :: (Fill l, Fill r) => Format i l -> Format i xs -> Format i r -> Format i xs
 between l p r = l @> p <@ r
 
-
 -- The unit format. The parser succeeds without consuming any input
 -- and does not print nothing at all.
-empty :: (Stream i Identity Char, StringLike i) => Format i '[]
-empty = Meta ()
+unit :: (Stream i Identity Char, StringLike i) => Format i '[]
+unit = Meta ()
+
+-- TODO: add format for failure
 
 --------------------------------------------------------------------------------
--- Combinators for DFormat
+-- Combinators for SFormat
 --------------------------------------------------------------------------------
 
 -- TODO fix associativity to avoid parenthesis
 -- syntactic sugar
-(<$>) :: Proj a args => (HList args -> a) -> Format i args -> DFormat i a
+(<$>) :: Proj a args => (HList args -> a) -> Format i args -> SFormat i a
 (<$>) = CFormat
 (<|>) = Alt
 
@@ -49,14 +50,19 @@ cons (Cons x (Cons xs Nil)) = x:xs
 many :: (Stream i Identity Char, StringLike i) => Format i xs -> Format i (Map [] xs)
 many p = 
   case toSList p of
-    SCons SNil -> DF $ (cons <$> (p <@> many p))
-                    <|> (nil  <$> empty)
+    SCons SNil -> cons <$> (p <@> many p)
+                  <|> (nil  <$> unit)
     _ -> Many p
   
 sepBy :: (Stream i Identity Char, StringLike i, Fill ys) => 
             Format i '[ a ] -> Format i ys -> Format i '[ [ a ] ]
-sepBy p sep = DF $   (cons <$> (p <@> many (sep @> p)))
-                <|>  (nil  <$> empty)
+sepBy p sep = (cons <$> (p <@> many (sep @> p)))
+           <|>  (nil  <$> unit)
+
+-- Tries each format until one succeeds.
+choice :: [SFormat i a] -> SFormat i a
+choice (x:xs) = foldr (<|>) x xs
+choice [] = error "Format.Combinator.choice: empty list"
 
 -- These instances can be automatically derived using TH
 instance Proj [ a ] '[] where

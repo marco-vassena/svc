@@ -29,11 +29,9 @@ import Data.Maybe
 -- Format representation for data-types
 -- Supports total alternatives
 
--- TODO define synonym for Format with a singleton list
 
-data DFormat i a where
-  CFormat :: Proj a args => (HList args -> a) -> Format i args -> DFormat i a
-  Alt :: DFormat i a -> DFormat i a -> DFormat i a
+-- SFormat represents a format containing only one target
+type SFormat i a = Format i '[ a ]
 
 data Format i (xs :: [ * ]) where
   Seq :: Format i xs -> Format i ys -> Format i (Append xs ys)
@@ -46,7 +44,8 @@ data Format i (xs :: [ * ]) where
   Meta :: (Match i a, Printable i a) => a -> Format i '[]
 
   -- Used for algebraic data types
-  DF :: DFormat i a -> Format i '[ a ]
+  CFormat :: Proj a args => (HList args -> a) -> Format i args -> SFormat i a
+  Alt :: SFormat i a -> SFormat i a -> SFormat i a
 
 type Parser i a = Parsec i () a
 
@@ -57,7 +56,8 @@ toSList (SkipL f1 f2) = toSList f2
 toSList (Many f) = smap (undefined :: a -> [] a) (toSList f)
 toSList Target = SCons SNil
 toSList (Meta _) = SNil
-toSList (DF _) = SCons SNil
+toSList (CFormat _ _) = SCons SNil
+toSList (Alt f1 f2) = toSList f1
 
 mkParser :: Format i xs -> Parser i (HList xs)
 mkParser (Seq a b) = append <$> mkParser a <*> mkParser b
@@ -66,12 +66,8 @@ mkParser (SkipL a b) = mkParser a *> mkParser b
 mkParser (Many f) = unlist <$> pure (toSList f) <*> many (mkParser f)
 mkParser Target = hsingleton <$> parse
 mkParser (Meta a) = match a *> pure Nil
-mkParser (DF f) = hsingleton <$> mkDParser f
-
--- Produces a parser for a DFormat
-mkDParser :: DFormat i a -> Parser i a
-mkDParser (CFormat c fargs) = c <$> mkParser fargs
-mkDParser (Alt d1 d2) = mkDParser d1 <|> mkDParser d2
+mkParser (CFormat c fargs) = hsingleton . c <$> mkParser fargs
+mkParser (Alt d1 d2) = mkParser d1 <|> mkParser d2
 
 type Printer i a = a -> Maybe i
 
@@ -84,15 +80,11 @@ mkPrinter (Many f) hs = mconcat $ map (mkPrinter f) xs
   where xs = toList (toSList f) hs
 mkPrinter Target (Cons x Nil) = printer x
 mkPrinter (Meta x) Nil = printer x
-mkPrinter (DF d) (Cons x Nil) = mkDPrinter d x
-
-mkDPrinter :: Monoid i => DFormat i a -> Printer i a
-mkDPrinter (CFormat _ f) a = proj a >>= mkPrinter f 
-mkDPrinter (Alt f1 f2) a = 
-  case mkDPrinter f1 a of
-    Nothing -> mkDPrinter f2 a
+mkPrinter (CFormat _ f) (Cons x Nil) = proj x >>= mkPrinter f 
+mkPrinter (Alt f1 f2) a = 
+  case mkPrinter f1 a of
+    Nothing -> mkPrinter f2 a
     Just s -> Just s
-
 --------------------------------------------------------------------------------
 -- Syntactic sugar - applicative-like style
 (<@>) :: Format i xs -> Format i ys -> Format i (Append xs ys)
@@ -126,6 +118,7 @@ instance StringLike i => Printable i Char where
 
 instance StringLike i => Printable i () where
   printer () = pure mempty
+
 --------------------------------------------------------------------------------
 class Match i a where
   match :: a -> Parser i a

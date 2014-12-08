@@ -26,7 +26,7 @@ rawFormat = sepBy row (Meta '\n')
 
 -- | Targets directly the CSV data type
 csvFormat :: Format String '[ Csv ]
-csvFormat = DF $ csv <$> rawFormat
+csvFormat = csv <$> rawFormat
 
 -- | We can target directly the user-defined data type
 csvParser :: Parser String (HList '[ Csv ])
