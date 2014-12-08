@@ -73,22 +73,21 @@ mkDParser :: DFormat i a -> Parser i a
 mkDParser (CFormat c fargs) = c <$> mkParser fargs
 mkDParser (Alt d1 d2) = mkDParser d1 <|> mkDParser d2
 
-type Printer i a = a -> i
+type Printer i a = a -> Maybe i
 
 mkPrinter :: Monoid i => Format i xs -> Printer i (HList xs)
-mkPrinter (Seq f1 f2) hs = mkPrinter f1 hs1 <> mkPrinter f2 hs2
+mkPrinter (Seq f1 f2) hs = mappend <$> mkPrinter f1 hs1 <*> mkPrinter f2 hs2
   where (hs1, hs2) = split (toSList f1) (toSList f2) hs
-mkPrinter (SkipR x y) xs = mkPrinter x xs <> mkPrinter y fill
-mkPrinter (SkipL x y) ys = mkPrinter x fill <> mkPrinter y ys
+mkPrinter (SkipR x y) xs = mappend <$> mkPrinter x xs <*> mkPrinter y fill
+mkPrinter (SkipL x y) ys = mappend <$> mkPrinter x fill <*> mkPrinter y ys
 mkPrinter (Many f) hs = mconcat $ map (mkPrinter f) xs
   where xs = toList (toSList f) hs
 mkPrinter Target (Cons x Nil) = printer x
 mkPrinter (Meta x) Nil = printer x
-mkPrinter (DF d) (Cons x Nil) = fromMaybe errmsg (mkDPrinter d x)
-  where errmsg = error "mkPrinter: DFormat does not match input value"
+mkPrinter (DF d) (Cons x Nil) = mkDPrinter d x
 
-mkDPrinter :: Monoid i => DFormat i a -> Printer (Maybe i) a
-mkDPrinter (CFormat _ f) a = proj a >>= return . mkPrinter f
+mkDPrinter :: Monoid i => DFormat i a -> Printer i a
+mkDPrinter (CFormat _ f) a = proj a >>= mkPrinter f 
 mkDPrinter (Alt f1 f2) a = 
   case mkDPrinter f1 a of
     Nothing -> mkDPrinter f2 a
@@ -114,17 +113,19 @@ class Parsable i a where
 instance Stream i Identity Char => Parsable i Int where
   parse = read <$> many1 digit 
 --------------------------------------------------------------------------------
+-- TODO Maybe could be avoided here
+-- TODO Switch order of parameters
 class Printable i a where
   printer :: Printer i a
 
 instance StringLike i => Printable i Int where
-  printer = pack . show
+  printer = pure . pack . show
 
 instance StringLike i => Printable i Char where
-  printer = singleton
+  printer = pure . singleton
 
 instance StringLike i => Printable i () where
-  printer () = mempty 
+  printer () = pure mempty
 --------------------------------------------------------------------------------
 class Match i a where
   match :: a -> Parser i a
