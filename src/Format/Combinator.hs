@@ -24,6 +24,10 @@ int = Target
 char :: StreamChar i => Format i '[ Char ]
 char = Target
 
+-- | A format that encodes the presence of the given value
+tag :: (Match i a, Printable i a) => a -> Format i '[]
+tag = Meta
+
 -- | 'between left right f' is a format in which f must occur between 
 -- 'left' and 'right'
 between :: Format i '[] -> Format i '[] -> Format i xs -> Format i xs

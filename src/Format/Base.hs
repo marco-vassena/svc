@@ -106,6 +106,9 @@ instance StringLike i => Printable i Char where
 instance StringLike i => Printable i () where
   printer () = pure mempty
 
+instance StringLike i => Printable i String where
+  printer = pure . pack
+
 --------------------------------------------------------------------------------
 class Match i a where
   match :: a -> Parser i a
@@ -117,6 +120,9 @@ instance StreamChar i => Match i Char where
 
 instance StreamChar i => Match i () where
   match = pure
+
+instance StreamChar i => Match i String where
+  match = string 
 
 --------------------------------------------------------------------------------
 -- String like operations
