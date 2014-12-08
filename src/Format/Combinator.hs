@@ -3,6 +3,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ConstraintKinds #-}
 
 -- This module provides common combinators
 
@@ -10,69 +11,102 @@ module Format.Combinator where
 
 import Format.Base
 import Data.Functor.Identity (Identity)
-import Text.Parsec.Char
+import Text.Parsec.Char hiding (satisfy)
 import Text.Parsec.Combinator hiding ((<|>), count)
 import Text.Parsec.Prim hiding ((<|>), many)
 import Format.HList
 
-int :: (StringLike i, Stream i Identity Char) => Format i '[ Int ]
+-- | A single format that targets 'Int'.
+int :: StreamChar i => Format i '[ Int ]
 int = Target
 
-char :: (StringLike i, Stream i Identity Char) => Format i '[ Char ]
+-- | A single format that targets 'Char'.
+char :: StreamChar i => Format i '[ Char ]
 char = Target
 
-between :: (Fill l, Fill r) => Format i l -> Format i xs -> Format i r -> Format i xs
-between l p r = l @> p <@ r
+-- | 'between left right f' is a format in which f must occur between 
+-- 'left' and 'right'
+between :: Format i '[] -> Format i '[] -> Format i xs -> Format i xs
+between l r p = l @> p <@ r
 
 -- The unit format. The parser succeeds without consuming any input
 -- and does not print nothing at all.
-unit :: (Stream i Identity Char, StringLike i) => Format i '[]
+unit :: StreamChar i => Format i '[]
 unit = Meta ()
 
 -- TODO: add format for failure
 
---------------------------------------------------------------------------------
--- Combinators for SFormat
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+-- Syntactic sugar operators that resemble applicative and alternative style
+-- parsers.
 
--- TODO fix associativity to avoid parenthesis
--- syntactic sugar
+infixr 4 <$>
+
 (<$>) :: Proj a args => (HList args -> a) -> Format i args -> SFormat i a
 (<$>) = CFormat
+
+
+infixr 3 <|>
+
+(<|>) :: Format i xs -> Format i xs -> Format i xs
 (<|>) = Alt
 
-many :: (Stream i Identity Char, StringLike i) => Format i xs -> Format i (Map [] xs)
+
+infixr 4 <@>, <@, @>
+
+(<@>) :: Format i xs -> Format i ys -> Format i (Append xs ys)
+(<@>) = Seq
+
+(<@) :: Format i xs -> Format i '[] -> Format i xs
+(<@) = SkipR 
+
+(@>) :: Format i '[] -> Format i ys -> Format i ys
+(@>) = SkipL 
+
+--------------------------------------------------------------------------------
+
+many :: StreamChar i => Format i xs -> Format i (Map [] xs)
 many p = 
   case toSList p of
-    SCons SNil -> cons <$> (p <@> many p)
-                  <|> (nil  <$> unit)
+    SCons SNil -> cons <$> p <@> many p
+                  <|> nil <$> unit
     _ -> Many p
 
 -- TODO add support for arbitrary formats
-some :: (Stream i Identity Char, StringLike i) => Format i '[ a ]-> Format i '[ [a] ]
+some :: StreamChar i => Format i '[ a ]-> Format i '[ [a] ]
 some p = cons <$> (p <@> many p )
 
-sepBy :: (Stream i Identity Char, StringLike i, Fill ys) => 
-            Format i '[ a ] -> Format i ys -> Format i '[ [ a ] ]
-sepBy p sep = (cons <$> (p <@> many (sep @> p)))
-           <|>  (nil  <$> unit)
+sepBy :: StreamChar i => 
+            Format i '[ a ] -> Format i '[] -> Format i '[ [ a ] ]
+sepBy p sep = cons <$> p <@> many (sep @> p)
+           <|> nil  <$> unit
 
 -- Tries each format until one succeeds.
 -- The given list must be non empty
-choice :: [SFormat i a] -> SFormat i a
+choice :: [Format i xs] -> Format i xs
 choice (x:xs) = foldr (<|>) x xs
 choice [] = error "Format.Combinator.choice: empty list"
 
-count :: (Stream i Identity Char, StringLike i) => Int -> SFormat i a -> SFormat i [a]
+count :: StreamChar i => Int -> SFormat i a -> SFormat i [a]
 count n f | n <= 0    = nil <$> unit
-count n f | otherwise = cons <$> (f <@> count (n - 1) f)
+count n f | otherwise = cons <$> f <@> count (n - 1) f
 
-optional :: (Stream i Identity Char, StringLike i) => SFormat i a -> SFormat i (Maybe a)
+optional :: StreamChar i => SFormat i a -> SFormat i (Maybe a)
 optional f = (just <$> f) <|> (nothing <$> unit)
 
 -- Requires IncoherentInstances :(
 --(<+>) :: SFormat i a -> SFormat i b -> SFormat i (Either a b)
 --f1 <+> f2 = (left <$> f1) <|> (right <$> f2)
+
+-- Specialized version of 'Satisfy' for single formats
+satisfy :: (a -> Bool) -> SFormat i a -> SFormat i a
+satisfy p = Satisfy (\(Cons x _) -> p x)
+
+oneOf :: (Parsable i a, Printable i a, Eq a) => [ a ] -> Format i '[ a ]
+oneOf xs = satisfy (`elem` xs) Target
+
+noneOf :: (Parsable i a, Printable i a, Eq a) => [ a ] -> Format i '[ a ]
+noneOf xs = satisfy (not . (`elem` xs)) Target
 
 -- These instances can be automatically derived using TH
 instance Proj [ a ] '[] where
