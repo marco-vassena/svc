@@ -17,6 +17,7 @@ import Control.Applicative
 import Data.Type.Equality 
 import Data.Functor.Identity
 import Data.Monoid
+import Control.Monad
 import Data.Maybe
 
 -- Issue with many combinator : 
@@ -44,8 +45,8 @@ data Format i (xs :: [ * ]) where
   Meta :: (Match i a, Printable i a) => a -> Format i '[]
 
   -- Used for algebraic data types
-  CFormat :: Proj a args => (HList args -> a) -> Format i args -> SFormat i a
-  Alt :: SFormat i a -> SFormat i a -> SFormat i a
+  CFormat :: Proj a args => (HList args -> a) -> Format i args -> Format i '[ a ]
+  Alt :: Format i xs -> Format i xs -> Format i xs
 
 type Parser i a = Parsec i () a
 
@@ -81,10 +82,8 @@ mkPrinter (Many f) hs = mapM (mkPrinter f) xs >>= return . mconcat
 mkPrinter Target (Cons x Nil) = printer x
 mkPrinter (Meta x) Nil = printer x
 mkPrinter (CFormat _ f) (Cons x Nil) = proj x >>= mkPrinter f 
-mkPrinter (Alt f1 f2) a = 
-  case mkPrinter f1 a of
-    Nothing -> mkPrinter f2 a
-    Just s -> Just s
+mkPrinter (Alt f1 f2) a = msum [mkPrinter f1 a, mkPrinter f2 a]
+
 --------------------------------------------------------------------------------
 -- Syntactic sugar - applicative-like style
 (<@>) :: Format i xs -> Format i ys -> Format i (Append xs ys)
