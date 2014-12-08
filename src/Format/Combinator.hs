@@ -46,9 +46,12 @@ nil Nil = []
 cons :: HList '[a , [a]] -> [ a ]
 cons (Cons x (Cons xs Nil)) = x:xs
 
-many :: (Stream i Identity Char, StringLike i) => Format i '[ a ] -> Format i '[ [ a ] ]
-many p = DF $ (cons <$> (p <@> many p))
-           <|> (nil  <$> empty)
+many :: (Stream i Identity Char, StringLike i) => Format i xs -> Format i (Map [] xs)
+many p = 
+  case toSList p of
+    SCons SNil -> DF $ (cons <$> (p <@> many p))
+                    <|> (nil  <$> empty)
+    _ -> Many p
   
 sepBy :: (Stream i Identity Char, StringLike i, Fill ys) => 
             Format i '[ a ] -> Format i ys -> Format i '[ [ a ] ]
