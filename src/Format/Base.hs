@@ -104,6 +104,9 @@ class Parsable i a where
 
 instance Stream i Identity Char => Parsable i Int where
   parse = read <$> many1 digit 
+
+instance Stream i Identity Char => Parsable i Char where
+  parse = anyChar
 --------------------------------------------------------------------------------
 -- TODO Maybe could be avoided here
 -- TODO Switch order of parameters
@@ -143,7 +146,6 @@ class Monoid i => StringLike i where
 instance StringLike String where
   singleton c = [ c ]
   pack = id
-
 --------------------------------------------------------------------------------
 -- Projects an algebraic data type, packing the arguments
 -- of the constructors used in a 'HList'.
