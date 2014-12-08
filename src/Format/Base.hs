@@ -76,7 +76,7 @@ mkPrinter (Seq f1 f2) hs = mappend <$> mkPrinter f1 hs1 <*> mkPrinter f2 hs2
   where (hs1, hs2) = split (toSList f1) (toSList f2) hs
 mkPrinter (SkipR x y) xs = mappend <$> mkPrinter x xs <*> mkPrinter y fill
 mkPrinter (SkipL x y) ys = mappend <$> mkPrinter x fill <*> mkPrinter y ys
-mkPrinter (Many f) hs = mconcat $ map (mkPrinter f) xs
+mkPrinter (Many f) hs = mapM (mkPrinter f) xs >>= return . mconcat
   where xs = toList (toSList f) hs
 mkPrinter Target (Cons x Nil) = printer x
 mkPrinter (Meta x) Nil = printer x
