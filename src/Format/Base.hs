@@ -57,10 +57,9 @@ mkParser Target = hsingleton <$> parse
 mkParser (Meta a) = match a *> pure Nil
 mkParser (CFormat c fargs) = hsingleton . c <$> mkParser fargs
 mkParser (Alt d1 d2) = mkParser d1 <|> mkParser d2
-mkParser (Satisfy p f) = do
+mkParser (Satisfy p f) = try $ do
   xs <- mkParser f
   if p xs then return xs else fail "Predicate not satisfied"
-
 --------------------------------------------------------------------------------
 -- Printing using a format
 
