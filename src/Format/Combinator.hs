@@ -62,7 +62,7 @@ instance (Stream i Identity a, Match i a) => Match i (AnyOf a) where
 
 infixr 4 <$>
 
-(<$>) :: Proj a args => (HList args -> a) -> Format i args -> SFormat i a
+(<$>) :: Iso a args -> Format i args -> SFormat i a
 (<$>) = CFormat
 
 
@@ -114,9 +114,8 @@ count n f | otherwise = cons <$> f <@> count (n - 1) f
 optional :: StreamChar i => SFormat i a -> SFormat i (Maybe a)
 optional f = (just <$> f) <|> (nothing <$> unit)
 
--- Requires IncoherentInstances :(
---(<+>) :: SFormat i a -> SFormat i b -> SFormat i (Either a b)
---f1 <+> f2 = (left <$> f1) <|> (right <$> f2)
+(<+>) :: SFormat i a -> SFormat i b -> SFormat i (Either a b)
+f1 <+> f2 = (left <$> f1) <|> (right <$> f2)
 
 -- Specialized version of 'Satisfy' for single formats
 satisfy :: (a -> Bool) -> SFormat i a -> SFormat i a
@@ -128,47 +127,37 @@ oneOf xs = satisfy (`elem` xs) Target
 noneOf :: (Parsable i a, Printable i a, Eq a) => [ a ] -> Format i '[ a ]
 noneOf xs = satisfy (not . (`elem` xs)) Target
 
--- These instances can be automatically derived using TH
-instance Proj [ a ] '[] where
-  proj [] = Just Nil
-  proj _ = Nothing
+--------------------------------------------------------------------------------
+-- Partial isomorphisms for standard data types used in combinators
+--------------------------------------------------------------------------------
 
-instance Proj [ a ] '[a , [a]] where
-  proj (x:xs) = Just $ Cons x (Cons xs Nil)
-  proj _ = Nothing
+-- All these definitions can be automatically derived using TH
+nil :: Iso [ a ] '[]
+nil = Iso (const []) proj
+  where proj [] = Just Nil
+        proj _  = Nothing
 
-instance Proj (Maybe a) '[ a ] where
-  proj (Just x) = Just (Cons x Nil)
-  proj _ = Nothing
+cons :: Iso [ a ] '[a , [a]] 
+cons = Iso (\(Cons x (Cons xs _)) -> x:xs) proj
+  where proj (x:xs) = Just $ Cons x (Cons xs Nil)
+        proj _      = Nothing
 
-instance Proj (Maybe a) '[] where
-  proj Nothing = Just Nil
-  proj _ = Nothing
+just :: Iso (Maybe a) '[ a ]
+just = Iso (\(Cons x _) -> Just x) proj
+  where proj (Just x) = Just (Cons x Nil)
+        proj _        = Nothing
 
---instance Proj (Either a b) '[ a ] where
---  proj (Left x) = Just (Cons x Nil)
---
---instance Proj (Either a b) '[ b ] where
---  proj (Right y) = Just (Cons y Nil)
---
+nothing :: Iso (Maybe a) '[]
+nothing = Iso (const Nothing) proj
+  where proj Nothing = Just Nil
+        proj _       = Nothing
 
--- Constructors curried to work with list
-nil :: HList '[] -> [ a ]
-nil Nil = []
+left :: Iso (Either a b) '[ a ]
+left = Iso (\(Cons x _) -> Left x) proj
+  where proj (Left x) = Just (Cons x Nil)
+        proj _        = Nothing
 
-cons :: HList '[a , [a]] -> [ a ]
-cons (Cons x (Cons xs Nil)) = x:xs
-
--- Constructors curried to work with maybe values
-just :: HList '[ a ] -> Maybe a
-just (Cons x Nil) = Just x
-
-nothing :: HList '[] -> Maybe a
-nothing Nil = Nothing
-
--- Constructors curried to work with either vaues
-left :: HList '[ a ] -> Either a b
-left (Cons x Nil) = Left x
-
-right :: HList '[ b ] -> Either a b
-right (Cons y Nil) = Right y
+right :: Iso (Either a b) '[ b ]
+right = Iso (\(Cons x _) -> Right x) proj
+  where proj (Right x) = Just (Cons x Nil)
+        proj _        = Nothing

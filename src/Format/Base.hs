@@ -25,6 +25,11 @@ import Data.Maybe
 -- containing only one target type.
 type SFormat i a = Format i '[ a ]
 
+-- From invertible syntax: A partial isomorphism
+-- The first element is the curried constructor  -- Does it make sense to define it partial???
+-- The second element is the partial deconstructor
+data Iso a xs = Iso (HList xs -> a) (a -> Maybe (HList xs))
+
 data Format i (xs :: [ * ]) where
   -- Compose formats
   Seq :: Format i xs -> Format i ys -> Format i (Append xs ys)
@@ -40,7 +45,7 @@ data Format i (xs :: [ * ]) where
   Meta :: (Match i a, Printable i a) => a -> Format i '[]
 
   -- Used for algebraic data types
-  CFormat :: Proj a args => (HList args -> a) -> Format i args -> Format i '[ a ]
+  CFormat :: Iso a args -> Format i args -> Format i '[ a ]
   Alt :: Format i xs -> Format i xs -> Format i xs
 
 --------------------------------------------------------------------------------
@@ -55,7 +60,7 @@ mkParser (SkipL a b) = mkParser a *> mkParser b
 mkParser (Many f) = unList <$> pure (toSList f) <*> many (mkParser f)
 mkParser Target = hsingleton <$> parse
 mkParser (Meta a) = match a *> pure Nil
-mkParser (CFormat c fargs) = hsingleton . c <$> mkParser fargs
+mkParser (CFormat (Iso c _) fargs) = hsingleton . c <$> mkParser fargs
 mkParser (Alt d1 d2) = mkParser d1 <|> mkParser d2
 mkParser (Satisfy p f) = try $ do
   xs <- mkParser f
@@ -74,7 +79,7 @@ mkPrinter (Many f) hs = mapM (mkPrinter f) xs >>= return . mconcat
   where xs = toList (toSList f) hs
 mkPrinter Target (Cons x Nil) = printer x
 mkPrinter (Meta x) Nil = printer x
-mkPrinter (CFormat _ f) (Cons x Nil) = proj x >>= mkPrinter f 
+mkPrinter (CFormat (Iso _ dec) f) (Cons x Nil) = dec x >>= mkPrinter f 
 mkPrinter (Alt f1 f2) a = msum [mkPrinter f1 a, mkPrinter f2 a]
 mkPrinter (Satisfy p f) xs | p xs      = mkPrinter f xs
 mkPrinter (Satisfy p f) xs | otherwise = fail "Predicate not satisfied"
@@ -132,11 +137,6 @@ class Monoid i => StringLike i where
 instance StringLike String where
   singleton c = [ c ]
   pack = id
---------------------------------------------------------------------------------
--- Projects an algebraic data type, packing the arguments
--- of the constructors used in a 'HList'.
-class Proj a args where
-  proj :: a -> Maybe (HList args)
 
 --------------------------------------------------------------------------------
 instance Reify (Format i) where
