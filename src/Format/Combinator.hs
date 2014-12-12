@@ -4,6 +4,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- This module provides common combinators
 
@@ -12,9 +13,11 @@ module Format.Combinator where
 import Format.Base
 import Data.Functor.Identity (Identity)
 import Text.Parsec.Char hiding (satisfy)
-import Text.Parsec.Combinator hiding ((<|>), count)
+import Text.Parsec.Combinator hiding ((<|>), count, choice)
+import qualified Text.Parsec.Combinator as P
 import Text.Parsec.Prim hiding ((<|>), many)
 import Format.HList
+import Control.Applicative ((*>), pure)
 
 -- | A single format that targets 'Int'.
 int :: StreamChar i => Format i '[ Int ]
@@ -37,6 +40,19 @@ between l r p = l @> p <@ r
 -- and does not print nothing at all.
 unit :: StreamChar i => Format i '[]
 unit = Meta ()
+
+-- | It represents a set of characters to be matched.
+data AnyOf a = AnyOf a [a]
+
+anyOf :: (Stream i Identity a, Match i a, Printable i a) => [a] -> Format i '[]
+anyOf (c:cs) = Meta (AnyOf c cs)
+anyOf [] = error "Format.Char.anyOf : empty list"
+
+instance Printable i a => Printable i (AnyOf a) where
+  printer (AnyOf c cs) = printer c
+
+instance (Stream i Identity a, Match i a) => Match i (AnyOf a) where
+  match a@(AnyOf c cs) = P.choice (map match(c:cs)) *> pure a
 
 -- TODO: add format for failure
 

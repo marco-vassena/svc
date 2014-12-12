@@ -12,17 +12,6 @@ module Format.Char where
 import Data.Char
 import Format.Base
 import Format.Combinator
-import Control.Applicative (pure, (*>))
-import qualified Text.Parsec.Char as P
-
--- TODO anyOf maybe generalized for any a
-
--- | It represents a set of characters to be matched.
-data AnyOf = AnyOf Char [Char]
-
-anyOf :: StreamChar i => [Char] -> Format i '[]
-anyOf (c:cs) = Meta (AnyOf c cs)
-anyOf [] = error "Format.Char.anyOf : empty list"
 
 spaces :: StreamChar i => Format i '[]
 spaces = (many spaceChars) @> unit
@@ -63,10 +52,3 @@ hexDigit = satisfy isHexDigit char
 
 octDigit :: StreamChar i => SFormat i Char
 octDigit = satisfy isOctDigit char
-
---------------------------------------------------------------------------------
-instance StringLike i => Printable i AnyOf where
-  printer (AnyOf c cs) = pure $ singleton c
-
-instance StreamChar i => Match i AnyOf where
-  match a@(AnyOf c cs) = P.oneOf (c:cs) *> pure a
