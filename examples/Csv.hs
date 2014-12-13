@@ -1,32 +1,54 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GADTs #-}
 
 module Csv where
 
 import Format.Base
 import Format.Combinator
+import Format.Char
 import Format.HList
-import Text.Parsec.Prim
+import Format.Prim
+import qualified Text.Parsec.Prim as P
 
+
+--------------------------------------------------------------------------------
+-- | Csv specification as Grammar
+csvGrammar :: SFormat String (Either [Either [Int] Int] (Either [Int] Int))
+csvGrammar = many (csvRow <@ tag '\n') <+> csvRow 
+  where csvRow = many (int <@ tag ',' ) <+> int
+
+-- Now the same problem with rows
+
+-- This is problematic if we use Parsec for parsing, because its choice
+-- operator is not symmetric.
+-- parsing 1,2 fails because the left branch consume input,
+-- but then fails because of ','
+-- Possible fix <+> becomes a Format constructor
+-- we can enforce our parsing strategy namely try a <|> try b
+
+--------------------------------------------------------------------------------
+
+-- An algebraic data type that represents a Csv table
 data Csv = Csv [[Int]]
   deriving Show
 
--- | Unwraps a proper HList and build a Csv
-csv :: HList '[ [[Int]] ] -> Csv
-csv = huncurry Csv 
+-- | Isomorphism for Csv data type
+csv :: Iso Csv '[ [[Int]] ]
+csv = Iso (\(Cons xss _) -> Csv xss) proj
+  where proj (Csv xss) = Just $ Cons xss Nil
 
-instance Proj Csv '[ [[ Int ]] ] where
-  proj (Csv xs) = Just $ Cons xs Nil
-
--- | Targets a raw HList '[ [[Int]] ]
+-- | A format that targets a raw HList '[ [[Int]] ]
 rawFormat :: Format String '[ [[Int]] ]
-rawFormat = sepBy row (Meta '\n')
-  where row = sepBy int (Meta ',')
+rawFormat = sepBy row newline
+  where row = sepBy int (tag ',')
 
--- | Targets directly the CSV data type
-csvFormat :: Format String '[ Csv ]
+-- | A format that targets directly the CSV data type
+csvFormat :: SFormat String Csv
 csvFormat = csv <$> rawFormat
+
+-- TODO add utility functions to hide the packing/unpacking for singleton HList
 
 -- | We can target directly the user-defined data type
 csvParser :: Parser String (HList '[ Csv ])
@@ -37,10 +59,17 @@ csvParser = mkParser csvFormat
 csvPrinter :: Printer String (HList '[ Csv ])
 csvPrinter = mkPrinter csvFormat
 
+--------------------------------------------------------------------------------
+-- A string containing a well-formed csv table
 csvText :: String
 csvText = csvRow1 ++ "\n" ++ csvRow2
   where csvRow1 = "1,2,3"
         csvRow2 = "4,5,6"
 
+csv1 :: Csv
+csv1 = Csv [[1,2,3],[4,5,6]]
+
 main :: IO ()
-main = parseTest csvParser csvText
+main = do
+  roundTrip csvFormat csvText
+  roundTrip csvGrammar csvText
