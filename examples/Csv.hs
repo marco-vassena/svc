@@ -15,18 +15,9 @@ import qualified Text.Parsec.Prim as P
 
 --------------------------------------------------------------------------------
 -- | Csv specification as Grammar
-csvGrammar :: SFormat String (Either [Either [Int] Int] (Either [Int] Int))
-csvGrammar = many (csvRow <@ tag '\n') <+> csvRow 
-  where csvRow = many (int <@ tag ',' ) <+> int
-
--- Now the same problem with rows
-
--- This is problematic if we use Parsec for parsing, because its choice
--- operator is not symmetric.
--- parsing 1,2 fails because the left branch consume input,
--- but then fails because of ','
--- Possible fix <+> becomes a Format constructor
--- we can enforce our parsing strategy namely try a <|> try b
+csvGrammar :: Format String '[Int, [Int], [Int], [[Int]]]
+csvGrammar = csvRow <@> many (tag '\n' @> csvRow)
+  where csvRow = int <@> many (tag ',' @> int)
 
 --------------------------------------------------------------------------------
 
