@@ -2,7 +2,20 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 
-module Control.Isomorphism.Partial.Prim where
+module Control.Isomorphism.Partial.Prim 
+  ( module Control.Isomorphism.Partial.Base
+  , inverse
+  , apply
+  , unapply
+  , sapply
+  , sunapply
+  , unit
+  , (***)
+  , compose
+  , identity
+  , iterate
+  , associate
+  ) where
 
 import Prelude ()
 
@@ -11,6 +24,7 @@ import Data.Maybe
 
 import Control.Category
 import Control.Monad
+import Control.Isomorphism.Partial.Base
 import Control.Isomorphism.Partial.Constructors
 
 import Data.Type.Equality hiding (apply, unapply)

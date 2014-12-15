@@ -12,23 +12,20 @@
 
 module Format.Base where
 
-import Format.HList
-import Text.Parsec hiding (parse, many, (<|>))
+import Control.Isomorphism.Partial
 import Control.Applicative
-import Data.Type.Equality 
+import Control.Monad
+
 import Data.Functor.Identity
 import Data.Monoid
-import Control.Monad
 import Data.Maybe
+import Data.HList
+
+import Text.Parsec hiding (parse, many, (<|>))
 
 -- | 'SFormat' stands for Single Format and represents a 'Format'
 -- containing only one target type.
 type SFormat i a = Format i '[ a ]
-
--- From invertible syntax: A partial isomorphism
--- The first element is the curried constructor  -- Does it make sense to define it partial???
--- The second element is the partial deconstructor
-data Iso a xs = Iso (HList xs -> a) (a -> Maybe (HList xs))
 
 data Format i (xs :: [ * ]) where
   -- Compose formats
@@ -45,7 +42,7 @@ data Format i (xs :: [ * ]) where
   Meta :: (Match i a, Printable i a) => a -> Format i '[]
 
   -- Used for algebraic data types
-  CFormat :: Iso a args -> Format i args -> Format i '[ a ]
+  CFormat :: Iso args xs -> Format i args -> Format i xs
   Alt :: Format i xs -> Format i xs -> Format i xs
 
 --------------------------------------------------------------------------------
@@ -60,7 +57,11 @@ mkParser (SkipL a b) = mkParser a *> mkParser b
 mkParser (Many f) = unList <$> pure (toSList f) <*> many (mkParser f)
 mkParser Target = hsingleton <$> parse
 mkParser (Meta a) = match a *> pure Nil
-mkParser (CFormat (Iso c _) fargs) = hsingleton . c <$> mkParser fargs
+mkParser (CFormat i fargs) = try $ do
+  args <- mkParser fargs
+  case apply i args of
+    Just xs -> return xs
+    Nothing -> fail "Construcor failed"
 mkParser (Alt d1 d2) = mkParser d1 <|> mkParser d2
 mkParser (Satisfy p f) = try $ do
   xs <- mkParser f
@@ -79,7 +80,10 @@ mkPrinter (Many f) hs = mapM (mkPrinter f) xs >>= return . mconcat
   where xs = toList (toSList f) hs
 mkPrinter Target (Cons x Nil) = printer x
 mkPrinter (Meta x) Nil = printer x
-mkPrinter (CFormat (Iso _ dec) f) (Cons x Nil) = dec x >>= mkPrinter f 
+mkPrinter (CFormat i f) xs = 
+  case unapply i xs of
+    Nothing -> fail "Deconstructor failed"
+    Just ys -> mkPrinter f ys
 mkPrinter (Alt f1 f2) a = msum [mkPrinter f1 a, mkPrinter f2 a]
 mkPrinter (Satisfy p f) xs | p xs      = mkPrinter f xs
 mkPrinter (Satisfy p f) xs | otherwise = fail "Predicate not satisfied"
@@ -146,6 +150,6 @@ instance Reify (Format i) where
   toSList (Many f) = smap (undefined :: a -> [] a) (toSList f)
   toSList Target = SCons SNil
   toSList (Meta _) = SNil
-  toSList (CFormat _ _) = SCons SNil
+  toSList (CFormat i _) = sunapply i
   toSList (Alt f1 f2) = toSList f1
   toSList (Satisfy p f) = toSList f

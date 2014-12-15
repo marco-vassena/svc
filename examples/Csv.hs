@@ -5,11 +5,15 @@
 
 module Csv where
 
+import Control.Isomorphism.Partial
+
+import Data.HList
+
 import Format.Base
 import Format.Combinator
 import Format.Char
-import Format.HList
 import Format.Prim
+
 import qualified Text.Parsec.Prim as P
 
 
@@ -26,8 +30,8 @@ data Csv = Csv [[Int]]
   deriving Show
 
 -- | Isomorphism for Csv data type
-csv :: Iso Csv '[ [[Int]] ]
-csv = Iso (\(Cons xss _) -> Csv xss) proj
+csv :: CIso '[ [[Int]] ] Csv 
+csv = iso (happly Csv) proj (SCons SNil)
   where proj (Csv xss) = Just $ Cons xss Nil
 
 -- | A format that targets a raw HList '[ [[Int]] ]

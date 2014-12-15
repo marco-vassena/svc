@@ -16,8 +16,9 @@ import Text.Parsec.Char hiding (satisfy)
 import Text.Parsec.Combinator hiding ((<|>), count, choice)
 import qualified Text.Parsec.Combinator as P
 import Text.Parsec.Prim hiding ((<|>), many)
-import Format.HList
+import Data.HList
 import Control.Applicative ((*>), pure)
+import Control.Isomorphism.Partial hiding (unit)
 
 -- | A single format that targets 'Int'.
 int :: StreamChar i => Format i '[ Int ]
@@ -62,7 +63,7 @@ instance (Stream i Identity a, Match i a) => Match i (AnyOf a) where
 
 infixr 4 <$>
 
-(<$>) :: Iso a args -> Format i args -> SFormat i a
+(<$>) :: Iso args xs -> Format i args -> Format i xs
 (<$>) = CFormat
 
 
@@ -126,38 +127,3 @@ oneOf xs = satisfy (`elem` xs) Target
 
 noneOf :: (Parsable i a, Printable i a, Eq a) => [ a ] -> Format i '[ a ]
 noneOf xs = satisfy (not . (`elem` xs)) Target
-
---------------------------------------------------------------------------------
--- Partial isomorphisms for standard data types used in combinators
---------------------------------------------------------------------------------
-
--- All these definitions can be automatically derived using TH
-nil :: Iso [ a ] '[]
-nil = Iso (const []) proj
-  where proj [] = Just Nil
-        proj _  = Nothing
-
-cons :: Iso [ a ] '[a , [a]] 
-cons = Iso (\(Cons x (Cons xs _)) -> x:xs) proj
-  where proj (x:xs) = Just $ Cons x (Cons xs Nil)
-        proj _      = Nothing
-
-just :: Iso (Maybe a) '[ a ]
-just = Iso (\(Cons x _) -> Just x) proj
-  where proj (Just x) = Just (Cons x Nil)
-        proj _        = Nothing
-
-nothing :: Iso (Maybe a) '[]
-nothing = Iso (const Nothing) proj
-  where proj Nothing = Just Nil
-        proj _       = Nothing
-
-left :: Iso (Either a b) '[ a ]
-left = Iso (\(Cons x _) -> Left x) proj
-  where proj (Left x) = Just (Cons x Nil)
-        proj _        = Nothing
-
-right :: Iso (Either a b) '[ b ]
-right = Iso (\(Cons x _) -> Right x) proj
-  where proj (Right x) = Just (Cons x Nil)
-        proj _        = Nothing

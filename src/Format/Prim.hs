@@ -6,7 +6,7 @@
 module Format.Prim where
 
 import Format.Base
-import Format.HList
+import Data.HList
 import Data.Monoid
 import qualified Text.Parsec as P
 import Control.Applicative
