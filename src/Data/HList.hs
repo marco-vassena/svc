@@ -11,7 +11,7 @@
 -- This module defines typed heterogeneous lists
 -- and few basic functions to deal with them.
 
-module Format.HList where
+module Data.HList where
 
 import GHC.TypeLits
 import Data.Proxy
@@ -50,6 +50,9 @@ hmap' (SCons s) f (Cons x xs) = Cons (f x) (hmap' s f xs)
 hsingleton :: a -> HList '[ a ]
 hsingleton a = Cons a Nil
 
+hHead :: HList (x ': xs) -> x
+hHead (Cons x _) = x
+
 --------------------------------------------------------------------------------
 -- The singleton type of lists, which allows us to take a list as a
 -- term-level and a type-level argument at the same time.
@@ -74,6 +77,10 @@ smap f (SCons xs) = SCons (smap f xs)
 -- list for which it is possible to produce a 'SList' witness object.
 class Reify f where
   toSList :: f xs -> SList xs
+
+instance Reify HList where
+  toSList Nil = SNil
+  toSList (Cons x xs) = SCons (toSList xs)
 
 --------------------------------------------------------------------------------
 
@@ -118,6 +125,11 @@ split SNil s hs = (Nil, hs)
 split (SCons s1) s2 (Cons h hs) = (Cons h hs1, hs2)
   where (hs1, hs2) = split s1 s2 hs
 
+--split :: SList xs -> HList (Append xs ys) -> (HList xs, HList ys)
+--split SNil hs = (Nil, hs)
+--split (SCons s1) (Cons h hs) = (Cons h hs1, hs2)
+--  where (hs1, hs2) = split s1 hs
+
 -- Apply an uncurried function to an heterogeneous list.
 -- This function is type safe and will result in a missing
 -- instance if the function arguments types don't match with 
@@ -139,6 +151,12 @@ instance HUncurry a '[] a where
 
 instance HUncurry b xs c => HUncurry (a -> b) (a ': xs) c where
   huncurry f (Cons x xs) = huncurry (f x) xs
+
+happly :: (a -> b) -> HList '[ a ] -> b
+happly f (Cons x _) = f x
+
+happly2 :: (a -> b -> c) -> HList '[a, b] -> c
+happly2 f (Cons x (Cons y _)) = f x y
 
 --------------------------------------------------------------------------------
 -- Debugging
