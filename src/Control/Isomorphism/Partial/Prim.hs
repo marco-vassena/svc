@@ -9,15 +9,14 @@ module Control.Isomorphism.Partial.Prim
   , unapply
   , sapply
   , sunapply
-  , unit
   , (***)
-  , compose
+  , (<.>)
   , identity
   , iterate
   , associate
   ) where
 
-import Prelude ()
+import Prelude (undefined)
 
 import Data.HList
 import Data.Maybe
@@ -45,15 +44,15 @@ unapply :: Iso xs ys -> HList ys -> Maybe (HList xs)
 unapply (Iso _ g _ _) = g 
 
 -- | Identity isomorphism. Corresponds to id from Category, however
--- we need 'SList' objects to qualify their shape.
+-- we need a 'SList' object to determine its shape.
 identity :: SList xs -> Iso xs xs
 identity s = Iso Just Just s s
 
 -- | Compose two isomoprhism. Corresponds to (.) from Category.
-compose :: Iso ys zs -> Iso xs ys -> Iso xs zs
-compose g f = Iso (apply f >=> apply g) (unapply g >=> unapply f) (sapply f) (sunapply g)
+(<.>) :: Iso ys zs -> Iso xs ys -> Iso xs zs
+(<.>) g f = Iso (apply f >=> apply g) (unapply g >=> unapply f) (sapply f) (sunapply g)
 
-(<.>) = compose
+infixr 9 <.>
 
 iterate :: Iso xs xs -> Iso xs xs
 iterate step = Iso f g (sapply step) (sunapply step)
@@ -80,9 +79,16 @@ i *** j = Iso f g (sappend s1 s3) (sappend s2 s4)
          g hs = liftM2 happend (unapply i ys) (unapply j ws)
             where (ys, ws) = split s2 s4 hs
 
-unit :: Iso '[] '[]
-unit = identity SNil
+foldl :: Iso '[a, b] '[ a ] -> Iso '[a, [b]] '[ a ]
+foldl i =  inverse (identity (SCons SNil))
+       <.> ((identity (SCons SNil)) *** (inverse nil))
+       <.> iterate (step i)
+  where 
+    step :: Iso '[a, b] '[ a ] -> Iso '[a, [b]] '[a, [b]]
+    step i = (i *** identity (SCons SNil))
+          <.> (identity (SCons SNil) *** (inverse cons))
 
+-- We actually don't need this, because lists are flat
 associate :: SList xs -> SList ys -> SList zs -> Iso (Append xs (Append ys zs)) (Append (Append xs ys) zs)
 associate s1 s2 s3 = Iso f g (sappend s1 (sappend s2 s3)) (sappend (sappend s1 s2) s3)
   where f hs = case propAssociative s1 s2 s3 of
@@ -96,7 +102,3 @@ propAssociative SNil s2 s3 = Refl
 propAssociative (SCons s1) s2 s3 =
   case propAssociative s1 s2 s3 of
     Refl -> Refl
-
---foldl :: Iso '[a, b] '[ a ] -> Iso '[a, [b]] '[ a ]
---foldl i = inverse unit
---       <.> (identity *** 
