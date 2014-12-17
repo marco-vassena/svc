@@ -18,7 +18,9 @@ import qualified Text.Parsec.Combinator as P
 import Text.Parsec.Prim hiding ((<|>), many)
 import Data.HList
 import Control.Applicative ((*>), pure)
-import Control.Isomorphism.Partial hiding (unit)
+import Control.Isomorphism.Partial
+import qualified Control.Isomorphism.Partial as C
+
 
 -- | A single format that targets 'Int'.
 int :: StreamChar i => Format i '[ Int ]
@@ -127,3 +129,8 @@ oneOf xs = satisfy (`elem` xs) Target
 
 noneOf :: (Parsable i a, Printable i a, Eq a) => [ a ] -> Format i '[ a ]
 noneOf xs = satisfy (not . (`elem` xs)) Target
+
+-- | The `chainl1` combinator is used to parse a
+-- left-associative chain of infix operators. 
+chainl1 :: StreamChar i => SFormat i a -> SFormat i b -> Iso '[a, b, a] '[a] -> SFormat i a
+chainl1 arg op f = C.foldl' (SCons (SCons SNil)) f <$> arg <@> many (op <@> arg)

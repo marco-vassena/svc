@@ -1,6 +1,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Control.Isomorphism.Partial.Prim 
   ( module Control.Isomorphism.Partial.Base
@@ -14,9 +15,12 @@ module Control.Isomorphism.Partial.Prim
   , identity
   , iterate
   , associate
+  , foldl
+  , foldl'
   ) where
 
-import Prelude (undefined)
+import Prelude (($))
+import qualified Prelude as P
 
 import Data.HList
 import Data.Maybe
@@ -87,6 +91,43 @@ foldl i =  inverse (identity (SCons SNil))
     step :: Iso '[a, b] '[ a ] -> Iso '[a, [b]] '[a, [b]]
     step i = (i *** identity (SCons SNil))
           <.> (identity (SCons SNil) *** (inverse cons))
+
+idInverseNil :: SList as -> Iso (Map [] as) '[ ]
+idInverseNil SNil = identity SNil
+idInverseNil (SCons s) = (inverse nil) *** (idInverseNil s)
+
+idInverseCons :: SList as -> Iso (Map [] as) (Append as (Map [] as))
+idInverseCons s = unpack (mapPreserveLength s (\_ -> [])) (zipped s)
+  where zipped :: SList as -> Iso (Map [] as) (ZipWith (,) as (Map [] as))
+        zipped SNil = identity SNil
+        zipped (SCons s) = inverse (uncurry cons) *** zipped s
+  
+mapPreserveLength :: SList as -> (forall a . a -> f a) -> SameLength as (Map f as)
+mapPreserveLength SNil _ = Empty
+mapPreserveLength (SCons s) f = One (mapPreserveLength s f)
+       
+unpack :: SameLength as bs -> Iso cs (ZipWith (,) as bs) -> Iso cs (Append as bs)
+unpack p i = Iso f g (sapply i) (sappend sAs sBs)
+  where (sAs, sBs) = toSList2 p
+        f cs = apply i cs >>= return . (P.uncurry happend) . hunzip p
+        g cs = unapply i (hzip p as bs)
+          where (as, bs) = split sAs sBs cs
+
+-- Uncurry for isomorphisms
+uncurry :: Iso '[a, b] '[ c ] -> Iso '[(a , b)] '[ c ]
+uncurry i = Iso f g (SCons SNil) (SCons SNil)
+  where f (Cons (a, b) _) = apply i $ Cons a (Cons b Nil)
+        g hs = unapply i hs >>= return . hsingleton . happly2 (,)
+
+
+foldl' :: SList xs -> Iso (a ': xs) '[ a ] -> Iso (a ': Map [] xs) '[ a ]
+foldl' s i =  identity (SCons SNil)
+      <.> ((identity (SCons SNil)) *** (idInverseNil s))
+      <.> iterate (step s i)
+
+  where step :: SList xs -> Iso (a ': xs) '[ a ] -> Iso (a ': Map [] xs) (a ': Map [] xs)
+        step s i = (i *** identity (smap (\_ -> []) s))
+              <.> ((identity (SCons SNil)) *** idInverseCons s)
 
 -- We actually don't need this, because lists are flat
 associate :: SList xs -> SList ys -> SList zs -> Iso (Append xs (Append ys zs)) (Append (Append xs ys) zs)

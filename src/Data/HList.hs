@@ -32,6 +32,12 @@ type family Map (f :: * -> *) (xs :: [ * ]) :: [ * ] where
   Map f '[] = '[]
   Map f (x ': xs) = f x ': Map f xs
 
+-- Type level zip
+type family ZipWith (f :: * -> * -> *) (xs :: [ * ]) (ys :: [ * ]) where
+  ZipWith f '[] '[] = '[]
+  ZipWith f (x ': xs) (y ': ys) = f x y ': ZipWith f xs ys
+  ZipWith f  xs ys  = '[]
+
 -- Appends two heterogeneous lists
 happend :: HList xs -> HList ys -> HList (Append xs ys)
 happend Nil ys = ys
@@ -157,6 +163,29 @@ happly f (Cons x _) = f x
 
 happly2 :: (a -> b -> c) -> HList '[a, b] -> c
 happly2 f (Cons x (Cons y _)) = f x y
+
+--------------------------------------------------------------------------------
+-- Proof that two hlist have the same length
+data SameLength (xs :: [ * ]) (ys :: [ * ]) where
+  Empty :: SameLength '[] '[]
+  One :: SameLength xs ys -> SameLength (x ': xs) (y ': ys)
+
+hzip :: SameLength xs ys -> HList xs -> HList ys -> HList (ZipWith (,) xs ys)
+hzip Empty Nil Nil = Nil
+hzip (One p) (Cons x xs) (Cons y ys) = Cons (x, y) (hzip p xs ys)
+
+hunzip :: SameLength xs ys -> HList (ZipWith (,) xs ys) -> (HList xs, HList ys)
+hunzip Empty Nil = (Nil, Nil)
+hunzip (One p) (Cons (a, b) xs) =
+  case hunzip p xs of
+    (as, bs) -> (Cons a as, Cons b bs)
+
+-- TODO better name
+toSList2 :: SameLength xs ys -> (SList xs, SList ys)
+toSList2 Empty = (SNil, SNil)
+toSList2 (One p) =
+  case toSList2 p of
+    (s1, s2) -> (SCons s1, SCons s2)
 
 --------------------------------------------------------------------------------
 -- Debugging
