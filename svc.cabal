@@ -24,12 +24,13 @@ library
                       transformers >= 0.3
   default-language:   Haskell2010
 
-test-suite test-format
+test-suite test-iso
   type:               exitcode-stdio-1.0
-  hs-source-dirs:     test
-  main-is:            TestFormat.hs
-  build-depends:      base >=4.7 && <4.8, attoparsec >=0.10.4.0 
-
+  hs-source-dirs:     test, src
+  main-is:            TestIso.hs
+  other-modules :     Tree
+  build-depends:      base >=4.7 && <4.8, svc, QuickCheck
+  default-language:   Haskell2010
 
 --executable svc
 --  -- main-is:             
