@@ -4,5 +4,9 @@ module Control.Isomorphism.Partial.Base where
 import Data.HList
 import Data.Maybe
 
-data Iso xs ys = Iso (HList xs -> Maybe (HList ys)) (HList ys -> Maybe (HList xs)) (SList xs) (SList ys)
+-- | Convenient type synonym that encodes a partial
+-- function between two typed 'HList'
+type PFunction xs ys = HList xs -> Maybe (HList ys)
+
+data Iso xs ys = Iso (PFunction xs ys) (PFunction ys xs) (SList xs) (SList ys)
 

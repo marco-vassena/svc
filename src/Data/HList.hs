@@ -80,14 +80,22 @@ smap :: (forall a . a -> f a) -> SList xs -> SList (Map f xs)
 smap _ SNil = SNil
 smap f (SCons xs) = SCons (smap f xs) 
 
--- A class of objects parametrized over a type level
--- list for which it is possible to produce a 'SList' witness object.
+-- | A class of objects parametrized over a type level list 
 class Reify f where
+  -- | Return the 'SList' witness object for the parametrized list.
   toSList :: f xs -> SList xs
+
+-- A class of objects parametrized over two type level lists
+class Reify2 f where
+  -- | Returns the 'SList' witness object for both the parametrized lists.
+  toSList2 :: f xs ys -> (SList xs, SList ys)
 
 instance Reify HList where
   toSList Nil = SNil
   toSList (Cons x xs) = SCons (toSList xs)
+
+instance Reify2 f => Reify (f xs) where
+  toSList = snd . toSList2
 
 --------------------------------------------------------------------------------
 
@@ -148,13 +156,22 @@ data SameLength (xs :: [ * ]) (ys :: [ * ]) where
   Empty :: SameLength '[] '[]
   One :: SameLength xs ys -> SameLength (x ': xs) (y ': ys)
 
--- | Zips two 'HList' of the same length.
+-- @'zipWith'@ generalises @'zip'@ by zipping with the function given 
+-- as the first argument, instead of a tupling function.
+-- Corresponds to @zipWith f xs ys@ for normal lists, however
+-- the proof @'SameLength' xs ys@ ensures that the two lists
+-- have the same length, thus no elements are discarded. 
+hZipWith :: SameLength xs ys -> (forall a b . a -> b -> f a b) 
+         -> HList xs -> HList ys -> HList (ZipWith f xs ys)
+hZipWith Empty f Nil Nil = Nil
+hZipWith (One p) f (Cons x xs) (Cons y ys) = Cons (f x y) (hZipWith p f xs ys)
+
+-- | Zips two 'HList' of the same length, in pairs.
 -- Corresponds to @zip xs ys@ for normal lists, however
 -- the proof @'SameLength' xs ys@ ensures that the two lists
 -- have the same length, thus no elements are discarded. 
 hzip :: SameLength xs ys -> HList xs -> HList ys -> HList (ZipWith (,) xs ys)
-hzip Empty Nil Nil = Nil
-hzip (One p) (Cons x xs) (Cons y ys) = Cons (x, y) (hzip p xs ys)
+hzip p xs ys = hZipWith p (,) xs ys
 
 -- | Unzip a zipped list in two distinct 'HList'.
 hunzip :: SameLength xs ys -> HList (ZipWith (,) xs ys) -> (HList xs, HList ys)
@@ -162,14 +179,6 @@ hunzip Empty Nil = (Nil, Nil)
 hunzip (One p) (Cons (a, b) xs) =
   case hunzip p xs of
     (as, bs) -> (Cons a as, Cons b bs)
-
--- Produces the singleton list objects for each of the two lists indexed in 
--- the given @'SameLength'@ proof object.
-sameLength2SList :: SameLength xs ys -> (SList xs, SList ys)
-sameLength2SList Empty = (SNil, SNil)
-sameLength2SList (One p) =
-  case sameLength2SList p of
-    (s1, s2) -> (SCons s1, SCons s2)
 
 -- The property 'SameLength' is symmetric.
 -- We can switch the two indexed lists freely.
@@ -185,10 +194,11 @@ mapPreservesLength :: SList as -> (forall a . a -> f a) -> SameLength as (Map f 
 mapPreservesLength SNil _ = Empty
 mapPreservesLength (SCons s) f = One (mapPreservesLength s f)
 
--- Because of the definition of Reify we can only produce
--- the singleton type SList for the second list.
-instance Reify (SameLength xs) where
-  toSList = snd . sameLength2SList
+instance Reify2 SameLength where
+  toSList2 Empty = (SNil, SNil)
+  toSList2 (One p) =
+    case toSList2 p of
+      (s1, s2) -> (SCons s1, SCons s2)
 
 -- | Proof that append is associative.
 appendAssociative :: SList xs -> SList ys -> SList zs 

@@ -18,7 +18,7 @@ module Control.Isomorphism.Partial.Prim
   , foldl
   ) where
 
-import Prelude (($))
+import Prelude (($), fst, snd)
 import qualified Prelude as P
 
 import Data.HList
@@ -37,13 +37,16 @@ apply :: Iso xs ys -> HList xs -> Maybe (HList ys)
 apply (Iso f _ _ _) = f
 
 sapply :: Iso xs ys -> SList xs
-sapply (Iso _ _ s1 _) = s1
+sapply = fst . toSList2
 
 sunapply :: Iso xs ys -> SList ys
-sunapply (Iso _ _ _ s2) = s2
+sunapply = snd . toSList2
 
 unapply :: Iso xs ys -> HList ys -> Maybe (HList xs)
 unapply (Iso _ g _ _) = g 
+
+instance Reify2 Iso where
+  toSList2 (Iso _ _ s1 s2) = (s1, s2)
 
 -- | Identity isomorphism. Corresponds to id from Category, however
 -- we need a 'SList' object to determine its shape.
@@ -88,7 +91,7 @@ i *** j = Iso f g (sappend s1 s3) (sappend s2 s4)
 -- that append the two 'HList' one after the other.
 unpack :: SameLength as bs -> Iso cs (ZipWith (,) as bs) -> Iso cs (Append as bs)
 unpack p i = Iso f g (sapply i) (sappend sAs sBs)
-  where (sAs, sBs) = sameLength2SList p
+  where (sAs, sBs) = toSList2 p
         f cs = apply i cs >>= return . (P.uncurry happend) . hunzip p
         g cs = unapply i (hzip p as bs)
           where (as, bs) = split sAs sBs cs
