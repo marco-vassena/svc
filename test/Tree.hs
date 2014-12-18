@@ -6,6 +6,7 @@
 module Tree where
 
 import Control.Isomorphism.Partial
+import qualified Control.Isomorphism.Partial as C
 import Data.HList
 
 data Tree = Branch Tree Tree
@@ -23,6 +24,4 @@ branch = iso (\(Cons b1 (Cons b2 _)) -> Branch b1 b2) proj (SCons (SCons SNil))
         proj _ = Nothing
 
 foldlTree :: Iso '[Tree, [Tree]] '[ Tree ]
-foldlTree = foldl' (SCons SNil) branch
-
-
+foldlTree = C.foldl (SCons SNil) branch

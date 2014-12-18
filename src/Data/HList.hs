@@ -15,6 +15,7 @@ module Data.HList where
 
 import GHC.TypeLits
 import Data.Proxy
+import Data.Type.Equality
 
 -- Heterogeneous list, indexed by a type level list that
 -- mantains the types of the elements contained.
@@ -131,62 +132,71 @@ split SNil s hs = (Nil, hs)
 split (SCons s1) s2 (Cons h hs) = (Cons h hs1, hs2)
   where (hs1, hs2) = split s1 s2 hs
 
---split :: SList xs -> HList (Append xs ys) -> (HList xs, HList ys)
---split SNil hs = (Nil, hs)
---split (SCons s1) (Cons h hs) = (Cons h hs1, hs2)
---  where (hs1, hs2) = split s1 hs
-
--- Apply an uncurried function to an heterogeneous list.
--- This function is type safe and will result in a missing
--- instance if the function arguments types don't match with 
--- the types of the values contained in the list.
--- 
--- > f :: Int -> Char -> String -> String
--- > f x c s = show x ++ show c ++ s
--- > 
--- > input :: HList '[ Int, Char, String]
--- > input = Cons 1 $ Cons 'a' $ Cons "foo" $ Nil
--- > 
--- > foobar :: String
--- > foobar = (huncurry f) input
-class HUncurry a xs c where
-  huncurry :: a -> HList xs -> c
-
-instance HUncurry a '[] a where
-  huncurry x Nil = x
-
-instance HUncurry b xs c => HUncurry (a -> b) (a ': xs) c where
-  huncurry f (Cons x xs) = huncurry (f x) xs
-
+-- | Conveniently applies a one-argument function to an @'HList'@
+-- containing an element of the argument type, hiding unpacking.
 happly :: (a -> b) -> HList '[ a ] -> b
 happly f (Cons x _) = f x
 
+-- | Conveniently applies a two-arguments function to an @'HList'@
+-- containing two elements of the arguments type, hiding the unpacking.
 happly2 :: (a -> b -> c) -> HList '[a, b] -> c
 happly2 f (Cons x (Cons y _)) = f x y
 
 --------------------------------------------------------------------------------
--- Proof that two hlist have the same length
+-- Proof that two 'HList' have the same length.
 data SameLength (xs :: [ * ]) (ys :: [ * ]) where
   Empty :: SameLength '[] '[]
   One :: SameLength xs ys -> SameLength (x ': xs) (y ': ys)
 
+-- | Zips two 'HList' of the same length.
+-- Corresponds to @zip xs ys@ for normal lists, however
+-- the proof @'SameLength' xs ys@ ensures that the two lists
+-- have the same length, thus no elements are discarded. 
 hzip :: SameLength xs ys -> HList xs -> HList ys -> HList (ZipWith (,) xs ys)
 hzip Empty Nil Nil = Nil
 hzip (One p) (Cons x xs) (Cons y ys) = Cons (x, y) (hzip p xs ys)
 
+-- | Unzip a zipped list in two distinct 'HList'.
 hunzip :: SameLength xs ys -> HList (ZipWith (,) xs ys) -> (HList xs, HList ys)
 hunzip Empty Nil = (Nil, Nil)
 hunzip (One p) (Cons (a, b) xs) =
   case hunzip p xs of
     (as, bs) -> (Cons a as, Cons b bs)
 
--- TODO better name
-toSList2 :: SameLength xs ys -> (SList xs, SList ys)
-toSList2 Empty = (SNil, SNil)
-toSList2 (One p) =
-  case toSList2 p of
+-- Produces the singleton list objects for each of the two lists indexed in 
+-- the given @'SameLength'@ proof object.
+sameLength2SList :: SameLength xs ys -> (SList xs, SList ys)
+sameLength2SList Empty = (SNil, SNil)
+sameLength2SList (One p) =
+  case sameLength2SList p of
     (s1, s2) -> (SCons s1, SCons s2)
 
+-- The property 'SameLength' is symmetric.
+-- We can switch the two indexed lists freely.
+sameLengthSym :: SameLength xs ys -> SameLength ys xs
+sameLengthSym Empty = Empty
+sameLengthSym (One p) = One (sameLengthSym p)
+
+-- | Proof that type-level Map does not change the length of a type level list:
+-- @length as = length ('Map' f xs)@, which is encoded by a value of type 
+-- @'SameLength' as ('Map' f as)@.
+-- This function is lazy in the function f, which is needed only to fix the type @f@.
+mapPreservesLength :: SList as -> (forall a . a -> f a) -> SameLength as (Map f as)
+mapPreservesLength SNil _ = Empty
+mapPreservesLength (SCons s) f = One (mapPreservesLength s f)
+
+-- Because of the definition of Reify we can only produce
+-- the singleton type SList for the second list.
+instance Reify (SameLength xs) where
+  toSList = snd . sameLength2SList
+
+-- | Proof that append is associative.
+appendAssociative :: SList xs -> SList ys -> SList zs 
+                -> HList (Append xs (Append ys zs)) :~: HList (Append (Append xs ys) zs)
+appendAssociative SNil s2 s3 = Refl
+appendAssociative (SCons s1) s2 s3 =
+  case appendAssociative s1 s2 s3 of
+    Refl -> Refl
 --------------------------------------------------------------------------------
 -- Debugging
 instance Show (HList '[]) where

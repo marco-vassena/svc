@@ -133,4 +133,4 @@ noneOf xs = satisfy (not . (`elem` xs)) Target
 -- | The `chainl1` combinator is used to parse a
 -- left-associative chain of infix operators. 
 chainl1 :: StreamChar i => SFormat i a -> SFormat i b -> Iso '[a, b, a] '[a] -> SFormat i a
-chainl1 arg op f = C.foldl' (SCons (SCons SNil)) f <$> arg <@> many (op <@> arg)
+chainl1 arg op f = C.foldl (SCons (SCons SNil)) f <$> arg <@> many (op <@> arg)
