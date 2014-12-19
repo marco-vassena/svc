@@ -140,15 +140,24 @@ split SNil s hs = (Nil, hs)
 split (SCons s1) s2 (Cons h hs) = (Cons h hs1, hs2)
   where (hs1, hs2) = split s1 s2 hs
 
--- | Conveniently applies a one-argument function to an @'HList'@
--- containing an element of the argument type, hiding unpacking.
-happly :: (a -> b) -> HList '[ a ] -> b
-happly f (Cons x _) = f x
+-- @'HFun' xs c@ is the type of a function taking @xs@ arguments
+-- and returning something of type @c@.
+-- For instance 
+-- HFun '[a, b] c = a -> b -> c
+type family HFun (xs :: [ * ]) (c :: *) :: * where
+  HFun '[] c = c
+  HFun (x ': xs) c = x -> HFun xs c
 
--- | Conveniently applies a two-arguments function to an @'HList'@
--- containing two elements of the arguments type, hiding the unpacking.
-happly2 :: (a -> b -> c) -> HList '[a, b] -> c
-happly2 f (Cons x (Cons y _)) = f x y
+-- Simplify function application for values contained in 'HList',
+-- hiding the list unpacking.
+class HApply xs c where
+  happly :: HFun xs c -> HList xs -> c
+
+instance HApply '[] c where
+  happly c _ = c
+
+instance HApply xs c => HApply (x ': xs) c where
+  happly f (Cons x xs) = happly (f x) xs
 
 --------------------------------------------------------------------------------
 -- Proof that two 'HList' have the same length.

@@ -8,5 +8,11 @@ import Data.Maybe
 -- function between two typed 'HList'
 type PFunction xs ys = HList xs -> Maybe (HList ys)
 
-data Iso xs ys = Iso (PFunction xs ys) (PFunction ys xs) (SList xs) (SList ys)
+-- | It represents a partial isomorphism between 'HList'.
+-- It includes values for the singleton types of the two parametrized
+-- type-level lists.
+data Iso xs ys = Iso { apply    :: PFunction xs ys,
+                       unapply  :: PFunction ys xs,
+                       sapply   :: SList xs,
+                       sunapply :: SList ys }
 

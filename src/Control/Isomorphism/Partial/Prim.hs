@@ -6,10 +6,6 @@
 module Control.Isomorphism.Partial.Prim 
   ( module Control.Isomorphism.Partial.Base
   , inverse
-  , apply
-  , unapply
-  , sapply
-  , sunapply
   , (***)
   , (<.>)
   , identity
@@ -33,20 +29,8 @@ import Data.Type.Equality ( (:~:)(Refl) )
 inverse :: Iso xs ys -> Iso ys xs
 inverse (Iso f g s1 s2) = Iso g f s2 s1
 
-apply :: Iso xs ys -> HList xs -> Maybe (HList ys)
-apply (Iso f _ _ _) = f
-
-sapply :: Iso xs ys -> SList xs
-sapply = fst . toSList2
-
-sunapply :: Iso xs ys -> SList ys
-sunapply = snd . toSList2
-
-unapply :: Iso xs ys -> HList ys -> Maybe (HList xs)
-unapply (Iso _ g _ _) = g 
-
 instance Reify2 Iso where
-  toSList2 (Iso _ _ s1 s2) = (s1, s2)
+  toSList2 i = (sapply i, sunapply i)
 
 -- | Identity isomorphism. Corresponds to id from Category, however
 -- we need a 'SList' object to determine its shape.
@@ -67,13 +51,6 @@ iterate step = Iso f g (sapply step) (sunapply step)
 
         driver :: (HList xs -> Maybe (HList xs)) -> (HList xs -> HList xs)
         driver step state = maybe state (driver step) (step state)
-
--- | Isomorphisms are commutative.
-commute :: SList xs -> SList ys -> Iso (Append xs ys) (Append ys xs)
-commute s1 s2 = Iso (f s1 s2) (f s2 s1) (sappend s1 s2) (sappend s2 s1)
-  where f :: SList xs -> SList ys -> HList (Append xs ys) -> Maybe (HList (Append ys xs))
-        f s1 s2 hs = Just (happend ys xs)
-          where (xs, ys) = split s1 s2 hs
 
 -- | Joins two isomorphisms, appending inputs and outputs in order.
 (***) :: Iso xs ys -> Iso zs ws -> Iso (Append xs zs) (Append ys ws)
@@ -100,7 +77,7 @@ unpack p i = Iso f g (sapply i) (sappend sAs sBs)
 uncurry :: Iso '[a, b] '[ c ] -> Iso '[(a , b)] '[ c ]
 uncurry i = Iso f g (SCons SNil) (SCons SNil)
   where f (Cons (a, b) _) = apply i $ Cons a (Cons b Nil)
-        g hs = unapply i hs >>= return . hsingleton . happly2 (,)
+        g hs = unapply i hs >>= return . hsingleton . happly (,)
 
 -- Generalized fold-left for isomoprhisms.
 foldl :: SList xs -> Iso (a ': xs) '[ a ] -> Iso (a ': Map [] xs) '[ a ]
@@ -122,11 +99,20 @@ foldl s i =  identity (SCons SNil)
                 zipped SNil = identity SNil
                 zipped (SCons s) = inverse (uncurry cons) *** zipped s
  
+--------------------------------------------------------------------------------
+-- TODO maybe remove.
 
--- We actually don't need this, because lists are flat
+-- | Isomorphisms are associative.
 associate :: SList xs -> SList ys -> SList zs -> Iso (Append xs (Append ys zs)) (Append (Append xs ys) zs)
 associate s1 s2 s3 = Iso f g (sappend s1 (sappend s2 s3)) (sappend (sappend s1 s2) s3)
   where f hs = case appendAssociative s1 s2 s3 of
                   Refl -> Just hs
         g hs = case appendAssociative s1 s2 s3 of
                   Refl -> Just hs
+
+-- | Isomorphisms are commutative.
+commute :: SList xs -> SList ys -> Iso (Append xs ys) (Append ys xs)
+commute s1 s2 = Iso (f s1 s2) (f s2 s1) (sappend s1 s2) (sappend s2 s1)
+  where f :: SList xs -> SList ys -> HList (Append xs ys) -> Maybe (HList (Append ys xs))
+        f s1 s2 hs = Just (happend ys xs)
+          where (xs, ys) = split s1 s2 hs

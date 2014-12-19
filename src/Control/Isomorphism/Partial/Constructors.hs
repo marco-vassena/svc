@@ -27,7 +27,7 @@ nil = iso (const []) proj SNil
         proj _  = Nothing
 
 cons :: CIso '[a , [a]] [ a ]
-cons = iso (happly2 (:)) proj (SCons (SCons SNil))
+cons = iso (happly (:)) proj (SCons (SCons SNil))
   where proj (x:xs) = Just $ Cons x (Cons xs Nil)
         proj _      = Nothing
 
