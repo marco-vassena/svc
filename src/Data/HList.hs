@@ -216,6 +216,19 @@ appendAssociative SNil s2 s3 = Refl
 appendAssociative (SCons s1) s2 s3 =
   case appendAssociative s1 s2 s3 of
     Refl -> Refl
+
+leftIdentityAppend :: SList xs -> Append '[] xs :~: xs
+leftIdentityAppend SNil = Refl
+leftIdentityAppend (SCons s) = 
+  case leftIdentityAppend s of
+    Refl -> Refl
+
+rightIdentityAppend :: SList xs -> Append xs '[] :~: xs
+rightIdentityAppend SNil = Refl
+rightIdentityAppend (SCons s) = 
+  case rightIdentityAppend s of
+    Refl -> Refl
+
 --------------------------------------------------------------------------------
 -- Debugging
 instance Show (HList '[]) where

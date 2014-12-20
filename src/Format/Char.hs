@@ -1,4 +1,4 @@
--- | Common char-based formats
+-- | Common token-based formats
 
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
@@ -13,42 +13,42 @@ import Data.Char
 import Format.Base
 import Format.Combinator
 
-spaces :: StreamChar i => Format i '[]
+spaces :: Format m Char '[]
 spaces = (many spaceChars) @> unit
   where spaceChars = anyOf " \t\n\r\f\v\xa0"
 
-space :: StreamChar i => SFormat i Char
-space = satisfy isSpace char
+space :: SFormat m Char Char
+space = satisfy isSpace token
 
-newline :: StreamChar i => Format i '[]
-newline = tag '\n'
+newline :: Format m Char '[]
+newline = match '\n'
 
-crlf :: StreamChar i => Format i '[]
-crlf = tag "\r\n"
+crlf :: Format m Char '[]
+crlf = match "\r\n"
 
-endOfLine :: StreamChar i => Format i '[]
+endOfLine :: Format m Char '[]
 endOfLine = newline <|> crlf
 
-tab :: StreamChar i => Format i '[]
-tab = tag '\t'
+tab :: Format m Char '[]
+tab = match '\t'
 
-upper :: StreamChar i => SFormat i Char
-upper = satisfy isUpper char
+upper :: SFormat m Char Char
+upper = satisfy isUpper token
 
-lower :: StreamChar i => SFormat i Char
-lower = satisfy isLower char
+lower :: SFormat m Char Char
+lower = satisfy isLower token
 
-alphaNum :: StreamChar i => SFormat i Char
-alphaNum = satisfy isAlphaNum char
+alphaNum :: SFormat m Char Char
+alphaNum = satisfy isAlphaNum token
 
-letter :: StreamChar i => SFormat i Char
-letter = satisfy isAlpha char
+letter :: SFormat m Char Char
+letter = satisfy isAlpha token
 
-digit :: StreamChar i => SFormat i Char
-digit = satisfy isDigit char
+digit :: SFormat m Char Char
+digit = satisfy isDigit token
 
-hexDigit :: StreamChar i => SFormat i Char
-hexDigit = satisfy isHexDigit char
+hexDigit :: SFormat m Char Char
+hexDigit = satisfy isHexDigit token
 
-octDigit :: StreamChar i => SFormat i Char
-octDigit = satisfy isOctDigit char
+octDigit :: SFormat m Char Char
+octDigit = satisfy isOctDigit token

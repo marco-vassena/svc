@@ -20,44 +20,30 @@ import Data.HList
 import Control.Applicative ((*>), pure)
 import Control.Isomorphism.Partial
 import qualified Control.Isomorphism.Partial as C
-
-
--- | A single format that targets 'Int'.
-int :: StreamChar i => Format i '[ Int ]
-int = Target
-
--- | A single format that targets 'Char'.
-char :: StreamChar i => Format i '[ Char ]
-char = Target
-
--- | A format that encodes the presence of the given value
-tag :: (Match i a, Printable i a) => a -> Format i '[]
-tag = Meta
+import Data.Type.Equality
 
 -- | 'between left right f' is a format in which f must occur between 
 -- 'left' and 'right'
-between :: Format i '[] -> Format i '[] -> Format i xs -> Format i xs
+between :: Format m i '[] -> Format m i '[] -> Format m i xs -> Format m i xs
 between l r p = l @> p <@ r
 
 -- The unit format. The parser succeeds without consuming any input
 -- and does not print nothing at all.
-unit :: StreamChar i => Format i '[]
-unit = Meta ()
+unit :: Format m i '[]
+unit = Match Nil 
+
+token :: Format m i '[i]
+token = Token
+
+match :: a -> Format m i '[]
+match = Match . hsingleton
 
 -- | It represents a set of characters to be matched.
 data AnyOf a = AnyOf a [a]
 
-anyOf :: (Stream i Identity a, Match i a, Printable i a) => [a] -> Format i '[]
-anyOf (c:cs) = Meta (AnyOf c cs)
-anyOf [] = error "Format.Char.anyOf : empty list"
-
-instance Printable i a => Printable i (AnyOf a) where
-  printer (AnyOf c cs) = printer c
-
-instance (Stream i Identity a, Match i a) => Match i (AnyOf a) where
-  match a@(AnyOf c cs) = P.choice (map match(c:cs)) *> pure a
-
--- TODO: add format for failure
+anyOf :: [a] -> Format m i '[]
+anyOf (c:cs) = undefined -- (AnyOf c cs)
+anyOf [] = error "Format.anyOf : empty list"
 
 -------------------------------------------------------------------------------
 -- Syntactic sugar operators that resemble applicative and alternative style
@@ -65,72 +51,73 @@ instance (Stream i Identity a, Match i a) => Match i (AnyOf a) where
 
 infixr 4 <$>
 
-(<$>) :: Iso args xs -> Format i args -> Format i xs
+(<$>) :: Iso args xs -> Format m i args -> Format m i xs
 (<$>) = CFormat
 
 
 infixr 3 <|>
 
-(<|>) :: Format i xs -> Format i xs -> Format i xs
+(<|>) :: Format m i xs -> Format m i xs -> Format m i xs
 (<|>) = Alt
-
 
 infixr 4 <@>, <@, @>
 
-(<@>) :: Format i xs -> Format i ys -> Format i (Append xs ys)
+(<@>) :: Format m i xs -> Format m i ys -> Format m i (Append xs ys)
 (<@>) = Seq
 
-(<@) :: Format i xs -> Format i '[] -> Format i xs
-(<@) = SkipR 
+(<@) :: Format m i xs -> Format m i '[] -> Format m i xs
+p <@ q = 
+  case rightIdentityAppend (toSList p) of
+    Refl -> p <@> q
 
-(@>) :: Format i '[] -> Format i ys -> Format i ys
-(@>) = SkipL 
+(@>) :: Format m i '[] -> Format m i ys -> Format m i ys
+p @> q = 
+  case leftIdentityAppend (toSList q) of
+    Refl -> p <@> q
 
 --------------------------------------------------------------------------------
 
-many :: StreamChar i => Format i xs -> Format i (Map [] xs)
-many p = 
-  case toSList p of
-    SCons SNil -> cons <$> p <@> many p
-                  <|> nil <$> unit
-    _ -> Many p
+many :: Format m i xs -> Format m i (Map [] xs)
+many p = undefined
+--  case toSList p of
+--    SCons SNil -> cons <$> p <@> many p
+--                  <|> nil <$> unit
+--    _ -> Many p
 
 -- TODO add support for arbitrary formats
-some :: StreamChar i => Format i '[ a ]-> Format i '[ [a] ]
+some :: Format m i '[ a ] -> Format m i '[ [a] ]
 some p = cons <$> (p <@> many p )
 
-sepBy :: StreamChar i => 
-            Format i '[ a ] -> Format i '[] -> Format i '[ [ a ] ]
+sepBy :: Format m i '[ a ] -> Format m i '[] -> Format m i '[ [ a ] ]
 sepBy p sep = cons <$> p <@> many (sep @> p)
            <|> nil  <$> unit
 
 -- Tries each format until one succeeds.
 -- The given list must be non empty
-choice :: [Format i xs] -> Format i xs
+choice :: [Format m i xs] -> Format m i xs
 choice (x:xs) = foldr (<|>) x xs
 choice [] = error "Format.Combinator.choice: empty list"
 
-count :: StreamChar i => Int -> SFormat i a -> SFormat i [a]
+count :: Int -> SFormat m i a -> SFormat m i [a]
 count n f | n <= 0    = nil <$> unit
 count n f | otherwise = cons <$> f <@> count (n - 1) f
 
-optional :: StreamChar i => SFormat i a -> SFormat i (Maybe a)
+optional :: SFormat m i a -> SFormat m i (Maybe a)
 optional f = (just <$> f) <|> (nothing <$> unit)
 
-(<+>) :: SFormat i a -> SFormat i b -> SFormat i (Either a b)
+(<+>) :: SFormat m i a -> SFormat m i b -> SFormat m i (Either a b)
 f1 <+> f2 = (left <$> f1) <|> (right <$> f2)
 
--- Specialized version of 'Satisfy' for single formats
-satisfy :: (a -> Bool) -> SFormat i a -> SFormat i a
-satisfy p = Satisfy (\(Cons x _) -> p x)
+oneOf :: Eq a => [ a ] -> Format m i '[ a ]
+oneOf xs = undefined
 
-oneOf :: (Parsable i a, Printable i a, Eq a) => [ a ] -> Format i '[ a ]
-oneOf xs = satisfy (`elem` xs) Target
+noneOf :: Eq a => [ a ] -> Format m i '[ a ]
+noneOf xs = undefined
 
-noneOf :: (Parsable i a, Printable i a, Eq a) => [ a ] -> Format i '[ a ]
-noneOf xs = satisfy (not . (`elem` xs)) Target
+satisfy :: (a -> Bool) -> Format m i '[ a ] -> Format m i '[ a ]
+satisfy = undefined
 
 -- | The `chainl1` combinator is used to parse a
 -- left-associative chain of infix operators. 
-chainl1 :: StreamChar i => SFormat i a -> SFormat i b -> Iso '[a, b, a] '[a] -> SFormat i a
+chainl1 :: SFormat m i a -> SFormat m i b -> Iso '[a, b, a] '[a] -> SFormat m i a
 chainl1 arg op f = C.foldl (SCons (SCons SNil)) f <$> arg <@> many (op <@> arg)
