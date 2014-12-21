@@ -1,4 +1,4 @@
--- | Common token-based formats
+-- | Common-based formats
 
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
@@ -13,42 +13,43 @@ import Data.Char
 import Format.Base
 import Format.Combinator
 
-spaces :: Format m Char '[]
-spaces = (many spaceChars) @> unit
-  where spaceChars = anyOf " \t\n\r\f\v\xa0"
+char :: Char -> Format m Char '[]
+char = match
+
+-- TODO add spaces
 
 space :: SFormat m Char Char
-space = satisfy isSpace token
+space = satisfy isSpace
 
 newline :: Format m Char '[]
-newline = match '\n'
+newline = char '\n'
 
 crlf :: Format m Char '[]
-crlf = match "\r\n"
+crlf = char '\r' @> char '\n'
 
 endOfLine :: Format m Char '[]
 endOfLine = newline <|> crlf
 
 tab :: Format m Char '[]
-tab = match '\t'
+tab = char '\t'
 
 upper :: SFormat m Char Char
-upper = satisfy isUpper token
+upper = satisfy isUpper
 
 lower :: SFormat m Char Char
-lower = satisfy isLower token
+lower = satisfy isLower
 
 alphaNum :: SFormat m Char Char
-alphaNum = satisfy isAlphaNum token
+alphaNum = satisfy isAlphaNum
 
 letter :: SFormat m Char Char
-letter = satisfy isAlpha token
+letter = satisfy isAlpha
 
 digit :: SFormat m Char Char
-digit = satisfy isDigit token
+digit = satisfy isDigit
 
 hexDigit :: SFormat m Char Char
-hexDigit = satisfy isHexDigit token
+hexDigit = satisfy isHexDigit
 
 octDigit :: SFormat m Char Char
-octDigit = satisfy isOctDigit token
+octDigit = satisfy isOctDigit

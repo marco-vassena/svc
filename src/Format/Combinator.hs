@@ -11,11 +11,6 @@
 module Format.Combinator where
 
 import Format.Base
-import Data.Functor.Identity (Identity)
-import Text.Parsec.Char hiding (satisfy)
-import Text.Parsec.Combinator hiding ((<|>), count, choice)
-import qualified Text.Parsec.Combinator as P
-import Text.Parsec.Prim hiding ((<|>), many)
 import Data.HList
 import Control.Applicative ((*>), pure)
 import Control.Isomorphism.Partial
@@ -30,20 +25,16 @@ between l r p = l @> p <@ r
 -- The unit format. The parser succeeds without consuming any input
 -- and does not print nothing at all.
 unit :: Format m i '[]
-unit = Match Nil 
+unit = Pure Nil
 
 token :: Format m i '[i]
 token = Token
 
-match :: a -> Format m i '[]
-match = Match . hsingleton
+match :: Eq i => i -> Format m i '[]
+match x = element x <$> token
 
--- | It represents a set of characters to be matched.
-data AnyOf a = AnyOf a [a]
-
-anyOf :: [a] -> Format m i '[]
-anyOf (c:cs) = undefined -- (AnyOf c cs)
-anyOf [] = error "Format.anyOf : empty list"
+failWith :: Reify f => f xs -> Format m i xs
+failWith = Fail . toSList
 
 -------------------------------------------------------------------------------
 -- Syntactic sugar operators that resemble applicative and alternative style
@@ -77,12 +68,13 @@ p @> q =
 
 --------------------------------------------------------------------------------
 
-many :: Format m i xs -> Format m i (Map [] xs)
-many p = undefined
---  case toSList p of
---    SCons SNil -> cons <$> p <@> many p
---                  <|> nil <$> unit
---    _ -> Many p
+many' :: Format m i xs -> Format m i (Map [] xs)
+many' p = undefined
+
+-- Let's start with the simple version of many.
+many :: SFormat m i a -> SFormat m i [a]
+many p = cons <$> p <@> many p
+    <|> nil <$> unit
 
 -- TODO add support for arbitrary formats
 some :: Format m i '[ a ] -> Format m i '[ [a] ]
@@ -90,12 +82,12 @@ some p = cons <$> (p <@> many p )
 
 sepBy :: Format m i '[ a ] -> Format m i '[] -> Format m i '[ [ a ] ]
 sepBy p sep = cons <$> p <@> many (sep @> p)
-           <|> nil  <$> unit
+           <|> nil <$> unit
 
 -- Tries each format until one succeeds.
--- The given list must be non empty
+-- The given list may not be empty.
 choice :: [Format m i xs] -> Format m i xs
-choice (x:xs) = foldr (<|>) x xs
+choice (x:xs) = foldr (<|>) (failWith x) (x:xs)
 choice [] = error "Format.Combinator.choice: empty list"
 
 count :: Int -> SFormat m i a -> SFormat m i [a]
@@ -108,16 +100,22 @@ optional f = (just <$> f) <|> (nothing <$> unit)
 (<+>) :: SFormat m i a -> SFormat m i b -> SFormat m i (Either a b)
 f1 <+> f2 = (left <$> f1) <|> (right <$> f2)
 
-oneOf :: Eq a => [ a ] -> Format m i '[ a ]
-oneOf xs = undefined
+-- TODO these combinators are specific for the token type
+-- Possible extensions:
+--   1) Extend it for any type
+--   2) Extend it for any format (any xs)
+oneOf :: Eq i => [ i ] -> Format m i '[ i ]
+oneOf xs = satisfy (`elem` xs)
 
-noneOf :: Eq a => [ a ] -> Format m i '[ a ]
-noneOf xs = undefined
+noneOf :: Eq i => [ i ] -> Format m i '[ i ]
+noneOf xs = satisfy (not . (`elem` xs))
 
-satisfy :: (a -> Bool) -> Format m i '[ a ] -> Format m i '[ a ]
-satisfy = undefined
+-- TODO add anyOf
+
+satisfy :: (i -> Bool) -> Format m i '[ i ]
+satisfy p = subset (SCons SNil) (happly p) <$> token
 
 -- | The `chainl1` combinator is used to parse a
 -- left-associative chain of infix operators. 
 chainl1 :: SFormat m i a -> SFormat m i b -> Iso '[a, b, a] '[a] -> SFormat m i a
-chainl1 arg op f = C.foldl (SCons (SCons SNil)) f <$> arg <@> many (op <@> arg)
+chainl1 arg op f = C.foldl (SCons (SCons SNil)) f <$> arg <@> many' (op <@> arg)

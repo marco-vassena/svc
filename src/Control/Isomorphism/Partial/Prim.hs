@@ -12,9 +12,11 @@ module Control.Isomorphism.Partial.Prim
   , iterate
   , associate
   , foldl
+  , element
+  , subset
   ) where
 
-import Prelude (($), fst, snd)
+import Prelude (($), fst, snd, otherwise, Eq, (==), Bool)
 import qualified Prelude as P
 
 import Data.HList
@@ -99,6 +101,18 @@ foldl s i =  identity (SCons SNil)
                 zipped SNil = identity SNil
                 zipped (SCons s) = inverse (uncurry cons) *** zipped s
  
+element :: Eq a => a -> Iso '[ a ] '[]
+element x = Iso f g (SCons SNil) SNil
+  where f (Cons y _) | x == y       = Just Nil
+        f _          | otherwise    = Nothing
+        g _ = Just (hsingleton x)
+
+subset :: SList xs -> (HList xs -> Bool) -> Iso xs xs
+subset s p = Iso f f s s
+  where f hs | p hs      = Just hs
+        f hs | otherwise = Nothing
+        
+
 --------------------------------------------------------------------------------
 -- TODO maybe remove.
 
