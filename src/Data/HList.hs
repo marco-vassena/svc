@@ -195,6 +195,8 @@ sameLengthSym :: SameLength xs ys -> SameLength ys xs
 sameLengthSym Empty = Empty
 sameLengthSym (One p) = One (sameLengthSym p)
 
+-- TODO : remove (forall a . a -> f a) and change SList as to (SList (Map f as))
+
 -- | Proof that type-level Map does not change the length of a type level list:
 -- @length as = length ('Map' f xs)@, which is encoded by a value of type 
 -- @'SameLength' as ('Map' f as)@.

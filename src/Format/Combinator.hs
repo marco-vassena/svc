@@ -68,20 +68,26 @@ p @> q =
 
 --------------------------------------------------------------------------------
 
-many' :: Format m i xs -> Format m i (Map [] xs)
-many' p = undefined
+many :: SList xs -> Format m i xs -> Format m i (Map [] xs)
+many s f =  combine   <$> f <@> many s f
+         <|> manyEmpty <$> Pure (hsingleton [])
 
--- Let's start with the simple version of many.
-many :: SFormat m i a -> SFormat m i [a]
-many p = cons <$> p <@> many p
-    <|> nil <$> unit
+  where manyEmpty = Iso from to (SCons SNil) (smap (const []) s)
+        from      = Just . happly (unList s)
+        to        = Just . hsingleton . toList s
+        combine   = inverse $ unpack (mapPreservesLength s (const [])) (zipper s)
+
+---- Let's start with the simple version of many.
+many' :: SFormat m i a -> SFormat m i [a]
+many' p = cons <$> p <@> many' p
+       <|> nil <$> unit
 
 -- TODO add support for arbitrary formats
 some :: Format m i '[ a ] -> Format m i '[ [a] ]
-some p = cons <$> (p <@> many p )
+some p = cons <$> (p <@> many' p )
 
 sepBy :: Format m i '[ a ] -> Format m i '[] -> Format m i '[ [ a ] ]
-sepBy p sep = cons <$> p <@> many (sep @> p)
+sepBy p sep = cons <$> p <@> many' (sep @> p)
            <|> nil <$> unit
 
 -- Tries each format until one succeeds.
@@ -118,4 +124,5 @@ satisfy p = subset (SCons SNil) (happly p) <$> token
 -- | The `chainl1` combinator is used to parse a
 -- left-associative chain of infix operators. 
 chainl1 :: SFormat m i a -> SFormat m i b -> Iso '[a, b, a] '[a] -> SFormat m i a
-chainl1 arg op f = C.foldl (SCons (SCons SNil)) f <$> arg <@> many' (op <@> arg)
+chainl1 arg op f = C.foldl s f <$> arg <@> many s (op <@> arg)
+  where s = SCons (SCons SNil)

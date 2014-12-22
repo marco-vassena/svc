@@ -14,6 +14,8 @@ module Control.Isomorphism.Partial.Prim
   , foldl
   , element
   , subset
+  , unpack
+  , zipper
   ) where
 
 import Prelude (($), fst, snd, otherwise, Eq, (==), Bool)
@@ -66,7 +68,7 @@ i *** j = Iso f g (sappend s1 s3) (sappend s2 s4)
          g hs = liftM2 happend (unapply i ys) (unapply j ws)
             where (ys, ws) = split s2 s4 hs
 
--- Given an isomorphism that produces a zipped 'HList' returns an isomorphisms
+-- Given an isomorphism that produces a zipper 'HList' returns an isomorphisms
 -- that append the two 'HList' one after the other.
 unpack :: SameLength as bs -> Iso cs (ZipWith (,) as bs) -> Iso cs (Append as bs)
 unpack p i = Iso f g (sapply i) (sappend sAs sBs)
@@ -96,11 +98,14 @@ foldl s i =  identity (SCons SNil)
         idInverseNil (SCons s) = (inverse nil) *** (idInverseNil s)
 
         idInverseCons :: SList as -> Iso (Map [] as) (Append as (Map [] as))
-        idInverseCons s = unpack (mapPreservesLength s (\_ -> [])) (zipped s)
-          where zipped :: SList as -> Iso (Map [] as) (ZipWith (,) as (Map [] as))
-                zipped SNil = identity SNil
-                zipped (SCons s) = inverse (uncurry cons) *** zipped s
- 
+        idInverseCons s = unpack (mapPreservesLength s (\_ -> [])) (zipper s)
+
+-- | An isomorphism that convert an 'HList' of lists in a zipped 'HList' containing 
+-- the head of each list and the tail and vice-versa.
+zipper :: SList as -> Iso (Map [] as) (ZipWith (,) as (Map [] as))
+zipper SNil = identity SNil
+zipper (SCons s) = inverse (uncurry cons) *** zipper s
+
 element :: Eq a => a -> Iso '[ a ] '[]
 element x = Iso f g (SCons SNil) SNil
   where f (Cons y _) | x == y       = Just Nil
