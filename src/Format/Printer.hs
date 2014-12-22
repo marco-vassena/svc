@@ -2,6 +2,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Format.Printer where
 
@@ -12,14 +14,19 @@ import Control.Isomorphism.Partial
 import Data.HList
 import Data.Monoid
 
+type family StreamOf (i :: *) 
+
 -- Printing using a format
 class PrintFormat m i where
-  mkPrinter :: Format m i xs -> HList xs -> m i
+  mkPrinter :: Format m i xs -> HList xs -> m (StreamOf i)
 
 class PrintToken m i where
-  printToken :: i -> m i
+  printToken :: i -> m (StreamOf i)
+-- It's not i, but s, something more general than [i]
+-- We need something more general.
+  
 
-instance (PrintToken m i, Monoid i, MonadPlus m, Applicative m) => PrintFormat m i where
+instance (PrintToken m i, Monoid (StreamOf i), MonadPlus m, Applicative m) => PrintFormat m i where
   mkPrinter (Seq f1 f2) hs = mappend <$> mkPrinter f1 hs1 <*> mkPrinter f2 hs2
     where (hs1, hs2) = split (toSList f1) (toSList f2) hs
   mkPrinter (CFormat i f) xs = 

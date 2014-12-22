@@ -13,15 +13,27 @@ import Format.Base
 import Format.Combinator
 import Format.Char
 import Format.Prim
+import Format.Printer
+import Format.Parser
 
 import qualified Text.Parsec.Prim as P
 
-
+-- Move this to char module
+int :: SFormat m Char Int
+int = i <$> some digit
+  where i :: Iso '[String] '[Int] 
+        i = Iso f g (SCons SNil) (SCons SNil)
+          where f :: HList '[ String ] -> Maybe (HList '[Int])
+                f (Cons s _) = Just . hsingleton $ read s
+                g :: HList '[ Int ] -> Maybe (HList '[String])
+                g (Cons n _) = Just . hsingleton $ show n
+             
 --------------------------------------------------------------------------------
 -- | Csv specification as Grammar
-csvGrammar :: Format String '[Int, [Int], [Int], [[Int]]]
-csvGrammar = csvRow <@> many (tag '\n' @> csvRow)
-  where csvRow = int <@> many (tag ',' @> int)
+csvGrammar :: Format m Char '[Int, [Int], [Int], [[Int]]]
+csvGrammar = csvRow <@> many' (char '\n' @> csvRow)
+  where csvRow :: Format m Char '[Int, [Int]]
+        csvRow = int <@> many (char ',' @> int)
 
 --------------------------------------------------------------------------------
 
@@ -35,24 +47,24 @@ csv = iso (happly Csv) proj (SCons SNil)
   where proj (Csv xss) = Just $ Cons xss Nil
 
 -- | A format that targets a raw HList '[ [[Int]] ]
-rawFormat :: Format String '[ [[Int]] ]
+rawFormat :: Format m Char '[ [[Int]] ]
 rawFormat = sepBy row newline
-  where row = sepBy int (tag ',')
+  where row = sepBy int (char ',')
 
 -- | A format that targets directly the CSV data type
-csvFormat :: SFormat String Csv
+csvFormat :: SFormat m Char Csv
 csvFormat = csv <$> rawFormat
 
 -- TODO add utility functions to hide the packing/unpacking for singleton HList
 
 -- | We can target directly the user-defined data type
-csvParser :: Parser String (HList '[ Csv ])
+csvParser :: Parsec String (HList '[ Csv ])
 csvParser = mkParser csvFormat
 
 -- | Once the content of a data-type is added in an HList 
 -- we can print directly from the user data-type.
-csvPrinter :: Printer String (HList '[ Csv ])
-csvPrinter = mkPrinter csvFormat
+csvPrinter :: Csv -> Either String String
+csvPrinter = mkPrinter csvFormat . hsingleton
 
 --------------------------------------------------------------------------------
 -- A string containing a well-formed csv table
@@ -65,6 +77,6 @@ csv1 :: Csv
 csv1 = Csv [[1,2,3],[4,5,6]]
 
 main :: IO ()
-main = do
-  roundTrip csvFormat csvText
-  roundTrip csvGrammar csvText
+main = return ()
+--  roundTrip csvFormat csvText
+--  roundTrip csvGrammar csvText
