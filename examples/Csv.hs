@@ -12,11 +12,10 @@ import Data.HList
 import Format.Base
 import Format.Combinator
 import Format.Char
-import Format.Prim
 import Format.Printer
+import Format.Printer.Naive
 import Format.Parser
-
-import qualified Text.Parsec.Prim as P
+import Format.Parser.Naive
 
 -- Move this to char module
 int :: SFormat m Char Int
@@ -58,12 +57,12 @@ csvFormat = csv <$> rawFormat
 -- TODO add utility functions to hide the packing/unpacking for singleton HList
 
 -- | We can target directly the user-defined data type
-csvParser :: Parsec String (HList '[ Csv ])
+csvParser :: Parser Char (HList '[ Csv ])
 csvParser = mkParser csvFormat
 
 -- | Once the content of a data-type is added in an HList 
 -- we can print directly from the user data-type.
-csvPrinter :: Csv -> Either String String
+csvPrinter :: Csv -> Maybe String
 csvPrinter = mkPrinter csvFormat . hsingleton
 
 --------------------------------------------------------------------------------
