@@ -11,7 +11,7 @@ import Data.HList
 
 import Format.Base
 import Format.Combinator
-import Format.Char
+import Format.Token
 import Format.Printer
 import Format.Printer.Naive
 import Format.Parser
@@ -30,7 +30,7 @@ int = i <$> some digit
 --------------------------------------------------------------------------------
 -- | Csv specification as Grammar
 csvGrammar :: Format m Char '[Int, [Int], [Int], [[Int]]]
-csvGrammar = csvRow <@> many' (char '\n' @> csvRow)
+csvGrammar = csvRow <@> many (char '\n' @> csvRow)
   where csvRow :: Format m Char '[Int, [Int]]
         csvRow = int <@> many (char ',' @> int)
 

@@ -233,6 +233,16 @@ rightIdentityAppend (SCons s) =
     Refl -> Refl
 
 --------------------------------------------------------------------------------
+class KnownSList xs where
+  slist :: SList xs
+
+instance KnownSList '[] where
+  slist = SNil
+
+instance KnownSList xs => KnownSList (x ': xs) where
+  slist = SCons slist
+
+--------------------------------------------------------------------------------
 -- Debugging
 instance Show (HList '[]) where
   show Nil = "Nil"
