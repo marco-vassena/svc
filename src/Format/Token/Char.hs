@@ -1,4 +1,4 @@
--- | Common-based formats
+-- | Common char-based combinators
 
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
@@ -7,11 +7,12 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Format.Char where
+module Format.Token.Char where
 
 import Data.Char
 import Format.Base
 import Format.Combinator
+import Format.Token.Base
 
 char :: Char -> Format m Char '[]
 char = match
