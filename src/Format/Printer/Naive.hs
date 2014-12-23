@@ -5,7 +5,10 @@
 
 -- | A naive printer implementation
 
-module Format.Printer.Naive where
+module Format.Printer.Naive (
+    module Format.Printer.Base
+  , Printer
+  ) where
 
 import Format.Printer.Base
 import Data.HList

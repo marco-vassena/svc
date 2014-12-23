@@ -3,7 +3,12 @@
 
 -- A naive parser implementation
 
-module Format.Parser.Naive where
+module Format.Parser.Naive (
+    module Format.Parser.Base
+  , parse
+  , parseM
+  , Parser
+  ) where
 
 import Format.Parser.Base
 import Control.Applicative

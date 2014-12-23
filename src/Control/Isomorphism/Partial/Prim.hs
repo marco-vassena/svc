@@ -23,6 +23,7 @@ import qualified Prelude as P
 
 import Data.HList
 import Data.Maybe
+import Data.Proxy
 
 import Control.Category
 import Control.Monad
@@ -90,7 +91,7 @@ foldl s i =  identity (SCons SNil)
          <.> iterate (step s i)
 
   where step :: SList xs -> Iso (a ': xs) '[ a ] -> Iso (a ': Map [] xs) (a ': Map [] xs)
-        step s i = (i *** identity (smap (\_ -> []) s))
+        step s i = (i *** identity (smap proxyList s))
                 <.> ((identity (SCons SNil)) *** idInverseCons s)
 
         idInverseNil :: SList as -> Iso (Map [] as) '[]
@@ -98,7 +99,7 @@ foldl s i =  identity (SCons SNil)
         idInverseNil (SCons s) = (inverse nil) *** (idInverseNil s)
 
         idInverseCons :: SList as -> Iso (Map [] as) (Append as (Map [] as))
-        idInverseCons s = unpack (mapPreservesLength s (\_ -> [])) (zipper s)
+        idInverseCons s = unpack (mapPreservesLength proxyList s) (zipper s)
 
 -- | An isomorphism that convert an 'HList' of lists in a zipped 'HList' containing 
 -- the head of each list and the tail and vice-versa.

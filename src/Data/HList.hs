@@ -75,10 +75,9 @@ sappend SNil ys = ys
 sappend (SCons xs) ys = SCons (sappend xs ys)
 
 -- | Map function for the singleton type SList.
--- This function is lazy in the injecting function.
-smap :: (forall a . a -> f a) -> SList xs -> SList (Map f xs)
+smap :: Proxy f -> SList xs -> SList (Map f xs)
 smap _ SNil = SNil
-smap f (SCons xs) = SCons (smap f xs) 
+smap p (SCons xs) = SCons (smap p xs) 
 
 -- | A class of objects parametrized over a type level list 
 class Reify f where
@@ -195,15 +194,17 @@ sameLengthSym :: SameLength xs ys -> SameLength ys xs
 sameLengthSym Empty = Empty
 sameLengthSym (One p) = One (sameLengthSym p)
 
--- TODO : remove (forall a . a -> f a) and change SList as to (SList (Map f as))
-
 -- | Proof that type-level Map does not change the length of a type level list:
 -- @length as = length ('Map' f xs)@, which is encoded by a value of type 
 -- @'SameLength' as ('Map' f as)@.
 -- This function is lazy in the function f, which is needed only to fix the type @f@.
-mapPreservesLength :: SList as -> (forall a . a -> f a) -> SameLength as (Map f as)
-mapPreservesLength SNil _ = Empty
-mapPreservesLength (SCons s) f = One (mapPreservesLength s f)
+mapPreservesLength :: Proxy f -> SList as -> SameLength as (Map f as)
+mapPreservesLength _ SNil = Empty
+mapPreservesLength p (SCons s) = One (mapPreservesLength p s)
+
+-- A proxy that fix the functor to list [].
+proxyList :: Proxy []
+proxyList = Proxy
 
 instance Reify2 SameLength where
   toSList2 Empty = (SNil, SNil)
