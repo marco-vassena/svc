@@ -16,6 +16,7 @@ import Control.Applicative ((*>), pure)
 import Control.Isomorphism.Partial
 import qualified Control.Isomorphism.Partial as C
 import Data.Type.Equality
+import Debug.Trace
 
 -- | 'between left right f' is a format in which f must occur between 
 -- 'left' and 'right'
@@ -68,10 +69,9 @@ p @> q =
 
 --------------------------------------------------------------------------------
 
+-- The order is relevant: if the parser is symmetric 
 many :: SList xs -> Format m i xs -> Format m i (Map [] xs)
-many s f =  combine   <$> f <@> many s f
-         <|> manyEmpty <$> Pure (hsingleton [])
-
+many s f = manyEmpty <$> Pure (hsingleton []) <|> combine <$> f <@> many s f
   where manyEmpty = Iso from to (SCons SNil) (smap (const []) s)
         from      = Just . happly (unList s)
         to        = Just . hsingleton . toList s
