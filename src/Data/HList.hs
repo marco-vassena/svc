@@ -16,6 +16,7 @@ module Data.HList where
 import GHC.TypeLits
 import Data.Proxy
 import Data.Type.Equality
+import Control.Applicative
 
 -- Heterogeneous list, indexed by a type level list that
 -- mantains the types of the elements contained.
@@ -110,7 +111,7 @@ unList (SCons s) [] = Cons [] (unList s [])
 unList s (x:xs) = hmap' s reverse hs
   where hs = foldr (merge s) (hmap (:[]) x) xs
 
--- | Converts an 'HList' of lists in a list of 'HList' containing
+-- | Converts an 'HList' of lists in a list of 'HList'
 -- each one containing a single element of the original lists.
 -- The lists in the 'HList' are supposed to have the same length,
 -- if this is not the case only the number of values of the shortest
@@ -119,10 +120,35 @@ unList s (x:xs) = hmap' s reverse hs
 -- > toList (SCons (SCons SNil)) (Cons [1,2] (Cons "ab" Nil))
 -- > [Cons 1 Cons 'a' Nil,Cons 2 Cons 'b' Nil]
 --
+-- > toList (SCons (SCons SNil)) (Cons [1] (Cons "ab" Nil))
+-- > [Cons 1 Cons 'a' Nil]
+--
 toList :: SList xs -> HList (Map [] xs) -> [HList xs]
 toList SNil Nil = [Nil] -- TODO also [] would work, distinguish between Many and Some
 toList (SCons SNil) (Cons xs Nil) = zipWith Cons xs (repeat Nil)
 toList (SCons s) (Cons xs xss) = zipWith Cons xs (toList s xss)
+
+-- | Partial version of 'toList'.
+-- Contrary to @'toList'@ if the lists have different length,
+-- the whole operation fails.
+--
+-- > toListMaybe (SCons (SCons SNil)) (Cons [1,2] (Cons "ab" Nil))
+-- > Just [Cons 1 Cons 'a' Nil,Cons 2 Cons 'b' Nil]
+--
+-- > toListMaybe (SCons (SCons SNil)) (Cons [1] (Cons "ab" Nil))
+-- > Nothing
+--
+toListMaybe :: SList xs -> HList (Map [] xs) -> Maybe [HList xs]
+toListMaybe SNil Nil = Just [Nil] -- TODO also [] would work, distinguish between Many and Some
+toListMaybe (SCons SNil) (Cons xs Nil) = Just $ zipWith Cons xs (repeat Nil)
+toListMaybe (SCons s) (Cons xs xss) = toListMaybe s xss >>= zipWithMaybe Cons xs 
+
+
+-- Partial version of @'zipWith'@. It fails if the lists have different lengths.
+zipWithMaybe :: (a -> b -> c) -> [a] -> [b] -> Maybe [c]
+zipWithMaybe f [] [] = Just []
+zipWithMaybe f (x:xs) (y:ys) = (f x y :) <$> zipWithMaybe f xs ys
+zipWithMaybe f _ _ = Nothing
 
 -- | 'merge s xs xss' is equivalent to 'zipWith (:) xs xss' for normal lists
 --
