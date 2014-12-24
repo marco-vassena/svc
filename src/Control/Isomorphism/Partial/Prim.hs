@@ -16,6 +16,7 @@ module Control.Isomorphism.Partial.Prim
   , subset
   , unpack
   , zipper
+  , combine
   ) where
 
 import Prelude (($), fst, snd, otherwise, Eq, (==), Bool)
@@ -92,14 +93,20 @@ foldl s i =  identity (SCons SNil)
 
   where step :: SList xs -> Iso (a ': xs) '[ a ] -> Iso (a ': Map [] xs) (a ': Map [] xs)
         step s i = (i *** identity (smap proxyList s))
-                <.> ((identity (SCons SNil)) *** idInverseCons s)
+                <.> ((identity (SCons SNil)) *** combine s)
 
+        -- TODO better name
+        -- Transforms a list of empty lists in an empty hlist.
+        -- If some list is non empty the isomorphism fails.
         idInverseNil :: SList as -> Iso (Map [] as) '[]
         idInverseNil SNil = identity SNil
         idInverseNil (SCons s) = (inverse nil) *** (idInverseNil s)
 
-        idInverseCons :: SList as -> Iso (Map [] as) (Append as (Map [] as))
-        idInverseCons s = unpack (mapPreservesLength proxyList s) (zipper s)
+-- | Unpacks each list in head and tail.
+-- An hlist containing first all the heads and then all the tails is returned (apply).
+-- If some of the input list is empty the isomorphism fails.
+combine :: SList xs -> Iso (Map [] xs) (Append xs (Map [] xs))
+combine s = unpack (mapPreservesLength proxyList s) (zipper s)
 
 -- | An isomorphism that convert an 'HList' of lists in a zipped 'HList' containing 
 -- the head of each list and the tail and vice-versa.
@@ -117,7 +124,6 @@ subset :: SList xs -> (HList xs -> Bool) -> Iso xs xs
 subset s p = Iso f f s s
   where f hs | p hs      = Just hs
         f hs | otherwise = Nothing
-        
 
 --------------------------------------------------------------------------------
 -- TODO maybe remove.

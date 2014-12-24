@@ -29,18 +29,6 @@ between l r p = l @> p <@ r
 failWith :: Reify f => f xs -> Format m i xs
 failWith = Fail . toSList
 
-many' :: SFormat m i a -> SFormat m i [a]
-many' p = cons <$> p <@> many' p
-       <|> nil <$> unit
-
--- TODO add support for arbitrary formats
-some :: Format m i '[ a ] -> Format m i '[ [a] ]
-some p = cons <$> (p <@> many' p )
-
-sepBy :: Format m i '[ a ] -> Format m i '[] -> Format m i '[ [ a ] ]
-sepBy p sep = cons <$> p <@> many' (sep @> p)
-           <|> nil <$> unit
-
 -- Tries each format until one succeeds.
 -- The given list may not be empty.
 choice :: [Format m i xs] -> Format m i xs
