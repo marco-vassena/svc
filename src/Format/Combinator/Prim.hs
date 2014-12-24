@@ -13,27 +13,29 @@ import Format.Combinator.Base
 import Control.Isomorphism.Partial
 import qualified Control.Isomorphism.Partial as C
 
--- The order is relevant: whne printing the second alternative is not productive.
 many :: SList xs -> Format m i xs -> Format m i (Map [] xs)
 many s f = some s f
-        <|> manyEmpty s <$> Pure (hsingleton [])
+        <|> allEmpty s <$> unit
 
--- TODO better name
-manyEmpty :: SList xs -> Iso '[ [ HList xs ] ] (Map [] xs)
-manyEmpty s = Iso from (to s) (SCons SNil) (smap proxyList s)
-  where from (Cons xs _) | null xs   = Just (unList s xs)
-        from (Cons xs _) | otherwise = Nothing 
-        to :: SList xs -> HList (Map [] xs) -> Maybe (HList '[ [HList xs] ])
-        to SNil Nil = Just (hsingleton [])
-        to (SCons s) (Cons [] hs) | isJust (to s hs) = Just (hsingleton [])
-        to (SCons s) _ = Nothing
+-- | This isomorphism produces an @'HList'@ of empty lists.
+-- When unapplied it succeeds only if the given lists are all empty.
+allEmpty :: SList xs -> Iso '[] (Map [] xs)
+allEmpty s = Iso (\_ -> empty s) (to s) SNil (smap proxyList s)
+  where empty :: SList xs -> Maybe (HList (Map [] xs))
+        empty SNil      = Just Nil
+        empty (SCons s) = empty s >>= return . (Cons [])
+
+        to :: SList xs -> HList (Map [] xs) -> Maybe (HList '[])
+        to SNil Nil               = Just Nil
+        to (SCons s) (Cons [] hs) = to s hs >> Just Nil
+        to (SCons s) _            = Nothing
 
 some :: SList xs -> Format m i xs -> Format m i (Map [] xs)
 some s f = inverse (combine s) <$> f <@> many s f
 
 sepBy :: SList xs -> Format m i xs -> Format m i '[] -> Format m i (Map [] xs)
 sepBy s f sep = sepBy1 s f sep
-             <|> manyEmpty s <$> Pure (hsingleton []) 
+             <|> allEmpty s <$> unit
 
 sepBy1 :: SList xs -> Format m i xs -> Format m i '[] -> Format m i (Map [] xs)
 sepBy1 s f sep = inverse (combine s) <$> f <@> many s (sep @> f)
