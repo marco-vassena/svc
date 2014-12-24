@@ -35,10 +35,6 @@ choice :: [Format m i xs] -> Format m i xs
 choice (x:xs) = foldr (<|>) (failWith x) (x:xs)
 choice [] = error "Format.Combinator.choice: empty list"
 
-count :: Int -> SFormat m i a -> SFormat m i [a]
-count n f | n <= 0    = nil <$> unit
-count n f | otherwise = cons <$> f <@> count (n - 1) f
-
 optional :: SFormat m i a -> SFormat m i (Maybe a)
 optional f = (just <$> f) <|> (nothing <$> unit)
 

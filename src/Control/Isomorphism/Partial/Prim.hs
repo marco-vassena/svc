@@ -17,6 +17,7 @@ module Control.Isomorphism.Partial.Prim
   , unpack
   , zipper
   , combine
+  , allEmpty
   ) where
 
 import Prelude (($), fst, snd, otherwise, Eq, (==), Bool)
@@ -88,19 +89,18 @@ uncurry i = Iso f g (SCons SNil) (SCons SNil)
 -- Generalized fold-left for isomoprhisms.
 foldl :: SList xs -> Iso (a ': xs) '[ a ] -> Iso (a ': Map [] xs) '[ a ]
 foldl s i =  identity (SCons SNil)
-         <.> ((identity (SCons SNil)) *** (idInverseNil s))
+         <.> ((identity (SCons SNil)) *** (allEmpty s))
          <.> iterate (step s i)
 
   where step :: SList xs -> Iso (a ': xs) '[ a ] -> Iso (a ': Map [] xs) (a ': Map [] xs)
         step s i = (i *** identity (smap proxyList s))
                 <.> ((identity (SCons SNil)) *** combine s)
 
-        -- TODO better name
-        -- Transforms a list of empty lists in an empty hlist.
-        -- If some list is non empty the isomorphism fails.
-        idInverseNil :: SList as -> Iso (Map [] as) '[]
-        idInverseNil SNil = identity SNil
-        idInverseNil (SCons s) = (inverse nil) *** (idInverseNil s)
+-- Transforms a list of empty lists in an empty hlist.
+-- If some list is non empty the isomorphism fails.
+allEmpty :: SList as -> Iso (Map [] as) '[]
+allEmpty SNil = identity SNil
+allEmpty (SCons s) = (inverse nil) *** (allEmpty s)
 
 -- | Unpacks each list in head and tail.
 -- An hlist containing first all the heads and then all the tails is returned (apply).
