@@ -35,6 +35,15 @@ test-suite test-iso
   build-depends:      base >=4.7 && <4.8, svc, QuickCheck
   default-language:   Haskell2010
 
+test-suite test-format
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test, src
+  main-is:            TestFormat.hs
+  build-depends:      base >=4.7 && <4.8, svc, HUnit
+  default-language:   Haskell2010
+
+
+
 --executable svc
 --  -- main-is:             
 --  -- other-modules:       
