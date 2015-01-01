@@ -9,7 +9,9 @@
 
 module Format.Token.Char where
 
+import Control.Isomorphism.Partial
 import Data.Char
+import Data.HList
 import Format.Base
 import Format.Combinator
 import Format.Token.Base
@@ -54,3 +56,9 @@ hexDigit = satisfy isHexDigit
 
 octDigit :: SFormat m Char Char
 octDigit = satisfy isOctDigit
+
+-- TODO this works for any token with Eq not only Char
+string :: String -> Format m Char '[]
+string "" = identity SNil <$> unit    -- TODO maybe simpler ?
+string (x:xs) = identity SNil <$> (element x <$> token) <@> (string xs)
+
