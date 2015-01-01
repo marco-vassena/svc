@@ -17,8 +17,7 @@ import Test.HUnit.Base
 import Test.HUnit.Text
 
 
--- Simple dummy formats
-
+-- An identifier is a non-empty sequence of letters
 identifier :: Format m Char '[[Char]]
 identifier = some letter
 
@@ -49,8 +48,96 @@ testFalseIds = TestLabel "False Identifiers" $ TestList $
   zipWith (~=?) (repeat Nothing) (map (parseM parseId) notIds) ++
   zipWith (~=?) (repeat Nothing) (map printId notIds)
 
+--------------------------------------------------------------------------------
+-- 0 or more white space characters
+spaces :: Format m Char '[[Char]]
+spaces = many space
+
+parseSpaces :: Parser Char String
+parseSpaces = parse1 (mkParser spaces)
+
+printSpaces :: String -> Maybe String
+printSpaces s = mkPrinter spaces (hsingleton s)
+
+trueSpaces :: [String]
+trueSpaces = ["", "\n\r", "\r\n", "\t", "\t\t ", " ", "  ", "\v\f"]
+
+falseSpaces :: [String]
+falseSpaces = ["a", "1", "§", "\f'", "\r+", " @!#", "##", "\n|", "\t-/\t"]
+
+testTrueSpaces :: Test 
+testTrueSpaces = TestLabel "True Spaces" $ TestList $
+  zipWith (~=?) (map Just trueSpaces) (map (parseM parseSpaces) trueSpaces) ++
+  zipWith (~=?) (map Just trueSpaces) (map printSpaces trueSpaces)
+
+testFalseSpaces :: Test
+testFalseSpaces = TestLabel "False Spaces" $ TestList $
+  zipWith (~=?) (repeat Nothing) (map (parseM parseSpaces) falseSpaces) ++
+  zipWith (~=?) (repeat Nothing) (map printSpaces falseSpaces)
+
+--------------------------------------------------------------------------------
+twoDigits :: Format m Char '[[Char]]
+twoDigits = count 2 digit
+
+trueTwoDigits :: [String]
+trueTwoDigits = [ x ++ y | x <- digs, y <- digs]
+  where digs = map show [0 .. 9]
+
+falseDigits :: [String]
+falseDigits = ["", "a", " "] ++ [ show n | n <- [0 .. 9] ++ [100 .. 200] ++ [1000 .. 1100]]
+
+parseTwoDigits :: Parser Char String
+parseTwoDigits = parse1 (mkParser twoDigits)
+
+printTwoDigits :: String -> Maybe String
+printTwoDigits s = mkPrinter twoDigits (hsingleton s)
+
+testTrueDigits :: Test
+testTrueDigits = TestLabel "True Digits" $ TestList $
+   zipWith (~=?) (map Just trueTwoDigits) (map (parseM parseTwoDigits) trueTwoDigits) ++
+   zipWith (~=?) (map Just trueTwoDigits) (map printTwoDigits trueTwoDigits)
+
+testFalseDigits :: Test
+testFalseDigits = TestLabel "False Digits" $ TestList $
+  zipWith (~=?) (repeat Nothing) (map (parseM parseTwoDigits) falseDigits) ++
+  zipWith (~=?) (repeat Nothing) (map printTwoDigits falseDigits)
+
+--------------------------------------------------------------------------------
+
+-- Match 3 dots
+dots :: Format m Char '[]
+dots = count 3 (char '.')
+
+parseDots :: Parser Char (HList '[])
+parseDots = mkParser dots
+
+printDots :: Maybe String
+printDots = mkPrinter dots Nil
+
+trueDots :: String
+trueDots = "..."
+
+falseDots :: [String]
+falseDots = ["", ".", "..", "...."]
+
+testTrueDots :: Test
+testTrueDots = TestLabel "True Dots" $ TestList $ [
+ Just Nil ~=? parseM parseDots trueDots,
+ Just trueDots ~=? printDots]
+
+testFalseDots :: Test
+testFalseDots = TestLabel "False Dots" $ TestList $
+  zipWith (~=?) (repeat Nothing) (map (parseM parseDots) falseDots)
+
+--------------------------------------------------------------------------------
+
 tests :: Test
-tests = TestList [testTrueIds, testFalseIds]
+tests = TestLabel "Format" $ TestList $ [
+  TestLabel "Identifiers"  $ TestList [testTrueIds, testFalseIds],
+  TestLabel "Spaces"       $ TestList [testTrueSpaces, testFalseSpaces],
+  TestLabel "Digits"       $ TestList [testTrueDigits, testFalseDigits],
+  TestLabel "Dots"         $ TestList [testTrueDots, testFalseDots]
+  ]
 
 hasFailed :: Counts -> Bool
 hasFailed (Counts c t e f) = e > 0 || f > 0

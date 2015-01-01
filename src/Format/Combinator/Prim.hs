@@ -33,7 +33,6 @@ chainl1 :: SFormat m i a -> SFormat m i b -> Iso '[a, b, a] '[a] -> SFormat m i 
 chainl1 arg op f = C.foldl s f <$> arg <@> many s (op <@> arg)
   where s = SCons (SCons SNil)
 
--- FIX: wrong when xs = '[]
 count :: SList xs -> Int -> Format m i xs -> Format m i (Map [] xs)
 count s n f | n <= 0    = inverse (allEmpty s) <$> unit 
 count s n f | otherwise = inverse (combine s) <$> f <@> count s (n - 1) f

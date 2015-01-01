@@ -97,6 +97,9 @@ instance Reify HList where
 instance Reify2 f => Reify (f xs) where
   toSList = snd . toSList2
 
+instance Eq (HList '[]) where
+  Nil == Nil = True
+
 --------------------------------------------------------------------------------
 
 -- Concats a list of 'HList' in a single 'HList'.
