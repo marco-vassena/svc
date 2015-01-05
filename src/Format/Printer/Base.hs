@@ -14,7 +14,7 @@ import Control.Isomorphism.Partial
 import Data.HList
 import Data.Monoid
 
-type family StreamOf (i :: *) 
+type family StreamOf (i :: *)  -- TODO make this associated to class
 
 -- Printing using a format
 class PrintFormat m i where

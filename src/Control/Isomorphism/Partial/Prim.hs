@@ -18,6 +18,8 @@ module Control.Isomorphism.Partial.Prim
   , zipper
   , combine
   , allEmpty
+  , takeWhile
+  , takeWhile1
   ) where
 
 import Prelude (($), fst, snd, otherwise, Eq, (==), Bool)
@@ -124,6 +126,17 @@ subset :: SList xs -> (HList xs -> Bool) -> Iso xs xs
 subset s p = Iso f f s s
   where f hs | p hs      = Just hs
         f hs | otherwise = Nothing
+
+takeWhile :: SList xs -> (HList xs -> Bool) -> Iso (Map [] xs) (Map [] xs) 
+takeWhile s p = Iso f f (smap proxyList s) (smap proxyList s)
+  where f hs = Just . unList s $ P.takeWhile p (toList s hs)
+
+takeWhile1 :: SList xs -> (HList xs -> Bool) -> Iso (Map [] xs) (Map [] xs) 
+takeWhile1 s p = Iso f f (smap proxyList s) (smap proxyList s)
+  where f hs = case P.takeWhile p (toList s hs) of
+                [] -> Nothing
+                xs -> Just (unList s xs)
+                
 
 --------------------------------------------------------------------------------
 -- TODO maybe remove.
