@@ -111,8 +111,7 @@ instance Eq (HList '[]) where
 unList :: SList xs -> [HList xs] -> HList (Map [] xs)
 unList SNil _ = Nil
 unList (SCons s) [] = Cons [] (unList s [])
-unList s (x:xs) = hmap' s reverse hs
-  where hs = foldr (merge s) (hmap (:[]) x) xs
+unList s (x:xs) = foldr (merge s) (hmap (const []) x) (x:xs)
 
 -- | Converts an 'HList' of lists in a list of 'HList'
 -- each one containing a single element of the original lists.
