@@ -8,6 +8,8 @@
 
 module Format.Combinator.Base where
 
+import Prelude
+import qualified Prelude as P
 import Format.Base
 import Data.HList
 import Control.Applicative ((*>), pure)
@@ -32,7 +34,7 @@ failWith = Fail . toSList
 -- Tries each format until one succeeds.
 -- The given list may not be empty.
 choice :: [Format m i xs] -> Format m i xs
-choice (x:xs) = foldr (<|>) (failWith x) (x:xs)
+choice (x:xs) = P.foldr (<|>) (failWith x) (x:xs)
 choice [] = error "Format.Combinator.choice: empty list"
 
 optional :: SFormat m i a -> SFormat m i (Maybe a)

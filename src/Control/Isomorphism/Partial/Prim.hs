@@ -12,6 +12,7 @@ module Control.Isomorphism.Partial.Prim
   , iterate
   , associate
   , foldl
+  , foldr
   , element
   , subset
   , unpack
@@ -61,6 +62,7 @@ iterate step = Iso f g (sapply step) (sunapply step)
         driver :: (HList xs -> Maybe (HList xs)) -> (HList xs -> HList xs)
         driver step state = maybe state (driver step) (step state)
 
+infixr 3 ***
 -- | Joins two isomorphisms, appending inputs and outputs in order.
 (***) :: Iso xs ys -> Iso zs ws -> Iso (Append xs zs) (Append ys ws)
 i *** j = Iso f g (sappend s1 s3) (sappend s2 s4)
@@ -98,6 +100,19 @@ foldl s i =  identity (SCons SNil)
         step s i = (i *** identity (smap proxyList s))
                 <.> ((identity (SCons SNil)) *** combine s)
 
+foldr :: SList xs -> SList '[ a ] -> Iso (Append xs '[ a ]) '[ a ] -> Iso (Append (Map [] xs) '[ a ]) '[ a ]
+foldr s sa i = (allEmpty s *** identity sa)
+            <.> iterate ((identity (smap proxyList s) *** i)
+                        <.> inverse (associate (smap proxyList s) s sa) 
+                        <.> (combine' s *** identity sa))
+
+combine' :: SList xs -> Iso (Map [] xs) (Append (Map [] xs) xs)
+combine' s = invert s (smap proxyList s) (combine s)
+
+invert :: SList ys -> SList zs -> Iso xs (Append ys zs) -> Iso xs (Append zs ys)
+invert s1 s2 (Iso f g s s12) = P.undefined
+
+-- -> Iso (Append xs '[ a ]) '[ a ] -> Iso (Append xs '[ a ]) (Append xs '[ a ])
 -- Transforms a list of empty lists in an empty hlist.
 -- If some list is non empty the isomorphism fails.
 allEmpty :: SList as -> Iso (Map [] as) '[]
