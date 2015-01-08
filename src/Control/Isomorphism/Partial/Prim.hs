@@ -110,7 +110,13 @@ combine' :: SList xs -> Iso (Map [] xs) (Append (Map [] xs) xs)
 combine' s = invert s (smap proxyList s) (combine s)
 
 invert :: SList ys -> SList zs -> Iso xs (Append ys zs) -> Iso xs (Append zs ys)
-invert s1 s2 (Iso f g s s12) = P.undefined
+invert s1 s2 i = Iso f g (sapply i) (sappend s2 s1)
+  where -- f :: HList xs -> Maybe (HList (Append zs ys))
+        f hs = apply i hs >>= return . (split s1 s2) >>= \(ys, zs) -> return (happend zs ys)
+        -- g :: HList (Append zs ys) -> HList xs
+        g hs = 
+          case split s2 s1 hs of
+            (zs, ys) -> unapply i (happend ys zs)
 
 -- -> Iso (Append xs '[ a ]) '[ a ] -> Iso (Append xs '[ a ]) (Append xs '[ a ])
 -- Transforms a list of empty lists in an empty hlist.

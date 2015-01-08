@@ -25,3 +25,6 @@ branch = iso (\(Cons b1 (Cons b2 _)) -> Branch b1 b2) proj (SCons (SCons SNil))
 
 foldlTree :: Iso '[Tree, [Tree]] '[ Tree ]
 foldlTree = C.foldl (SCons SNil) branch
+
+foldrTree :: Iso '[[Tree], Tree] '[Tree]
+foldrTree = C.foldr (SCons SNil) (SCons SNil) branch
