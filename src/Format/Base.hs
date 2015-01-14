@@ -26,6 +26,7 @@ data Format (m :: * -> *) (i :: *) (xs :: [ * ]) where
   Alt :: Format m i xs -> Format m i xs -> Format m i xs
   Fail :: SList xs -> Format m i xs
   Pure :: HList xs -> Format m i xs -- Not sure why we would need equality here for printing
+  Bind :: SList ys -> Format m i xs -> (HList xs -> Format m i ys) -> Format m i (Append xs ys)
 
 --------------------------------------------------------------------------------
 instance Reify (Format i m) where
@@ -35,3 +36,4 @@ instance Reify (Format i m) where
   toSList (Fail s) = s
   toSList (Pure hs) = toSList hs
   toSList Token = SCons SNil
+  toSList (Bind s f k) = sappend (toSList f) s

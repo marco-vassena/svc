@@ -73,3 +73,6 @@ p @> q =
   case leftIdentityAppend (toSList q) of
     Refl -> p <@> q
 
+infixl 1 >>=
+(>>=) :: KnownSList ys => Format m i xs -> (HList xs -> Format m i ys) -> Format m i (Append xs ys)
+(>>=) f k = Bind slist f k

@@ -3,6 +3,7 @@
 
 module Main where
 
+import Prelude hiding ((>>=))
 import Data.HList
 import Format.Base
 import Format.Combinator
@@ -130,13 +131,41 @@ testFalseDots = TestLabel "False Dots" $ TestList $
   zipWith (~=?) (repeat Nothing) (map (parseM parseDots) falseDots)
 
 --------------------------------------------------------------------------------
+-- Test Binding
+
+-- Expect the char next to the first read
+formatCharSChar :: Format m Char '[Char, Char]
+formatCharSChar = token >>= \(Cons c Nil) -> satisfy (== succ c)
+
+parseCharSChar :: Parser Char String
+parseCharSChar = do 
+  Cons c1 (Cons c2 _) <- mkParser formatCharSChar
+  return [c1, c2]
+
+printCharSChar :: String -> Maybe String
+printCharSChar [c1, c2] = mkPrinter formatCharSChar $ Cons c1 (Cons c2 Nil)
+printCharSChar _ = Nothing
+
+trueCharSChar :: [String]
+trueCharSChar = [ [c, succ c] | c <- ['0'..'z']]
+
+falseCharSChar :: [String]
+falseCharSChar =  [] : concat [ [[c], [c, c], [c, succ (succ c)], [c, pred c]] | c <- ['0'..'z']]
+
+testTrueBind :: Test
+testTrueBind = TestLabel "True Bind" $ TestList $
+  zipWith (~=?) (map Just trueCharSChar) (map (parseM parseCharSChar) trueCharSChar) ++
+  zipWith (~=?) (map Just trueCharSChar) (map printCharSChar trueCharSChar)
+
+--------------------------------------------------------------------------------
 
 tests :: Test
 tests = TestLabel "Format" $ TestList $ [
   TestLabel "Identifiers"  $ TestList [testTrueIds, testFalseIds],
   TestLabel "Spaces"       $ TestList [testTrueSpaces, testFalseSpaces],
   TestLabel "Digits"       $ TestList [testTrueDigits, testFalseDigits],
-  TestLabel "Dots"         $ TestList [testTrueDots, testFalseDots]
+  TestLabel "Dots"         $ TestList [testTrueDots, testFalseDots],
+  TestLabel "Bind"         $ TestList [testTrueBind]
   ]
 
 hasFailed :: Counts -> Bool
