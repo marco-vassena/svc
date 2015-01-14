@@ -19,13 +19,15 @@ library
   hs-source-dirs:     src
   exposed-modules:    Format, Format.Base, Format.Parser, Format.Printer,
                       Format.Printer.Naive, Format.Printer.Base, Data.HList, Control.Isomorphism.Partial.Prim,
-                      Format.Parser.Naive, Format.Parser.Base,
+                      Format.Parser.Naive, Format.Parser.UU, Format.Parser.Base,
                       Format.Token, Format.Token.Char, Format.Combinator
                       Control.Isomorphism.Partial.Constructors Control.Isomorphism.Partial.Base
   other-modules:      Format.Combinator.Base, Format.Combinator.Prim
   build-depends:      base >=4.7 && <4.8, bytestring >=0.10, text >=1.1, parsec >=3.1, mtl >=2.1, 
-                      transformers >= 0.3
+                      transformers >= 0.3, uu-parsinglib, ListLike
   default-language:   Haskell2010
+
+-- TODO split the dependencies for examples such as parsec, uu-parsinglib etc
 
 test-suite test-iso
   type:               exitcode-stdio-1.0
