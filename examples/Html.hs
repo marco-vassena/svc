@@ -1,6 +1,6 @@
--- Simple, minimal HTML format.
-
--- Featurs
+-- A format that recognizes html tags
+-- The characters '<' '>' '!' '-' are considered for tags only,
+-- thus they may not appear with plain text.
 
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
@@ -24,11 +24,11 @@ import Control.Isomorphism.Partial.Constructors
 data Tag =
     Open String [Attribute]
   | Close String
-  | Content String
+  | CChar Char
   | Comment String
   deriving Show
 
--- Iso tag
+-- Tag isomorphisms
 open :: Iso '[String, [Attribute]] '[Tag]
 open = Iso (Just . hsingleton . happly Open) from (SCons (SCons SNil)) (SCons SNil)
   where from :: PFunction '[Tag] '[String, [Attribute]]
@@ -41,10 +41,10 @@ close = Iso (Just . hsingleton . happly Close) from (SCons SNil) (SCons SNil)
         from (Cons (Close s) _) = Just $ Cons s Nil
         from _                  = Nothing
 
-content :: Iso '[String] '[Tag]
-content = Iso (Just . hsingleton . happly Content) from (SCons SNil) (SCons SNil)
-  where from :: PFunction '[Tag] '[String]
-        from (Cons (Content s) _) = Just $ Cons s Nil
+cChar :: Iso '[Char] '[Tag]
+cChar = Iso (Just . hsingleton . happly CChar) from (SCons SNil) (SCons SNil)
+  where from :: PFunction '[Tag] '[Char]
+        from (Cons (CChar c) _) = Just $ Cons c Nil
         from _                     = Nothing
 
 comment :: Iso '[String] '[Tag]
@@ -79,8 +79,8 @@ closeTag = close <$> string "</" @> name <@ char '>'
 commentTag :: SFormat m Char Tag
 commentTag = comment <$> string "<!--" @> F.takeWhile (/= '-') <@ string "-->" -- improve
 
-contentTag :: SFormat m Char Tag
-contentTag = content <$> F.takeWhile1 (/= '<')
+cCharTag :: SFormat m Char Tag
+cCharTag = cChar <$> noneOf "<>!-"
 
 --------------------------------------------------------------------------------
 -- Attribute format
@@ -97,11 +97,8 @@ value =  char '\'' @> many (noneOf "'") <@ char '\''
 html :: SFormat m Char [Tag]
 html = many tag
 
-html' :: SFormat m Char [Tag]
-html' = some tag
-
 tag :: SFormat m Char Tag
-tag = openTag <|> closeTag <|> commentTag <|> contentTag
+tag = openTag <|> closeTag <|> commentTag <|> cCharTag
 
 htmlInput :: String
 htmlInput = "<html>\n<body>\n\n<h1>My First Heading</h1>\n\n\
@@ -110,19 +107,12 @@ htmlInput = "<html>\n<body>\n\n<h1>My First Heading</h1>\n\n\
 parseHtml :: Parser Char (HList '[[Tag]])
 parseHtml = mkParser html
 
-parseHtml' :: Parser Char (HList '[[Tag]])
-parseHtml' = mkParser html'
-
-parseTag :: Parser Char (HList '[Tag])
-parseTag = mkParser tag
-
 printHtml :: HList '[[Tag]] -> Maybe String
 printHtml = mkPrinter html
 
 main :: IO ()
 main = do
   h <- parseM parseHtml htmlInput
-  return ()
---  case printHtml h of
---    Just s -> putStrLn s
---    Nothing -> fail "Printer Failed"
+  case printHtml h of
+    Just s -> putStrLn s
+    Nothing -> fail "Printer Failed"
