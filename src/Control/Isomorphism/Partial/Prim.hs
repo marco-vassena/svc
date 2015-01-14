@@ -12,15 +12,12 @@ module Control.Isomorphism.Partial.Prim
   , iterate
   , associate
   , foldl
-  , foldr
   , element
   , subset
   , unpack
   , zipper
   , combine
   , allEmpty
-  , takeWhile
-  , takeWhile1
   ) where
 
 import Prelude (($), fst, snd, otherwise, Eq, (==), Bool)
@@ -100,15 +97,6 @@ foldl s i =  identity (SCons SNil)
         step s i = (i *** identity (smap proxyList s))
                 <.> ((identity (SCons SNil)) *** combine s)
 
-foldr :: SList xs -> SList '[ a ] -> Iso (Append xs '[ a ]) '[ a ] -> Iso (Append (Map [] xs) '[ a ]) '[ a ]
-foldr s sa i = (allEmpty s *** identity sa)
-            <.> iterate ((identity (smap proxyList s) *** i)
-                        <.> inverse (associate (smap proxyList s) s sa) 
-                        <.> (combine' s *** identity sa))
-
-combine' :: SList xs -> Iso (Map [] xs) (Append (Map [] xs) xs)
-combine' s = invert s (smap proxyList s) (combine s)
-
 invert :: SList ys -> SList zs -> Iso xs (Append ys zs) -> Iso xs (Append zs ys)
 invert s1 s2 i = Iso f g (sapply i) (sappend s2 s1)
   where -- f :: HList xs -> Maybe (HList (Append zs ys))
@@ -118,7 +106,6 @@ invert s1 s2 i = Iso f g (sapply i) (sappend s2 s1)
           case split s2 s1 hs of
             (zs, ys) -> unapply i (happend ys zs)
 
--- -> Iso (Append xs '[ a ]) '[ a ] -> Iso (Append xs '[ a ]) (Append xs '[ a ])
 -- Transforms a list of empty lists in an empty hlist.
 -- If some list is non empty the isomorphism fails.
 allEmpty :: SList as -> Iso (Map [] as) '[]
@@ -147,17 +134,6 @@ subset :: SList xs -> (HList xs -> Bool) -> Iso xs xs
 subset s p = Iso f f s s
   where f hs | p hs      = Just hs
         f hs | otherwise = Nothing
-
-takeWhile :: SList xs -> (HList xs -> Bool) -> Iso (Map [] xs) (Map [] xs) 
-takeWhile s p = Iso f f (smap proxyList s) (smap proxyList s)
-  where f hs = Just . unList s $ P.takeWhile p (toList s hs)
-
-takeWhile1 :: SList xs -> (HList xs -> Bool) -> Iso (Map [] xs) (Map [] xs) 
-takeWhile1 s p = Iso f f (smap proxyList s) (smap proxyList s)
-  where f hs = case P.takeWhile p (toList s hs) of
-                [] -> Nothing
-                xs -> Just (unList s xs)
-                
 
 --------------------------------------------------------------------------------
 -- TODO maybe remove.
