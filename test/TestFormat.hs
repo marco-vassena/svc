@@ -157,6 +157,12 @@ testTrueBind = TestLabel "True Bind" $ TestList $
   zipWith (~=?) (map Just trueCharSChar) (map (parseM parseCharSChar) trueCharSChar) ++
   zipWith (~=?) (map Just trueCharSChar) (map printCharSChar trueCharSChar)
 
+testFalseBind :: Test
+testFalseBind = TestLabel "False Bind" $ TestList $ 
+  zipWith (~=?) (repeat Nothing) (map (parseM parseCharSChar) falseCharSChar) ++
+  zipWith (~=?) (repeat Nothing) (map printCharSChar falseCharSChar)
+
+
 --------------------------------------------------------------------------------
 
 tests :: Test
@@ -165,7 +171,7 @@ tests = TestLabel "Format" $ TestList $ [
   TestLabel "Spaces"       $ TestList [testTrueSpaces, testFalseSpaces],
   TestLabel "Digits"       $ TestList [testTrueDigits, testFalseDigits],
   TestLabel "Dots"         $ TestList [testTrueDots, testFalseDots],
-  TestLabel "Bind"         $ TestList [testTrueBind]
+  TestLabel "Bind"         $ TestList [testTrueBind, testFalseBind]
   ]
 
 hasFailed :: Counts -> Bool

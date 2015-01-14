@@ -36,3 +36,6 @@ instance (PrintToken m i (StreamOf i), Monoid (StreamOf i), MonadPlus m, Applica
   mkPrinter (Fail _) _ = fail "Unknown printing error"
   mkPrinter Token (Cons t _) = printToken t
   mkPrinter (Pure hs) _ = return mempty
+  mkPrinter (Bind s f1 k) hs = mappend <$> mkPrinter f1 hs1 <*> mkPrinter f2 (hs2)
+    where (hs1, hs2) = split (toSList f1) s hs
+          f2 = k hs1

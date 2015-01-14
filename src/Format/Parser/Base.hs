@@ -28,3 +28,7 @@ instance (ParseToken m i, Monad m, Alternative m) => ParseFormat m i where
   mkParser (Fail _) = fail "Unknown parse error"
   mkParser Token = hsingleton <$> parseToken
   mkParser (Pure hs) = pure hs
+  mkParser (Bind _ f k) = do
+    hs1 <- mkParser f 
+    hs2 <- mkParser (k hs1)
+    return (happend hs1 hs2)
