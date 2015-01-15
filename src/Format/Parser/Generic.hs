@@ -1,21 +1,18 @@
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE GADTs #-}
 
-module Format.Parser.UU where
+module Format.Parser.Generic where
 
+import Control.Monad
+import Control.Applicative
 import Control.Isomorphism.Partial
-import Data.ListLike
 import Data.HList
 import Format.Base
-import Format.Parser
-import Text.ParserCombinators.UU.BasicInstances
-import Text.ParserCombinators.UU.Core hiding (Fail)
+import Format.Parser.Base
 
-instance (IsLocationUpdatedBy loc Char, ListLike state Char) 
-  => ParseFormat (P (Str Char state loc)) Char where
+instance (ParseToken m i, Monad m, Alternative m) => ParseFormat m i where
   mkParser (Seq a b) = happend <$> mkParser a <*> mkParser b
   mkParser (CFormat i fargs) = do
       args <- mkParser fargs
@@ -24,10 +21,9 @@ instance (IsLocationUpdatedBy loc Char, ListLike state Char)
         Nothing -> fail "Constructor failed"
   mkParser (Alt d1 d2) = mkParser d1 <|> mkParser d2
   mkParser (Fail _) = fail "Unknown parse error"
-  mkParser Token = hsingleton <$> pRange (minBound, maxBound)
+  mkParser Token = hsingleton <$> parseToken
   mkParser (Pure hs) = pure hs
-  mkParser (Bind _ f k) = addLength 100 $ do
+  mkParser (Bind _ f k) = do
     hs1 <- mkParser f 
     hs2 <- mkParser (k hs1)
     return (happend hs1 hs2)
-

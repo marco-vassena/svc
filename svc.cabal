@@ -19,7 +19,7 @@ library
   hs-source-dirs:     src
   exposed-modules:    Format, Format.Base, Format.Parser, Format.Printer,
                       Format.Printer.Naive, Format.Printer.Base, Data.HList, Control.Isomorphism.Partial.Prim,
-                      Format.Parser.Naive, Format.Parser.UU, Format.Parser.Base,
+                      Format.Parser.Naive, Format.Parser.UU, Format.Parser.Parsec, Format.Parser.Base,
                       Format.Token, Format.Token.Char, Format.Combinator
                       Control.Isomorphism.Partial.Constructors Control.Isomorphism.Partial.Base
   other-modules:      Format.Combinator.Base, Format.Combinator.Prim

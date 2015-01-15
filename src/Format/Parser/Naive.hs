@@ -11,6 +11,7 @@ module Format.Parser.Naive (
   ) where
 
 import Format.Parser.Base
+import Format.Parser.Generic
 import Control.Applicative
 
 newtype Parser i a = Parser { runParser :: ([i] -> [(a,[i])])}
