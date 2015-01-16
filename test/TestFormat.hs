@@ -162,6 +162,37 @@ testFalseBind = TestLabel "False Bind" $ TestList $
   zipWith (~=?) (repeat Nothing) (map (parseM parseCharSChar) falseCharSChar) ++
   zipWith (~=?) (repeat Nothing) (map printCharSChar falseCharSChar)
 
+--------------------------------------------------------------------------------
+
+comment :: SFormat m Char String
+comment = string "<!--" @> manyTill token (string "-->")
+
+parseComment :: Parser Char String
+parseComment = parse1 (mkParser comment)
+
+printComment :: String -> Maybe String
+printComment = mkPrinter comment . hsingleton
+
+trueComments :: [String]
+trueComments = [ start ++ cs ++ end | cs <- comments]
+  where start = "<!--"
+        end = "-->"
+
+comments :: [String]
+comments = ["", " ", "-", "foo--bar", "->", ">"]
+
+falseComments :: [String]
+falseComments = [ "", "<-->", "<!-->", "<!--foo", "<>", "-->", "<!-- foo-->bar"]
+
+testTrueComment :: Test
+testTrueComment = TestLabel "True Comments" $ TestList $
+  zipWith (~=?) (map Just comments) (map (parseM parseComment) trueComments) ++
+  zipWith (~=?) (map Just trueComments) (map printComment comments)
+
+testFalseComment :: Test
+testFalseComment = TestLabel "False Comments" $ TestList $
+  zipWith (~=?) (repeat Nothing) (map (parseM parseComment) falseComments)
+  -- printing never fails
 
 --------------------------------------------------------------------------------
 
@@ -171,7 +202,8 @@ tests = TestLabel "Format" $ TestList $ [
   TestLabel "Spaces"       $ TestList [testTrueSpaces, testFalseSpaces],
   TestLabel "Digits"       $ TestList [testTrueDigits, testFalseDigits],
   TestLabel "Dots"         $ TestList [testTrueDots, testFalseDots],
-  TestLabel "Bind"         $ TestList [testTrueBind, testFalseBind]
+  TestLabel "Bind"         $ TestList [testTrueBind, testFalseBind],
+  TestLabel "ManyTill"     $ TestList [testTrueComment, testFalseComment]
   ]
 
 hasFailed :: Counts -> Bool

@@ -8,6 +8,7 @@ module Format.Combinator (
   , some
   , sepBy
   , count
+  , manyTill
   ) where
 
 import Format.Combinator.Base
@@ -26,3 +27,6 @@ sepBy = P.sepBy slist
 
 count :: KnownSList xs => Int -> Format m i xs -> Format m i (Map [] xs)
 count = P.count slist
+
+manyTill :: KnownSList xs => Format m i xs -> Format m i '[] -> Format m i (Map [] xs)
+manyTill = P.manyTill slist

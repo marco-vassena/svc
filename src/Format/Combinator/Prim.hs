@@ -36,3 +36,9 @@ chainl1 arg op f = C.foldl s f <$> arg <@> many s (op <@> arg)
 count :: SList xs -> Int -> Format m i xs -> Format m i (Map [] xs)
 count s n f | n <= 0    = inverse (allEmpty s) <$> unit 
 count s n f | otherwise = inverse (combine s) <$> f <@> count s (n - 1) f
+
+manyTill :: SList xs -> Format m i xs -> Format m i '[] -> Format m i (Map [] xs)
+manyTill s p end = inverse (combine s) <$> p <@> manyTill s p end
+              <|> inverse (allEmpty s) <$> end
+
+
