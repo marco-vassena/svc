@@ -17,9 +17,10 @@ import Format.Base
 import Format.Combinator
 import Format.Token
 import Format.Parser
-import Format.Parser.Parsec
+import Format.Parser.Generic
+import Format.Parser.Attoparsec
 
-import Text.Parsec.String
+import Data.Attoparsec.ByteString.Char8 (Parser)
 
 -- TODO Move this to char module
 int :: SFormat m Char Int
