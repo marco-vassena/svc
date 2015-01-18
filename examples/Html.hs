@@ -8,6 +8,7 @@
 module Html where
 
 import Data.HList
+import Data.ByteString hiding (cons, putStrLn)
 import Format.Base
 import Format.Token
 import qualified Format.Token as F
@@ -16,15 +17,20 @@ import Format.Combinator
 import Format.Printer
 import Format.Printer.Naive
 import Format.Parser
-import Format.Parser.Naive
+import Format.Parser.Attoparsec
+import Format.Parser.Generic
+import Control.Applicative ((<*))
 import Control.Isomorphism.Partial
 import qualified Control.Isomorphism.Partial.Prim as C
 import Control.Isomorphism.Partial.Constructors
 
+import Data.Attoparsec.ByteString.Char8 (Parser, parseOnly, endOfInput)
+
 data Tag =
     Open String [Attribute]
   | Close String
-  | CChar Char
+--  | CChar Char
+  | Content String
   | Comment String
   deriving Show
 
@@ -41,11 +47,16 @@ close = Iso (Just . hsingleton . happly Close) from (SCons SNil) (SCons SNil)
         from (Cons (Close s) _) = Just $ Cons s Nil
         from _                  = Nothing
 
-cChar :: Iso '[Char] '[Tag]
-cChar = Iso (Just . hsingleton . happly CChar) from (SCons SNil) (SCons SNil)
-  where from :: PFunction '[Tag] '[Char]
-        from (Cons (CChar c) _) = Just $ Cons c Nil
-        from _                     = Nothing
+--cChar :: Iso '[Char] '[Tag]
+--cChar = Iso (Just . hsingleton . happly CChar) from (SCons SNil) (SCons SNil)
+--  where from :: PFunction '[Tag] '[Char]
+--        from (Cons (CChar c) _) = Just $ Cons c Nil
+--        from _                     = Nothing
+
+content :: Iso '[String] '[Tag]
+content = Iso (Just . hsingleton . happly Content) from (SCons SNil) (SCons SNil)
+  where from :: PFunction '[Tag] '[String]
+        from (Cons (Content s) _) = Just $ Cons s Nil
 
 comment :: Iso '[String] '[Tag]
 comment = Iso (Just . hsingleton . happly Comment) from (SCons SNil) (SCons SNil)
@@ -77,10 +88,13 @@ closeTag :: SFormat m Char Tag
 closeTag = close <$> string "</" @> name <@ char '>'
 
 commentTag :: SFormat m Char Tag
-commentTag = comment <$> string "<!--" @> F.takeWhile (/= '-') <@ string "-->" -- improve
+commentTag = comment <$> string "<!--" @> manyTill token (string "-->")
 
-cCharTag :: SFormat m Char Tag
-cCharTag = cChar <$> noneOf "<>!-"
+--cCharTag :: SFormat m Char Tag
+--cCharTag = cChar <$> noneOf "<>!-"
+
+contentTag :: SFormat m Char Tag
+contentTag = content <$> some (satisfy (/= '<'))
 
 --------------------------------------------------------------------------------
 -- Attribute format
@@ -98,13 +112,13 @@ html :: SFormat m Char [Tag]
 html = many tag
 
 tag :: SFormat m Char Tag
-tag = openTag <|> closeTag <|> commentTag <|> cCharTag
+tag = openTag <|> closeTag <|> commentTag <|> contentTag
 
-htmlInput :: String
+htmlInput :: ByteString
 htmlInput = "<html>\n<body>\n\n<h1>My First Heading</h1>\n\n\
              \<p>My first paragraph.</p>\n\n</body>\n</html>"
 
-parseHtml :: Parser Char (HList '[[Tag]])
+parseHtml :: Parser (HList '[[Tag]])
 parseHtml = mkParser html
 
 printHtml :: HList '[[Tag]] -> Maybe String
@@ -112,7 +126,9 @@ printHtml = mkPrinter html
 
 main :: IO ()
 main = do
-  h <- parseM parseHtml htmlInput
-  case printHtml h of
-    Just s -> putStrLn s
-    Nothing -> fail "Printer Failed"
+  case parseOnly (parseHtml <* endOfInput) htmlInput of
+    Left err -> fail err
+    Right h -> 
+      case printHtml h of
+        Just s -> putStrLn s
+        Nothing -> fail "Printer Failed"
