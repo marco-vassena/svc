@@ -38,10 +38,7 @@ data Format (m :: * -> *) (i :: *) (xs :: [ * ]) where
   Bind :: SList ys -> Format m i xs -> (HList xs -> Format m i ys) -> Format m i (Append xs ys)
 
 data Seq' c (m :: * -> *) (i :: *) (zs :: [*]) where
-  Seq' :: (c m i xs a, c m i ys b) => a m i xs -> b m i ys -> Seq' c m i (Append xs ys)
-
-data Seq'' c (m :: * -> *) (i :: *) (zs :: [*]) where
-  Seq'' :: (c m i xs (a c), c m i ys (b c)) => a c m i xs -> b c m i ys -> Seq'' c m i (Append xs ys)
+  Seq' :: (c m i xs a, c m i ys b, Reify (a m i), Reify (b m i)) => a m i xs -> b m i ys -> Seq' c m i (Append xs ys)
 
 data Token' (c :: (* -> *) -> * -> [ * ] -> ((* -> *) -> * -> [*] -> *) -> Constraint) (m :: * -> *) (i :: *) (xs :: [ * ]) where
   Token' :: Token' c m i '[i]
@@ -52,7 +49,7 @@ data CFormat' c (m :: * -> *) (i :: *) (xs :: [ * ]) where
 data Alt' c (m :: * -> *) (i :: *) (xs :: [ * ]) where
   Alt' :: (c m i xs a, c m i xs b) => a m i xs -> b m i xs -> Alt' c m i xs
 
-seq' :: (Use a c m i xs, Use b c m i ys) => a c m i xs -> b c m i ys -> Seq' c m i (Append xs ys)
+seq' :: (Use a c m i xs, Use b c m i ys, Reify (a c m i), Reify (b c m i)) => a c m i xs -> b c m i ys -> Seq' c m i (Append xs ys)
 seq' = Seq'
 
 foo :: Use Token' c m i '[i] => Seq' c m i '[i , i]
@@ -70,20 +67,11 @@ class ParseWith (m :: * -> *) (i :: *) (xs :: [ * ]) a where
 class PrintWith s (m :: * -> *) (i :: *) (xs :: [ * ]) a where
   mkPrinter' :: a m i xs -> HList xs -> m s
 
-class DummyReify m i xs a => PrintAndReify s m i xs a where
-  mkPrinter'' :: a m i xs -> HList xs -> m s
+instance Reify (Token' c m i) where
+  toSList Token' = SCons SNil
 
-class DummyReify m i xs a where
-  dummyToSList :: a m i xs -> SList xs
- 
-instance DummyReify m i xs (Seq' DummyReify) where
-  dummyToSList (Seq' f1 f2) = sappend (dummyToSList f1) (dummyToSList f2)
-
-instance Reify (Seq' DummyReify m i) where
-  toSList (Seq' f1 f2) = sappend (dummyToSList f1) (dummyToSList f2)
-
-instance DummyReify m i xs (Seq' (PrintAndReify s)) where
-  dummyToSList (Seq' f1 f2) = sappend (dummyToSList f1) (dummyToSList f2)
+instance Reify (Seq' c m i) where
+  toSList (Seq' a b) = sappend (toSList a) (toSList b)
 
 --------------------------------------------------------------------------------
 instance Reify (Format m i) where
