@@ -20,3 +20,4 @@ data Printer i xs = Printer { runPrinter :: HList xs -> Maybe i }
 
 instance (Monad m) => PrintToken m Char String where
   printToken = return . (:[])
+

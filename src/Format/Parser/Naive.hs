@@ -61,22 +61,18 @@ instance Monad (Parser i) where
   p >>= f = Parser $ \s -> concat [runParser (f a) s' | (a, s') <- runParser p s]
   fail _ = Parser $ const []
 
-instance ParseWith (Parser i) '[ i ] Token' where
+instance ParseWith (Parser i) i '[ i ] (Token' c) where
   mkParser' _ = hsingleton <$> nextToken
  
-instance (ParseWith (Parser i) xs f1, 
-          ParseWith (Parser i) ys f2,
-          zs ~ Append xs ys) => ParseWith (Parser i) zs (Seq' f1 f2 xs ys) where
+instance ParseWith (Parser i) i zs (Seq' ParseWith) where
   mkParser' (Seq' f1 f2) = happend <$> mkParser' f1 <*> mkParser' f2
 
-instance ParseWith (Parser i) args f => ParseWith (Parser i) xs (CFormat' f args) where
+instance ParseWith (Parser i) i xs (CFormat' ParseWith) where
   mkParser' (CFormat' i f) = do 
     args <- mkParser' f
     case apply i args of
       Just xs -> return xs
       Nothing -> fail "Constructor failed"
 
-instance (ParseWith (Parser i) xs f,
-          ParseWith (Parser i) xs g) => ParseWith (Parser i) xs (Alt' f g) where
+instance ParseWith (Parser i) i xs (Alt' ParseWith) where
   mkParser' (Alt' f1 f2) = mkParser' f1 <|> mkParser' f2
-  

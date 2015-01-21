@@ -39,3 +39,7 @@ instance (PrintToken m i (StreamOf i), Monoid (StreamOf i), MonadPlus m, Applica
   mkPrinter (Bind s f1 k) hs = mappend <$> mkPrinter f1 hs1 <*> mkPrinter f2 (hs2)
     where (hs1, hs2) = split (toSList f1) s hs
           f2 = k hs1
+
+instance (Applicative m, Monoid s) => PrintAndReify s m i xs (Seq' (PrintAndReify s)) where
+  mkPrinter'' (Seq' f1 f2) hs = mappend <$> mkPrinter'' f1 hs1 <*> mkPrinter'' f2 hs2
+    where (hs1, hs2) = split (dummyToSList f1) (dummyToSList f2) hs
