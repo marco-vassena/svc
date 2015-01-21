@@ -44,13 +44,16 @@ data Token' (c :: (* -> *) -> * -> [ * ] -> ((* -> *) -> * -> [*] -> *) -> Const
   Token' :: Token' c m i '[i]
   
 data CFormat' c (m :: * -> *) (i :: *) (xs :: [ * ]) where
-  CFormat' :: c m i args a => Iso args xs -> a m i args -> CFormat' c m i xs
+  CFormat' :: (c m i args a) => Iso args xs -> a m i args -> CFormat' c m i xs
  
 data Alt' c (m :: * -> *) (i :: *) (xs :: [ * ]) where
-  Alt' :: (c m i xs a, c m i xs b) => a m i xs -> b m i xs -> Alt' c m i xs
+  Alt' :: (c m i xs a, c m i xs b, Reify (a m i)) => a m i xs -> b m i xs -> Alt' c m i xs
 
 seq' :: (Use a c m i xs, Use b c m i ys, Reify (a c m i), Reify (b c m i)) => a c m i xs -> b c m i ys -> Seq' c m i (Append xs ys)
 seq' = Seq'
+
+alt' :: (Use a c m i xs, Use b c m i xs, Reify (a c m i)) => a c m i xs -> b c m i xs -> Alt' c m i xs
+alt' = Alt'
 
 foo :: Use Token' c m i '[i] => Seq' c m i '[i , i]
 foo = seq' Token' Token'
@@ -58,6 +61,11 @@ foo = seq' Token' Token'
 bar :: (Use Token' c m i '[i] ,
         Use Seq' c m i '[i, i]) => Seq' c m i '[i, i, i, i] 
 bar = seq' foo foo
+
+foobar :: (Use Token' c m i '[i] , 
+           Use Seq' c m i '[i, i],
+           Use Seq' c m i '[i, i, i, i]) => Alt' c m i '[i, i, i ,i]
+foobar = alt' bar bar
 
 type Use a c m i xs = c m i xs (a c)
 
@@ -72,6 +80,12 @@ instance Reify (Token' c m i) where
 
 instance Reify (Seq' c m i) where
   toSList (Seq' a b) = sappend (toSList a) (toSList b)
+
+instance Reify (Alt' c m i) where
+  toSList (Alt' a b) = toSList a
+
+instance Reify (CFormat' c m i) where
+  toSList (CFormat' i f) = sunapply i
 
 --------------------------------------------------------------------------------
 instance Reify (Format m i) where
