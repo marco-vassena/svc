@@ -15,7 +15,7 @@ module Format.Parser.Naive (
   ) where
 
 import Data.HList
-import Format.Base hiding ((<*>), (<$>), pure, (<|>))
+import Format.Base hiding ((<*>), (<$>), pure, (<|>), fail, (>>=))
 import Format.Parser.Base
 import Format.Parser.Generic
 import Control.Applicative
@@ -81,3 +81,10 @@ instance ParseWith (Parser i) i xs (Format ParseWith) where
 
 instance ParseWith (Parser i) i xs (Pure ParseWith) where
   mkParser (Pure hs) = pure hs
+
+instance ParseWith (Parser i) i xs (Bind ParseWith) where
+  mkParser (Bind _ f k) = do 
+    hs1 <- mkParser f 
+    hs2 <- mkParser (k hs1)
+    return (happend hs1 hs2)
+

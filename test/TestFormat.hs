@@ -136,33 +136,34 @@ testFalseDots = TestLabel "False Dots" $ TestList $
 -- Test Binding
 
 -- Expect the char next to the first read
---formatCharSChar :: Format c m Char '[Char, Char]
---formatCharSChar = token >>= \(Cons c Nil) -> satisfy (== succ c)
---
---parseCharSChar :: Parser Char String
---parseCharSChar = do 
---  Cons c1 (Cons c2 _) <- mkParser' formatCharSChar
---  return [c1, c2]
---
---printCharSChar :: String -> Maybe String
---printCharSChar [c1, c2] = mkPrinter' formatCharSChar $ Cons c1 (Cons c2 Nil)
---printCharSChar _ = Nothing
---
---trueCharSChar :: [String]
---trueCharSChar = [ [c, succ c] | c <- ['0'..'z']]
---
---falseCharSChar :: [String]
---falseCharSChar =  [] : concat [ [[c], [c, c], [c, succ (succ c)], [c, pred c]] | c <- ['0'..'z']]
---
---testTrueBind :: Test
---testTrueBind = TestLabel "True Bind" $ TestList $
---  zipWith (~=?) (map Just trueCharSChar) (map (parseM parseCharSChar) trueCharSChar) ++
---  zipWith (~=?) (map Just trueCharSChar) (map printCharSChar trueCharSChar)
---
---testFalseBind :: Test
---testFalseBind = TestLabel "False Bind" $ TestList $ 
---  zipWith (~=?) (repeat Nothing) (map (parseM parseCharSChar) falseCharSChar) ++
---  zipWith (~=?) (repeat Nothing) (map printCharSChar falseCharSChar)
+formatCharSChar :: (SatisfyChar c m, Use Bind c m Char '[Char, Char]) 
+                => Format c m Char '[Char, Char]
+formatCharSChar = token >>= \(Cons c Nil) -> satisfy (== succ c) 
+
+parseCharSChar :: Parser Char String
+parseCharSChar = do 
+  Cons c1 (Cons c2 _) <- mkParser' formatCharSChar
+  return [c1, c2]
+
+printCharSChar :: String -> Maybe String
+printCharSChar [c1, c2] = mkPrinter' formatCharSChar $ Cons c1 (Cons c2 Nil)
+printCharSChar _ = Nothing
+
+trueCharSChar :: [String]
+trueCharSChar = [ [c, succ c] | c <- ['0'..'z']]
+
+falseCharSChar :: [String]
+falseCharSChar =  [] : concat [ [[c], [c, c], [c, succ (succ c)], [c, pred c]] | c <- ['0'..'z']]
+
+testTrueBind :: Test
+testTrueBind = TestLabel "True Bind" $ TestList $
+  zipWith (~=?) (map Just trueCharSChar) (map (parseM parseCharSChar) trueCharSChar) ++
+  zipWith (~=?) (map Just trueCharSChar) (map printCharSChar trueCharSChar)
+
+testFalseBind :: Test
+testFalseBind = TestLabel "False Bind" $ TestList $ 
+  zipWith (~=?) (repeat Nothing) (map (parseM parseCharSChar) falseCharSChar) ++
+  zipWith (~=?) (repeat Nothing) (map printCharSChar falseCharSChar)
 
 --------------------------------------------------------------------------------
 
@@ -204,7 +205,7 @@ tests = TestLabel "Format" $ TestList $ [
   TestLabel "Spaces"       $ TestList [testTrueSpaces, testFalseSpaces],
   TestLabel "Digits"       $ TestList [testTrueDigits, testFalseDigits],
   TestLabel "Dots"         $ TestList [testTrueDots, testFalseDots],
---  TestLabel "Bind"         $ TestList [testTrueBind, testFalseBind],
+  TestLabel "Bind"         $ TestList [testTrueBind, testFalseBind],
   TestLabel "ManyTill"     $ TestList [testTrueComment, testFalseComment]
   ]
 
