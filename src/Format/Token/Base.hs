@@ -20,8 +20,17 @@ type MatchC c m i = (Use FMap   c m i '[],
                      Use Token  c m i '[i],
                      Eq i)
 
+type TokensC c m i = (MatchC c m i,
+                      Use Pure   c m i '[], 
+                      Use Format c m i '[], 
+                      Use Seq    c m i '[])
+                      
 match :: MatchC c m i => i -> Format c m i '[]
 match x = element x <$> token
+
+tokens :: TokensC c m i => [i] -> Format c m i '[]
+tokens [] = identity SNil <$> unit
+tokens (x:xs) = identity SNil <$> match x <*> (tokens xs)
 
 oneOf :: (SatisfyC c m i, Eq i) => [ i ] -> Format c m i '[ i ]
 oneOf xs = satisfy (`elem` xs)

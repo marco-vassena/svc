@@ -19,6 +19,7 @@ import Format.Token.Base
 
 type SatisfyChar c m = SatisfyC c m Char
 type MatchChar c m = MatchC c m Char
+type TokensChar c m = TokensC c m Char
 
 char :: MatchChar c m => Char -> Format c m Char '[]
 char = match
@@ -66,13 +67,5 @@ hexDigit = satisfy isHexDigit
 octDigit :: SatisfyChar c m => SFormat c m Char Char
 octDigit = satisfy isOctDigit
 
--- TODO this works for any token with Eq not only Char
-string :: (Use Pure   c m Char '[], 
-           Use FMap   c m Char '[], 
-           Use Format c m Char '[], 
-           Use Seq    c m Char '[], 
-           Use Format c m Char '[Char], 
-           Use Token  c m Char '[Char]) => String -> Format c m Char '[]
-string "" = identity SNil <$> unit
-string (x:xs) = identity SNil <$> (element x <$> token) <*> (string xs)
-
+string :: TokensChar c m => String -> Format c m Char '[]
+string s = tokens s
