@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ConstraintKinds #-}
 
 module Format.Token.Base where
 
@@ -10,19 +11,25 @@ import Format.Combinator
 
 import Control.Isomorphism.Partial 
 
-token :: Format m i '[ i ]
-token = Token
+type SatisfyC c m i = (Use Token  c m i '[i], 
+                       Use FMap   c m i '[i], 
+                       Use Format c m i '[i])
 
-match :: Eq i => i -> Format m i '[]
+type MatchC c m i = (Use FMap   c m i '[], 
+                     Use Format c m i '[i],
+                     Use Token  c m i '[i],
+                     Eq i)
+
+match :: MatchC c m i => i -> Format c m i '[]
 match x = element x <$> token
 
-oneOf :: Eq i => [ i ] -> Format m i '[ i ]
+oneOf :: (SatisfyC c m i, Eq i) => [ i ] -> Format c m i '[ i ]
 oneOf xs = satisfy (`elem` xs)
 
-noneOf :: Eq i => [ i ] -> Format m i '[ i ]
+noneOf :: (SatisfyC c m i, Eq i) => [ i ] -> Format c m i '[ i ]
 noneOf xs = satisfy (not . (`elem` xs))
 
 -- TODO Add anyOf
 
-satisfy :: (i -> Bool) -> Format m i '[ i ]
+satisfy :: SatisfyC c m i => (i -> Bool) -> Format c m i '[ i ]
 satisfy p = subset (SCons SNil) (happly p) <$> token

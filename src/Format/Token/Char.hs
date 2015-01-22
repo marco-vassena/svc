@@ -14,51 +14,65 @@ import Data.Char
 import Data.HList
 import Format.Base
 import Format.Combinator
+import Format.Combinator.Prim (ManyC)
 import Format.Token.Base
 
-char :: Char -> Format m Char '[]
+type SatisfyChar c m = SatisfyC c m Char
+type MatchChar c m = MatchC c m Char
+
+char :: MatchChar c m => Char -> Format c m Char '[]
 char = match
 
 -- TODO add spaces
 
-space :: SFormat m Char Char
+space :: SatisfyChar c m => SFormat c m Char Char
 space = satisfy isSpace
 
-newline :: Format m Char '[]
+newline :: MatchChar c m => Format c m Char '[]
 newline = char '\n'
 
-crlf :: Format m Char '[]
-crlf = char '\r' @> char '\n'
+crlf :: (Use Format c m Char '[], 
+         Use Seq    c m Char '[],
+         MatchChar  c m) => Format c m Char '[]
+crlf = char '\r' *> char '\n'
 
-endOfLine :: Format m Char '[]
+endOfLine :: (Use Seq    c m Char '[],
+              Use Alt    c m Char '[], 
+              Use Format c m Char '[],
+              MatchChar c m          ) => Format c m Char '[]
 endOfLine = newline <|> crlf
 
-tab :: Format m Char '[]
+tab :: MatchChar c m => Format c m Char '[]
 tab = char '\t'
 
-upper :: SFormat m Char Char
+upper :: SatisfyChar c m => SFormat c m Char Char
 upper = satisfy isUpper
 
-lower :: SFormat m Char Char
+lower :: SatisfyChar c m => SFormat c m Char Char
 lower = satisfy isLower
 
-alphaNum :: SFormat m Char Char
+alphaNum :: SatisfyChar c m => SFormat c m Char Char
 alphaNum = satisfy isAlphaNum
 
-letter :: SFormat m Char Char
+letter :: SatisfyChar c m => SFormat c m Char Char
 letter = satisfy isAlpha
 
-digit :: SFormat m Char Char
+digit :: SatisfyChar c m => SFormat c m Char Char
 digit = satisfy isDigit
 
-hexDigit :: SFormat m Char Char
+hexDigit :: SatisfyChar c m => SFormat c m Char Char
 hexDigit = satisfy isHexDigit
 
-octDigit :: SFormat m Char Char
+octDigit :: SatisfyChar c m => SFormat c m Char Char
 octDigit = satisfy isOctDigit
 
 -- TODO this works for any token with Eq not only Char
-string :: String -> Format m Char '[]
-string "" = identity SNil <$> unit    -- TODO maybe simpler ?
-string (x:xs) = identity SNil <$> (element x <$> token) <@> (string xs)
+string :: (Use Pure   c m Char '[], 
+           Use FMap   c m Char '[], 
+           Use Format c m Char '[], 
+           Use Seq    c m Char '[], 
+           Use Format c m Char '[Char], 
+           Use Token  c m Char '[Char]) => String -> Format c m Char '[]
+string "" = identity SNil <$> unit
+string (x:xs) = identity SNil <$> (element x <$> token) <*> (string xs)
 
