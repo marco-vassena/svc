@@ -15,7 +15,7 @@ module Format.Parser.Naive (
   ) where
 
 import Data.HList
-import Format.Base
+import Format.Base hiding ((<*>), (<$>), pure, (<|>))
 import Format.Parser.Base
 import Format.Parser.Generic
 import Control.Applicative
@@ -51,7 +51,6 @@ instance Applicative (Parser i) where
   pure x = Parser (\s -> [(x,s)])
   p <*> q = Parser $ \s -> [(f a, s'') | (f, s' ) <- runParser p s, 
                                          (a, s'') <- runParser q s']
-
 instance Alternative (Parser i) where
   empty = Parser (const [])
   p <|> q = Parser $ \s -> runParser p s ++ runParser q s
@@ -61,18 +60,18 @@ instance Monad (Parser i) where
   p >>= f = Parser $ \s -> concat [runParser (f a) s' | (a, s') <- runParser p s]
   fail _ = Parser $ const []
 
-instance ParseWith (Parser i) i '[ i ] (Token' c) where
-  mkParser' _ = hsingleton <$> nextToken
+instance ParseWith (Parser i) i '[ i ] (Token c) where
+  mkParser _ = hsingleton <$> nextToken
  
-instance ParseWith (Parser i) i zs (Seq' ParseWith) where
-  mkParser' (Seq' f1 f2) = happend <$> mkParser' f1 <*> mkParser' f2
+instance ParseWith (Parser i) i zs (Seq ParseWith) where
+  mkParser (Seq f1 f2) = happend <$> mkParser f1 <*> mkParser f2
 
-instance ParseWith (Parser i) i xs (CFormat' ParseWith) where
-  mkParser' (CFormat' i f) = do 
-    args <- mkParser' f
+instance ParseWith (Parser i) i xs (FMap ParseWith) where
+  mkParser (FMap i f) = do 
+    args <- mkParser f
     case apply i args of
       Just xs -> return xs
       Nothing -> fail "Constructor failed"
 
-instance ParseWith (Parser i) i xs (Alt' ParseWith) where
-  mkParser' (Alt' f1 f2) = mkParser' f1 <|> mkParser' f2
+instance ParseWith (Parser i) i xs (Alt ParseWith) where
+  mkParser (Alt f1 f2) = mkParser f1 <|> mkParser f2

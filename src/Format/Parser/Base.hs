@@ -1,15 +1,15 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE DataKinds #-}
 
 module Format.Parser.Base where
 
 import Format.Base
 import Data.HList
 
-class ParseFormat m i where
-  mkParser :: Format m i xs -> m (HList xs)
-
+class ParseWith (m :: * -> *) (i :: *) (xs :: [ * ]) a where
+  mkParser :: a m i xs -> m (HList xs)
+ 
+-- TODO consider whether to keep this or not
 class ParseToken m i where
   parseToken :: m i

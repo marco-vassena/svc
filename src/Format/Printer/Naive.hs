@@ -14,8 +14,6 @@ import Format.Printer.Base
 import Data.HList
 import Control.Monad
 
-type instance StreamOf Char = String
-
 data Printer i xs = Printer { runPrinter :: HList xs -> Maybe i }
 
 instance (Monad m) => PrintToken m Char String where
