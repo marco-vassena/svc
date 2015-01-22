@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ConstraintKinds #-}
 
 -- This module provides common combinators
 
@@ -7,26 +8,31 @@ module Format.Combinator (
   , many
   , some
   , sepBy
+  , sepBy1
   , count
   , manyTill
   ) where
 
 import Format.Combinator.Base
+import Format.Combinator.Prim (ManyC, SepByC)
 import qualified Format.Combinator.Prim as P
 import Data.HList
 import Format.Base
 
-many :: KnownSList xs => Format m i xs -> Format m i (Map [] xs)
+many :: (ManyC c m i xs, KnownSList xs) => Format c m i xs -> Format c m i (Map [] xs)
 many = P.many slist
 
-some :: KnownSList xs => Format m i xs -> Format m i (Map [] xs)
+some :: (ManyC c m i xs, KnownSList xs) => Format c m i xs -> Format c m i (Map [] xs)
 some = P.some slist
 
-sepBy :: KnownSList xs => Format m i xs -> Format m i '[] -> Format m i (Map [] xs)
+sepBy :: (SepByC c m i xs, KnownSList xs) => Format c m i xs -> Format c m i '[] -> Format c m i (Map [] xs)
 sepBy = P.sepBy slist
 
-count :: KnownSList xs => Int -> Format m i xs -> Format m i (Map [] xs)
+sepBy1 :: (SepByC c m i xs, KnownSList xs) => Format c m i xs -> Format c m i '[] -> Format c m i (Map [] xs)
+sepBy1 = P.sepBy1 slist
+
+count :: (ManyC c m i xs, KnownSList xs) => Int -> Format c m i xs -> Format c m i (Map [] xs)
 count = P.count slist
 
-manyTill :: KnownSList xs => Format m i xs -> Format m i '[] -> Format m i (Map [] xs)
+manyTill :: (ManyC c m i xs, KnownSList xs) => Format c m i xs -> Format c m i '[] -> Format c m i (Map [] xs)
 manyTill = P.manyTill slist
