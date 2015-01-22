@@ -13,3 +13,7 @@ class ParseWith (m :: * -> *) (i :: *) (xs :: [ * ]) a where
 -- TODO consider whether to keep this or not
 class ParseToken m i where
   parseToken :: m i
+
+-- Fix the type variable
+mkParser' :: Use a ParseWith m i xs => a ParseWith m i xs -> m (HList xs)
+mkParser' = mkParser

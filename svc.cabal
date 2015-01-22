@@ -21,7 +21,7 @@ library
                       Format.Printer.Naive, Format.Printer.Base, Data.HList, Control.Isomorphism.Partial.Prim,
                       Format.Parser.Naive, Format.Parser.UU, Format.Parser.Parsec, Format.Parser.Attoparsec,
                       Format.Parser.Base, Format.Token, Format.Token.Char, Format.Combinator
-                      Control.Isomorphism.Partial.Constructors Control.Isomorphism.Partial.Base
+                      Control.Isomorphism.Partial.Constructors Control.Isomorphism.Partial.Base, Format.Printer.GPrinter
   other-modules:      Format.Combinator.Base, Format.Combinator.Prim
   build-depends:      base >=4.7 && <4.8, bytestring >=0.10, text >=1.1, parsec >=3.1, mtl >=2.1, 
                       transformers >= 0.3, uu-parsinglib, ListLike, attoparsec

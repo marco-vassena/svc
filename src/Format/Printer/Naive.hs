@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE DataKinds #-}
 
 -- | A naive printer implementation
 
@@ -10,12 +11,15 @@ module Format.Printer.Naive (
   , Printer
   ) where
 
+import Format.Base
 import Format.Printer.Base
 import Data.HList
-import Control.Monad
+import Format.Printer.GPrinter
 
-data Printer i xs = Printer { runPrinter :: HList xs -> Maybe i }
+type Printer = Maybe
 
 instance (Monad m) => PrintToken m Char String where
   printToken = return . (:[])
 
+instance PrintWith [i] Printer i '[i] (Token (PrintWith [i])) where
+  mkPrinter _ (Cons t _) = Just [t]

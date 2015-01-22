@@ -75,3 +75,9 @@ instance ParseWith (Parser i) i xs (FMap ParseWith) where
 
 instance ParseWith (Parser i) i xs (Alt ParseWith) where
   mkParser (Alt f1 f2) = mkParser f1 <|> mkParser f2
+
+instance ParseWith (Parser i) i xs (Format ParseWith) where
+  mkParser (Format f) = mkParser f
+
+instance ParseWith (Parser i) i xs (Pure ParseWith) where
+  mkParser (Pure hs) = pure hs

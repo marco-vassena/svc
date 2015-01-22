@@ -24,7 +24,10 @@ type TokensC c m i = (MatchC c m i,
                       Use Pure   c m i '[], 
                       Use Format c m i '[], 
                       Use Seq    c m i '[])
-                      
+
+-- Used when many is applied to a format of that returns the token type
+type ManyToken c m i = ManyC c m i '[i] 
+                     
 match :: MatchC c m i => i -> Format c m i '[]
 match x = element x <$> token
 

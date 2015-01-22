@@ -20,6 +20,7 @@ import Format.Token.Base
 type SatisfyChar c m = SatisfyC c m Char
 type MatchChar c m = MatchC c m Char
 type TokensChar c m = TokensC c m Char
+type ManyChar c m = ManyToken c m Char
 
 char :: MatchChar c m => Char -> Format c m Char '[]
 char = match

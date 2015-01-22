@@ -6,12 +6,9 @@
 
 module Format.Printer.Base where
 
-import Format.Base hiding ((<$>), (<*>))
+import Format.Base
 import Control.Monad
-import Control.Applicative
-import Control.Isomorphism.Partial
 import Data.HList
-import Data.Monoid
 
 class PrintWith s (m :: * -> *) (i :: *) (xs :: [ * ]) a where
   mkPrinter :: a m i xs -> HList xs -> m s
@@ -20,7 +17,6 @@ class PrintWith s (m :: * -> *) (i :: *) (xs :: [ * ]) a where
 class PrintToken m i s where
   printToken :: i -> m s
 
--- TODO move to GPrinter
-instance (Applicative m, Monoid s) => PrintWith s m i xs (Seq (PrintWith s)) where
-  mkPrinter (Seq f1 f2) hs = mappend <$> mkPrinter f1 hs1 <*> mkPrinter f2 hs2
-    where (hs1, hs2) = split (toSList f1) (toSList f2) hs
+-- Fix some variables
+mkPrinter' :: Use a (PrintWith s) m i xs => a (PrintWith s) m i xs -> HList xs -> m s
+mkPrinter' = mkPrinter
