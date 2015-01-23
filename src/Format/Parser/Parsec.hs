@@ -9,6 +9,8 @@ import Control.Applicative ((<$>), (<*>), pure)
 import Data.HList
 import Format.Base
 import Format.Parser.Base
+import Format.Parser.GParser
 import Text.Parsec
 
--- TODO in principle you should only specify ParseToken
+instance (Stream s m t, Show t) => ParseToken (ParsecT s u m) t where
+  parseToken = anyToken

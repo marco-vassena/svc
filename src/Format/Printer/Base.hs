@@ -11,12 +11,11 @@ import Control.Monad
 import Data.HList
 
 class PrintWith s (m :: * -> *) (i :: *) (xs :: [ * ]) a where
-  mkPrinter :: a m i xs -> HList xs -> m s
+  mkPrinter' :: a m i xs -> HList xs -> m s
 
--- TODO consider whether to keep this or not
-class PrintToken m i s where
-  printToken :: i -> m s
-
--- Fix some variables
-mkPrinter' :: Use a (PrintWith s) m i xs => a (PrintWith s) m i xs -> HList xs -> m s
-mkPrinter' = mkPrinter
+-- This function simply calls @mkPrinter'@, but it should be used instead
+-- as it instantiate the constraint type variable properly.
+-- Using directly mkPrinter' can indeed lead to ambiguous variables, preventing
+-- type inference and requiring explicit type signatures.
+mkPrinter :: Use a (PrintWith s) m i xs => a (PrintWith s) m i xs -> HList xs -> m s
+mkPrinter = mkPrinter'

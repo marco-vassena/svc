@@ -25,10 +25,10 @@ identifier :: (SatisfyChar c m, ManyChar c m) => Format c m Char '[[Char]]
 identifier = some letter
 
 parseId :: Parser Char String
-parseId = parse1 (mkParser' identifier)
+parseId = parse1 (mkParser identifier)
 
 printId :: String -> Maybe String
-printId s = mkPrinter' identifier (hsingleton s)
+printId s = mkPrinter identifier (hsingleton s)
 
 notIds :: [String]
 notIds = ["", "1234", "abc1", "foo ", " bar", "~a"]
@@ -57,10 +57,10 @@ spaces :: (SatisfyChar c m, ManyChar c m) => Format c m Char '[[Char]]
 spaces = many space
 
 parseSpaces :: Parser Char String
-parseSpaces = parse1 (mkParser' spaces)
+parseSpaces = parse1 (mkParser spaces)
 
 printSpaces :: String -> Maybe String
-printSpaces s = mkPrinter' spaces (hsingleton s)
+printSpaces s = mkPrinter spaces (hsingleton s)
 
 trueSpaces :: [String]
 trueSpaces = ["", "\n\r", "\r\n", "\t", "\t\t ", " ", "  ", "\v\f"]
@@ -90,10 +90,10 @@ falseDigits :: [String]
 falseDigits = ["", "a", " "] ++ [ show n | n <- [0 .. 9] ++ [100 .. 200] ++ [1000 .. 1100]]
 
 parseTwoDigits :: Parser Char String
-parseTwoDigits = parse1 (mkParser' twoDigits)
+parseTwoDigits = parse1 (mkParser twoDigits)
 
 printTwoDigits :: String -> Maybe String
-printTwoDigits s = mkPrinter' twoDigits (hsingleton s)
+printTwoDigits s = mkPrinter twoDigits (hsingleton s)
 
 testTrueDigits :: Test
 testTrueDigits = TestLabel "True Digits" $ TestList $
@@ -112,10 +112,10 @@ dots :: (MatchChar c m, ManyC c m Char '[]) => Format c m Char '[]
 dots = count 3 (char '.')
 
 parseDots :: Parser Char (HList '[])
-parseDots = mkParser' dots
+parseDots = mkParser dots
 
 printDots :: Maybe String
-printDots = mkPrinter' dots Nil
+printDots = mkPrinter dots Nil
 
 trueDots :: String
 trueDots = "..."
@@ -142,11 +142,11 @@ formatCharSChar = token >>= \(Cons c Nil) -> satisfy (== succ c)
 
 parseCharSChar :: Parser Char String
 parseCharSChar = do 
-  Cons c1 (Cons c2 _) <- mkParser' formatCharSChar
+  Cons c1 (Cons c2 _) <- mkParser formatCharSChar
   return [c1, c2]
 
 printCharSChar :: String -> Maybe String
-printCharSChar [c1, c2] = mkPrinter' formatCharSChar $ Cons c1 (Cons c2 Nil)
+printCharSChar [c1, c2] = mkPrinter formatCharSChar $ Cons c1 (Cons c2 Nil)
 printCharSChar _ = Nothing
 
 trueCharSChar :: [String]
@@ -171,10 +171,10 @@ comment :: (TokensChar c m, ManyChar c m, Use Seq c m Char '[String]) => SFormat
 comment = string "<!--" *> manyTill token (string "-->")
 
 parseComment :: Parser Char String
-parseComment = parse1 (mkParser' comment)
+parseComment = parse1 (mkParser comment)
 
 printComment :: String -> Maybe String
-printComment = mkPrinter' comment . hsingleton
+printComment = mkPrinter comment . hsingleton
 
 trueComments :: [String]
 trueComments = [ start ++ cs ++ end | cs <- comments]

@@ -11,7 +11,10 @@ import Data.ListLike
 import Data.HList
 import Format.Base
 import Format.Parser
+import Format.Parser.GParser
 import Text.ParserCombinators.UU.BasicInstances
 import Text.ParserCombinators.UU.Core hiding (Fail)
 
--- TODO in principle you should only specify ParseToken
+instance (Bounded a, Ord a, Show a, IsLocationUpdatedBy loc a, ListLike state a) 
+  => ParseToken (P (Str a state loc)) a where
+  parseToken = pRange (minBound, maxBound)

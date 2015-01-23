@@ -17,7 +17,7 @@ module Format.Parser.Naive (
 import Data.HList
 import Format.Base hiding ((<*>), (<$>), pure, (<|>), fail, (>>=))
 import Format.Parser.Base
-import Format.Parser.Generic
+import Format.Parser.GParser
 import Control.Applicative
 import Control.Isomorphism.Partial
 
@@ -32,17 +32,6 @@ parseM p s =
     [] -> fail "Parse Error"
     [x] -> return x
     _ -> fail "Ambiguous input"
- 
-
-nextToken :: Parser i i
-nextToken = Parser $ \xs ->
-    case xs of
-      [] -> []
-      (x:xs) -> [(x, xs)]
-
-   
-instance ParseToken (Parser Char) Char where
-  parseToken = nextToken
 
 instance Functor (Parser i) where
   fmap f p = Parser $ \s -> [ (f a, s') | (a, s') <- runParser p s ]
@@ -59,32 +48,16 @@ instance Monad (Parser i) where
   return = pure
   p >>= f = Parser $ \s -> concat [runParser (f a) s' | (a, s') <- runParser p s]
   fail _ = Parser $ const []
-
-instance ParseWith (Parser i) i '[ i ] (Token c) where
-  mkParser _ = hsingleton <$> nextToken
  
-instance ParseWith (Parser i) i zs (Seq ParseWith) where
-  mkParser (Seq f1 f2) = happend <$> mkParser f1 <*> mkParser f2
+--------------------------------------------------------------------------------
+-- If the Parser is an instance of Alternative-Monad this is 
+-- the only instance needed to use the Format framework.
+instance ParseToken (Parser Char) Char where
+  parseToken = nextToken
 
-instance ParseWith (Parser i) i xs (FMap ParseWith) where
-  mkParser (FMap i f) = do 
-    args <- mkParser f
-    case apply i args of
-      Just xs -> return xs
-      Nothing -> fail "Constructor failed"
-
-instance ParseWith (Parser i) i xs (Alt ParseWith) where
-  mkParser (Alt f1 f2) = mkParser f1 <|> mkParser f2
-
-instance ParseWith (Parser i) i xs (Format ParseWith) where
-  mkParser (Format f) = mkParser f
-
-instance ParseWith (Parser i) i xs (Pure ParseWith) where
-  mkParser (Pure hs) = pure hs
-
-instance ParseWith (Parser i) i xs (Bind ParseWith) where
-  mkParser (Bind _ f k) = do 
-    hs1 <- mkParser f 
-    hs2 <- mkParser (k hs1)
-    return (happend hs1 hs2)
-
+-- Returns the next token in the stream.
+nextToken :: Parser i i
+nextToken = Parser $ \xs ->
+    case xs of
+      [] -> []
+      (x:xs) -> [(x, xs)]

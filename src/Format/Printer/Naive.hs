@@ -17,9 +17,3 @@ import Data.HList
 import Format.Printer.GPrinter
 
 type Printer = Maybe
-
-instance (Monad m) => PrintToken m Char String where
-  printToken = return . (:[])
-
-instance PrintWith [i] Printer i '[i] (Token (PrintWith [i])) where
-  mkPrinter _ (Cons t _) = Just [t]

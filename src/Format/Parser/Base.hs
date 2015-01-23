@@ -8,12 +8,8 @@ import Format.Base
 import Data.HList
 
 class ParseWith (m :: * -> *) (i :: *) (xs :: [ * ]) a where
-  mkParser :: a m i xs -> m (HList xs)
+  mkParser' :: a m i xs -> m (HList xs)
  
--- TODO consider whether to keep this or not
-class ParseToken m i where
-  parseToken :: m i
-
--- Fix the type variable
-mkParser' :: Use a ParseWith m i xs => a ParseWith m i xs -> m (HList xs)
-mkParser' = mkParser
+-- Fix the constraint type variable.
+mkParser :: Use a ParseWith m i xs => a ParseWith m i xs -> m (HList xs)
+mkParser = mkParser'
