@@ -17,9 +17,7 @@ import Format.Combinator
 import Format.Combinator.Prim
 import Format.Token.Base
 
-type MatchChar c m = (ApplicativeC c m Char, Use Token c m Char)
-
-char :: MatchChar c m => Char -> Format c m Char '[]
+char :: MatchC c m Char => Char -> Format c m Char '[]
 char = match
 
 -- TODO add spaces
@@ -27,16 +25,16 @@ char = match
 space :: Use Satisfy c m Char => SFormat c m Char Char
 space = satisfy isSpace
 
-newline :: MatchChar c m => Format c m Char '[]
+newline :: MatchC c m Char => Format c m Char '[]
 newline = char '\n'
 
-crlf :: MatchChar  c m => Format c m Char '[]
+crlf :: (Use Satisfy c m Char, AlternativeC c m Char) => Format c m Char '[]
 crlf = char '\r' *> char '\n'
 
-endOfLine :: (MatchChar c m, Use Alt c m Char) => Format c m Char '[]
+endOfLine :: (Use Satisfy c m Char, AlternativeC c m Char) => Format c m Char '[]
 endOfLine = newline <|> crlf
 
-tab :: MatchChar c m => Format c m Char '[]
+tab :: MatchC c m Char => Format c m Char '[]
 tab = char '\t'
 
 upper :: Use Satisfy c m Char => SFormat c m Char Char
@@ -60,5 +58,5 @@ hexDigit = satisfy isHexDigit
 octDigit :: Use Satisfy c m Char => SFormat c m Char Char
 octDigit = satisfy isOctDigit
 
-string :: MatchChar c m => String -> Format c m Char '[]
+string :: (Use Satisfy c m Char, AlternativeC c m Char) => String -> Format c m Char '[]
 string s = tokens s

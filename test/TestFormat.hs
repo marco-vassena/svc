@@ -21,7 +21,7 @@ import Test.HUnit.Text
 
 
 -- An identifier is a non-empty sequence of letters
-identifier :: (SatisfyChar c m, ManyChar c m) => Format c m Char '[[Char]]
+identifier :: (AlternativeC c m Char, Use Satisfy c m Char) => Format c m Char '[[Char]]
 identifier = some letter
 
 parseId :: Parser Char String
@@ -53,7 +53,7 @@ testFalseIds = TestLabel "False Identifiers" $ TestList $
 
 --------------------------------------------------------------------------------
 -- 0 or more white space characters
-spaces :: (SatisfyChar c m, ManyChar c m) => Format c m Char '[[Char]]
+spaces :: (AlternativeC c m Char, Use Satisfy c m Char) => Format c m Char '[[Char]]
 spaces = many space
 
 parseSpaces :: Parser Char String
@@ -79,7 +79,7 @@ testFalseSpaces = TestLabel "False Spaces" $ TestList $
   zipWith (~=?) (repeat Nothing) (map printSpaces falseSpaces)
 
 --------------------------------------------------------------------------------
-twoDigits :: (SatisfyChar c m, ManyChar c m) => Format c m Char '[[Char]]
+twoDigits :: (AlternativeC c m Char, Use Satisfy c m Char) => Format c m Char '[[Char]]
 twoDigits = count 2 digit
 
 trueTwoDigits :: [String]
@@ -108,7 +108,7 @@ testFalseDigits = TestLabel "False Digits" $ TestList $
 --------------------------------------------------------------------------------
 
 -- Match 3 dots
-dots :: (MatchChar c m, ManyC c m Char '[]) => Format c m Char '[]
+dots :: (AlternativeC c m Char, Use Satisfy c m Char) => Format c m Char '[]
 dots = count 3 (char '.')
 
 parseDots :: Parser Char (HList '[])
@@ -136,7 +136,7 @@ testFalseDots = TestLabel "False Dots" $ TestList $
 -- Test Binding
 
 -- Expect the char next to the first read
-formatCharSChar :: (SatisfyChar c m, Use Bind c m Char '[Char, Char]) 
+formatCharSChar :: (Use Satisfy c m Char, Use Bind c m Char, Use Format c m Char) 
                 => Format c m Char '[Char, Char]
 formatCharSChar = satisfy (const True) >>= \(Cons c Nil) -> satisfy (== succ c) 
 
@@ -167,7 +167,7 @@ testFalseBind = TestLabel "False Bind" $ TestList $
 
 --------------------------------------------------------------------------------
 
-comment :: (TokensChar c m, ManyChar c m, Use Seq c m Char '[String]) => SFormat c m Char String
+comment :: (Use Satisfy c m Char, AlternativeC c m Char) => SFormat c m Char String
 comment = string "<!--" *> manyTill token (string "-->")
 
 parseComment :: Parser Char String

@@ -11,10 +11,12 @@ import Format.Combinator
 
 import Control.Isomorphism.Partial 
 
-match :: (ApplicativeC c m i, Use Token c m i,  Eq i) => i -> Format c m i '[]
-match x = element x <$> token     -- TODO rewrite in terms of satisfy
+type MatchC c m i = (Eq i, Use Satisfy c m i, Use FMap c m i, Use Format c m i) 
 
-tokens :: (ApplicativeC c m i, Use Token c m i, Eq i) => [i] -> Format c m i '[]
+match :: MatchC c m i => i -> Format c m i '[]
+match x = ignore (hsingleton x) <$> satisfy (x ==)
+
+tokens :: (MatchC c m i, AlternativeC c m i) => [i] -> Format c m i '[]
 tokens [] = identity SNil <$> unit
 tokens (x:xs) = identity SNil <$> match x <*> (tokens xs)
 

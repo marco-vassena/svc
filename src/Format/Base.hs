@@ -12,8 +12,7 @@
 
 module Format.Base where
 
-import Prelude ((.), Bool)
-import Prelude (undefined) -- remove
+import Prelude ((.), Bool(..), const)
 import Control.Isomorphism.Partial
 import Data.HList
 import Data.Type.Equality
@@ -102,8 +101,9 @@ infixr 3 <|>
 (<|>) :: AltC a b c m i => a c m i xs -> b c m i xs -> Format c m i xs
 p <|> q = format (Alt p q)
 
-token :: Use Token c m i => Format c m i '[i]
-token = format Token
+-- Move in Format.Token
+token :: Use Satisfy c m i => Format c m i '[i]
+token = satisfy (const True)
 
 satisfy :: Use Satisfy c m i => (i -> Bool) -> Format c m i '[i]
 satisfy = format . Satisfy

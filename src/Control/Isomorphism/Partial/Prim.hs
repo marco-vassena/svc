@@ -18,6 +18,7 @@ module Control.Isomorphism.Partial.Prim
   , zipper
   , combine
   , allEmpty
+  , ignore
   ) where
 
 import Prelude (($), fst, snd, otherwise, Eq, (==), Bool)
@@ -134,6 +135,11 @@ subset :: SList xs -> (HList xs -> Bool) -> Iso xs xs
 subset s p = Iso f f s s
   where f hs | p hs      = Just hs
         f hs | otherwise = Nothing
+
+ignore :: HList xs -> Iso xs '[]
+ignore hs = Iso f g (toSList hs) SNil
+  where f _ = Just Nil
+        g _ = Just hs
 
 --------------------------------------------------------------------------------
 -- TODO maybe remove.
