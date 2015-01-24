@@ -12,7 +12,7 @@ import Data.HList
 import Control.Applicative
 import Control.Isomorphism.Partial
 
--- TODO consider whether to keep this or not
+-- Relates the token type with the stream type.
 class PrintToken m i s where
   printToken :: i -> m s
 
@@ -22,9 +22,6 @@ instance (Applicative m) => PrintToken m i [i] where
 instance (Show i, PrintToken m i s, Monad m) => PrintWith s m i (Satisfy (PrintWith s)) where
   mkPrinter' (Satisfy p) (Cons i _) | p i       = printToken i
   mkPrinter' (Satisfy p) (Cons i _) | otherwise = fail $ show i ++ " : predicate not satisfied" 
-
-instance PrintToken m i s => PrintWith s m i (Token (PrintWith s)) where
-  mkPrinter' Token (Cons t _) = printToken t
 
 instance (Applicative m, Monoid s) => PrintWith s m i (Seq (PrintWith s)) where
   mkPrinter' (Seq f1 f2) hs = mappend <$> mkPrinter' f1 hs1 <*> mkPrinter' f2 hs2

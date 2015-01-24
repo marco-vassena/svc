@@ -40,6 +40,7 @@ instance Applicative (Parser i) where
   pure x = Parser (\s -> [(x,s)])
   p <*> q = Parser $ \s -> [(f a, s'') | (f, s' ) <- runParser p s, 
                                          (a, s'') <- runParser q s']
+
 instance Alternative (Parser i) where
   empty = Parser (const [])
   p <|> q = Parser $ \s -> runParser p s ++ runParser q s
@@ -52,9 +53,6 @@ instance Monad (Parser i) where
 --------------------------------------------------------------------------------
 -- If the Parser is an instance of Alternative-Monad this is 
 -- the only instance needed to use the Format framework.
-instance ParseToken (Parser Char) Char where
-  parseToken = nextToken
-
 instance ParseSatisfy (Parser i) i where
   parseSatisfy = pSatisfy
 

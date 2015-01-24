@@ -20,6 +20,9 @@ import Format.Token.Base
 char :: MatchC c m Char => Char -> Format c m Char '[]
 char = match
 
+anyChar :: Use Satisfy c m Char => SFormat c m Char Char
+anyChar = token
+
 -- TODO add spaces
 
 space :: Use Satisfy c m Char => SFormat c m Char Char

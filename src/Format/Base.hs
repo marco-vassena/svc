@@ -3,11 +3,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE RankNTypes #-} -- remove
-{-# LANGUAGE MultiParamTypeClasses #-} -- remove
-{-# LANGUAGE FlexibleInstances #-} -- remove
-{-# LANGUAGE FlexibleContexts #-} -- maybe remove
-{-# LANGUAGE UndecidableInstances #-} -- maybe remove
+
 -- | This module defines types for describing formats
 
 module Format.Base where
@@ -35,10 +31,6 @@ data Seq c (m :: * -> *) (i :: *) (zs :: [*]) where
           c m i b, Reify (b m i))
       => a m i xs -> b m i ys -> Seq c m i (Append xs ys)
 
--- TODO remove, this can be implemented in terms of satisfy
-data Token c (m :: * -> *) (i :: *) (xs :: [ * ]) where
-  Token :: Token c m i '[i]
-
 data Satisfy c (m :: * -> *) (i :: *) (xs :: [ * ]) where
   Satisfy :: (i -> Bool) -> Satisfy c m i '[i]
  
@@ -61,7 +53,6 @@ data Bind c (m :: * -> *) (i :: *) (xs :: [ * ]) where
 
 fail :: (Use Fail c m i, KnownSList xs) => Format c m i xs
 fail = format (Fail slist)
-
 
 type UseAndReify a c m i = (Use a c m i, Reify (a c m i))
 
@@ -101,10 +92,6 @@ infixr 3 <|>
 (<|>) :: AltC a b c m i => a c m i xs -> b c m i xs -> Format c m i xs
 p <|> q = format (Alt p q)
 
--- Move in Format.Token
-token :: Use Satisfy c m i => Format c m i '[i]
-token = satisfy (const True)
-
 satisfy :: Use Satisfy c m i => (i -> Bool) -> Format c m i '[i]
 satisfy = format . Satisfy
 
@@ -140,9 +127,6 @@ instance Reify (Format c m i) where
 
 instance Reify (Bind c m i) where
   toSList (Bind s f k) = sappend (toSList f) s
-
-instance Reify (Token c m i) where
-  toSList Token = SCons SNil
 
 instance Reify (Satisfy c m i) where
   toSList (Satisfy _) = SCons SNil
