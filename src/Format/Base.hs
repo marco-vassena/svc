@@ -32,6 +32,7 @@ data Seq c (m :: * -> *) (i :: *) (zs :: [*]) where
           c m i ys b, Reify (b m i)) 
       => a m i xs -> b m i ys -> Seq c m i (Append xs ys)
 
+-- TODO remove, this can be implemented in terms of satisfy
 data Token (c :: (* -> *) -> * -> [ * ] -> ((* -> *) -> * -> [*] -> *) -> Constraint)
            (m :: * -> *) (i :: *) (xs :: [ * ]) where
   Token :: Token c m i '[i]
