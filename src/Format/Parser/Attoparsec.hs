@@ -10,3 +10,6 @@ import Data.Attoparsec.ByteString.Char8
 
 instance ParseToken Parser Char where
   parseToken = anyChar
+
+instance ParseSatisfy Parser Char where
+  parseSatisfy = satisfy
