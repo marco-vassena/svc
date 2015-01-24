@@ -11,7 +11,7 @@ import Format.Combinator
 
 import Control.Isomorphism.Partial 
 
-type SatisfyC c m i = (Use Token  c m i '[i], 
+type SatisfyC c m i = (Use Satisfy c m i '[i], 
                        Use FMap   c m i '[i], 
                        Use Format c m i '[i])
 
@@ -42,6 +42,3 @@ noneOf :: (SatisfyC c m i, Eq i) => [ i ] -> Format c m i '[ i ]
 noneOf xs = satisfy (not . (`elem` xs))
 
 -- TODO Add anyOf
-
-satisfy :: SatisfyC c m i => (i -> Bool) -> Format c m i '[ i ]
-satisfy p = subset (SCons SNil) (happly p) <$> token

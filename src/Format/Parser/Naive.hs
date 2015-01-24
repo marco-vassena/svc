@@ -55,9 +55,18 @@ instance Monad (Parser i) where
 instance ParseToken (Parser Char) Char where
   parseToken = nextToken
 
+instance ParseWith (Parser Char) Char '[ Char ] (Satisfy ParseWith) where
+  mkParser' (Satisfy p) = hsingleton <$> pSatisfy p
+
 -- Returns the next token in the stream.
 nextToken :: Parser i i
 nextToken = Parser $ \xs ->
     case xs of
       [] -> []
       (x:xs) -> [(x, xs)]
+
+-- Returns the next token in the stram only if it satisfy the predicate.
+pSatisfy :: (i -> Bool) -> Parser i i
+pSatisfy p = do 
+  c <- nextToken
+  if p c then pure c else empty

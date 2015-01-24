@@ -138,7 +138,7 @@ testFalseDots = TestLabel "False Dots" $ TestList $
 -- Expect the char next to the first read
 formatCharSChar :: (SatisfyChar c m, Use Bind c m Char '[Char, Char]) 
                 => Format c m Char '[Char, Char]
-formatCharSChar = token >>= \(Cons c Nil) -> satisfy (== succ c) 
+formatCharSChar = satisfy (const True) >>= \(Cons c Nil) -> satisfy (== succ c) 
 
 parseCharSChar :: Parser Char String
 parseCharSChar = do 

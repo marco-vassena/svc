@@ -9,7 +9,7 @@
 
 module Format.Base where
 
-import Prelude ((.))
+import Prelude ((.), Bool)
 import Control.Isomorphism.Partial
 import Data.HList
 import Data.Type.Equality
@@ -35,7 +35,10 @@ data Seq c (m :: * -> *) (i :: *) (zs :: [*]) where
 data Token (c :: (* -> *) -> * -> [ * ] -> ((* -> *) -> * -> [*] -> *) -> Constraint)
            (m :: * -> *) (i :: *) (xs :: [ * ]) where
   Token :: Token c m i '[i]
-  
+
+data Satisfy c (m :: * -> *) (i :: *) (xs :: [ * ]) where
+  Satisfy :: (i -> Bool) -> Satisfy c m i '[i]
+ 
 data FMap c (m :: * -> *) (i :: *) (xs :: [ * ]) where
   FMap :: (c m i args a) => Iso args xs -> a m i args -> FMap c m i xs
  
@@ -101,6 +104,9 @@ p <|> q = format (Alt p q)
 token :: Use Token c m i '[i] => Format c m i '[i]
 token = format Token
 
+satisfy :: Use Satisfy c m i '[i] => (i -> Bool) -> Format c m i '[i]
+satisfy = format . Satisfy
+
 infixr 4 <$>
 (<$>) :: (Use FMap c m i xs, 
           Use a c m i args) 
@@ -117,6 +123,9 @@ type Use a c m i xs = c m i xs (a c)
 
 instance Reify (Token c m i) where
   toSList Token = SCons SNil
+
+instance Reify (Satisfy c m i) where
+  toSList (Satisfy _) = SCons SNil
 
 instance Reify (Seq c m i) where
   toSList (Seq a b) = sappend (toSList a) (toSList b)
