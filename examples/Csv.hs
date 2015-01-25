@@ -19,22 +19,15 @@ import Format.Parser.UU
 import Text.ParserCombinators.UU.BasicInstances
 import Text.ParserCombinators.UU.Utils
 
--- Move this to char module
-int :: (Use Satisfy c m Char, AlternativeC c m Char) => SFormat c m Char Int
-int = i <$> some digit
-  where i :: Iso '[String] '[Int] 
-        i = Iso f g (SCons SNil) (SCons SNil)
-          where f :: HList '[ String ] -> Maybe (HList '[Int])
-                f (Cons s _) = Just . hsingleton $ read s
-                g :: HList '[ Int ] -> Maybe (HList '[String])
-                g (Cons n _) = Just . hsingleton $ show n
-             
+import Util
+
 --------------------------------------------------------------------------------
 -- | Csv specification as Grammar
-csvGrammar :: (Use Satisfy c m Char, AlternativeC c m Char) => Format c m Char '[Int, [Int], [Int], [[Int]]]
+--------------------------------------------------------------------------------
+csvGrammar :: (Use Satisfy c m Char, AlternativeC c m Char) 
+           => Format c m Char '[Int, [Int], [Int], [[Int]]]
 csvGrammar = csvRow <*> many (char '\n' *> csvRow)
-  where csvRow :: (Use Satisfy c m Char, AlternativeC c m Char) => Format c m Char '[Int, [Int]]
-        csvRow = int <*> many (char ',' *> int)
+  where csvRow = int <*> many (char ',' *> int)
 
 --------------------------------------------------------------------------------
 

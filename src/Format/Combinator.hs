@@ -11,6 +11,7 @@ module Format.Combinator (
   , sepBy1
   , count
   , manyTill
+  , P.chainl1
   ) where
 
 import Format.Combinator.Base
