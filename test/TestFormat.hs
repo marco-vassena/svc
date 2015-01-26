@@ -7,7 +7,7 @@ module Main where
 
 import Prelude hiding ((>>=))
 import Data.HList
-import Format.Base
+import Format.Syntax
 import Format.Combinator
 import Format.Token
 import Format.Parser

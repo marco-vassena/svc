@@ -6,7 +6,7 @@
 
 -- | This module defines types for describing formats
 
-module Format.Base where
+module Format.Syntax.Base where
 
 import Prelude ((.), Bool(..), const)
 import Control.Isomorphism.Partial

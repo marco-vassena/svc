@@ -4,7 +4,7 @@
 
 module Format.Parser.Base where
 
-import Format.Base
+import Format.Syntax
 import Data.HList
 
 class ParseWith (m :: * -> *) (i :: *) a where

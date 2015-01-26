@@ -17,7 +17,8 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:     src
-  exposed-modules:    Format, Format.Base, Format.Parser, Format.Printer,
+  exposed-modules:    Format, Format.Syntax, Format.Syntax.Base, Format.Syntax.Help, 
+                      Format.Parser, Format.Printer,
                       Format.Printer.Naive, Format.Printer.Base, Data.HList, Control.Isomorphism.Partial.Prim,
                       Format.Parser.Naive, Format.Parser.UU, Format.Parser.Parsec, Format.Parser.Attoparsec,
                       Format.Parser.Base, Format.Token, Format.Token.Char, Format.Combinator

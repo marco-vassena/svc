@@ -6,7 +6,7 @@
 
 module Format.Printer.Base where
 
-import Format.Base
+import Format.Syntax
 import Control.Monad
 import Data.HList
 

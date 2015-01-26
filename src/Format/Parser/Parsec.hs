@@ -8,7 +8,6 @@ module Format.Parser.Parsec where
 import Control.Isomorphism.Partial
 import Control.Applicative ((<$>), (<*>), pure)
 import Data.HList
-import Format.Base hiding (satisfy)
 import Format.Parser.Base
 import Format.Parser.GParser
 import Text.Parsec

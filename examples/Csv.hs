@@ -9,7 +9,7 @@ import Control.Isomorphism.Partial
 
 import Data.HList
 
-import Format.Base hiding (fail)
+import Format.Syntax hiding (fail)
 import Format.Combinator
 import Format.Token
 import Format.Printer

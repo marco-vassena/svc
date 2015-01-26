@@ -9,7 +9,6 @@ module Format.Parser.UU where
 import Control.Isomorphism.Partial
 import Data.ListLike
 import Data.HList
-import Format.Base
 import Format.Parser
 import Format.Parser.GParser
 import Text.ParserCombinators.UU.BasicInstances

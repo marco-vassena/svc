@@ -16,7 +16,7 @@ import Data.HList
 import Data.List
 import Data.Word
 
-import Format.Base hiding (fail)
+import Format.Syntax hiding (fail)
 import Format.Combinator
 import Format.Token
 import Format.Parser

@@ -5,7 +5,7 @@
 
 module Format.Printer.GPrinter where
 
-import Format.Base hiding ((<$>), (<*>), (<|>), pure, fail)
+import Format.Syntax hiding ((<$>), (<*>), (<|>), pure, fail)
 import Format.Printer.Base
 import Data.Monoid
 import Data.HList

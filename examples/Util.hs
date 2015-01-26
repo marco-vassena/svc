@@ -3,7 +3,7 @@
 
 module Util where
 
-import Format.Base
+import Format.Syntax
 import Format.Combinator
 import Format.Token
 import Control.Isomorphism.Partial

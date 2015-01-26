@@ -39,7 +39,7 @@ import Format.Combinator.Base
 import qualified Format.Combinator.Prim as P
 import Control.Isomorphism.Partial
 import Data.HList
-import Format.Base
+import Format.Syntax
 
 -- '@atMost@ n f k' has the following behaviour:
 -- * applies 'f' via 'k' as many times as possible

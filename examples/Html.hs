@@ -9,7 +9,7 @@
 module Html where
 
 import Data.HList
-import Format.Base hiding (fail)
+import Format.Syntax hiding (fail)
 import Format.Token
 import qualified Format.Token as F
 import Format.Token.Char

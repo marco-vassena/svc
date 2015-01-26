@@ -5,7 +5,7 @@
 
 module Format.Parser.GParser where
 
-import Format.Base hiding ((<$>), (<*>), (<|>), pure, fail)
+import Format.Syntax hiding ((<$>), (<*>), (<|>), pure, fail)
 import Format.Parser.Base
 import Data.HList
 import Control.Applicative

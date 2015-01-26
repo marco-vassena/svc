@@ -15,7 +15,6 @@ module Format.Parser.Naive (
   ) where
 
 import Data.HList
-import Format.Base hiding ((<*>), (<$>), pure, (<|>), fail, (>>=))
 import Format.Parser.Base
 import Format.Parser.GParser
 import Control.Applicative

@@ -11,7 +11,7 @@ module Format.Combinator.Prim where
 
 import Data.HList
 import Data.Maybe
-import Format.Base
+import Format.Syntax
 import Format.Combinator.Base
 import Control.Isomorphism.Partial
 import qualified Control.Isomorphism.Partial as C

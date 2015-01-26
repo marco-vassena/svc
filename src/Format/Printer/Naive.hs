@@ -16,7 +16,6 @@ import Control.Applicative
 import Data.HList
 import Data.ByteString.Char8
 
-import Format.Base hiding (pure)
 import Format.Printer.Base
 import Format.Printer.GPrinter
 

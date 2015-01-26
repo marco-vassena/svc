@@ -6,7 +6,7 @@ module Format.Token.Base where
 import Prelude hiding (takeWhile)
 import Data.HList
 
-import Format.Base
+import Format.Syntax
 import Format.Combinator
 
 import Control.Isomorphism.Partial 

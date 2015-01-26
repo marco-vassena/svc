@@ -1,3 +1,9 @@
-module Format where
+module Format (
+    module Format.Syntax
+  , module Format.Combinator
+  , module Format.Token
+  ) where
 
-import Format.Base
+import Format.Syntax
+import Format.Combinator
+import Format.Token
