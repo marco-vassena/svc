@@ -19,7 +19,6 @@ import System.Exit
 import Test.HUnit.Base
 import Test.HUnit.Text
 
-
 -- An identifier is a non-empty sequence of letters
 identifier :: (AlternativeC c m Char, Use Satisfy c m Char) => Format c m Char '[[Char]]
 identifier = some letter
@@ -198,6 +197,34 @@ testFalseComment = TestLabel "False Comments" $ TestList $
   -- printing never fails
 
 --------------------------------------------------------------------------------
+-- many single space character
+manySpace :: (Use Satisfy c m Char, AlternativeC c m Char) => Format c m Char '[]
+manySpace = many (char ' ')
+
+trueMSpace :: [String]
+trueMSpace = [replicate n ' ' | n <- [0..10]]
+
+falseMSpace :: [String]
+falseMSpace = [ss ++ notSpace | ss <- trueMSpace, 
+                                notSpace <- ["1","\n","\t","a"]]
+
+parseMSpace :: Parser Char (HList '[])
+parseMSpace = mkParser manySpace
+
+printMSpace :: HList '[] -> Maybe String
+printMSpace = mkPrinter manySpace
+
+testTrueMSpace :: Test
+testTrueMSpace = TestLabel "True Space" $ TestList $
+  zipWith (~=?) (repeat (Just Nil)) (map (parseM parseMSpace) trueMSpace) ++
+  [Just "" ~=? printMSpace Nil]
+
+testFalseMSpace :: Test
+testFalseMSpace = TestLabel "False Space" $ TestList $
+  zipWith (~=?) (repeat Nothing) (map (parseM parseMSpace) falseMSpace)
+  -- Printing never fails, because the only possible input is Nil
+
+--------------------------------------------------------------------------------
 
 tests :: Test
 tests = TestLabel "Format" $ TestList $ [
@@ -206,7 +233,8 @@ tests = TestLabel "Format" $ TestList $ [
   TestLabel "Digits"       $ TestList [testTrueDigits, testFalseDigits],
   TestLabel "Dots"         $ TestList [testTrueDots, testFalseDots],
   TestLabel "Bind"         $ TestList [testTrueBind, testFalseBind],
-  TestLabel "ManyTill"     $ TestList [testTrueComment, testFalseComment]
+  TestLabel "ManyTill"     $ TestList [testTrueComment, testFalseComment],
+  TestLabel "Spaces"       $ TestList [testTrueMSpace, testFalseMSpace]
   ]
 
 hasFailed :: Counts -> Bool
