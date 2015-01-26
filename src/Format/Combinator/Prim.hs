@@ -2,7 +2,9 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ConstraintKinds #-}
 
--- This module defines basic combinators.
+-- This module defines basic primitive combinators.
+-- Note that like with their applicative counterpart the 
+-- underlying semantics must fail eventually in order to terminate.
 -- The 'SList' values must be explicitly provided.
 
 module Format.Combinator.Prim where
@@ -22,13 +24,13 @@ some :: AlternativeC c m i => SList xs -> Format c m i xs -> Format c m i (Map [
 some s f = inverse (combine s) <$> f <*> many s f
 
 sepBy :: AlternativeC c m i 
-      => SList xs -> Format c m i xs -> Format c m i '[] -> Format c m i (Map [] xs)
-sepBy s f sep = sepBy1 s f sep
+      => Format c m i '[] -> SList xs -> Format c m i xs -> Format c m i (Map [] xs)
+sepBy sep s f = sepBy1 sep s f 
              <|> inverse (allEmpty s) <$> unit
 
 sepBy1 :: AlternativeC c m i 
-       => SList xs -> Format c m i xs -> Format c m i '[] -> Format c m i (Map [] xs)
-sepBy1 s f sep = inverse (combine s) <$> f <*> many s (sep *> f)
+       => Format c m i '[] -> SList xs -> Format c m i xs -> Format c m i (Map [] xs)
+sepBy1 sep s f = inverse (combine s) <$> f <*> many s (sep *> f)
 
 -- | The `chainl1` combinator is used to parse a
 -- left-associative chain of infix operators. 
@@ -43,6 +45,6 @@ count s n f | n <= 0    = inverse (allEmpty s) <$> unit
 count s n f | otherwise = inverse (combine s)  <$> f <*> count s (n - 1) f
 
 manyTill :: AlternativeC c m i 
-         => SList xs -> Format c m i xs -> Format c m i '[] -> Format c m i (Map [] xs)
-manyTill s p end =  inverse (combine  s) <$> p   <*> manyTill s p end
+         => Format c m i '[] -> SList xs -> Format c m i xs -> Format c m i (Map [] xs)
+manyTill end s p =  inverse (combine  s) <$> p   <*> manyTill end s p
                 <|> inverse (allEmpty s) <$> end
