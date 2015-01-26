@@ -4,12 +4,12 @@
 
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE ConstraintKinds #-}
 
 module Html where
 
 import Data.HList
-import Data.ByteString hiding (cons, putStrLn)
-import Format.Base
+import Format.Base hiding (fail)
 import Format.Token
 import qualified Format.Token as F
 import Format.Token.Char
@@ -17,14 +17,14 @@ import Format.Combinator
 import Format.Printer
 import Format.Printer.Naive
 import Format.Parser
-import Format.Parser.Attoparsec
-import Format.Parser.Generic
-import Control.Applicative ((<*))
+import Format.Parser.Parsec
+import Format.Parser.GParser
+import qualified Control.Applicative as A
 import Control.Isomorphism.Partial
 import qualified Control.Isomorphism.Partial.Prim as C
 import Control.Isomorphism.Partial.Constructors
 
-import Data.Attoparsec.ByteString.Char8 (Parser, parseOnly, endOfInput)
+import Text.Parsec (Parsec, eof, parse)
 
 data Tag =
     Open String [Attribute]
@@ -75,59 +75,68 @@ attr = Iso (Just . hsingleton . happly Attr) from (SCons (SCons SNil)) (SCons SN
 --------------------------------------------------------------------------------
 -- Tag format
 
-name :: SFormat m Char String
-name = cons <$> letter <@> rest
+name :: (AlternativeC c m Char, Use Satisfy c m Char) 
+        => SFormat c m Char String
+name = cons <$> letter <*> rest
   where rest = many (letter <|> digit <|> periodOrHyp)
         periodOrHyp = oneOf ".-"
 
-openTag :: SFormat m Char Tag
-openTag = open <$> char '<' @> name <@> (Pure (hsingleton [])) <@ char '>' -- space @> sepBy attribute space)
-  where space = char ' '
+openTag :: (AlternativeC c m Char, Use Satisfy c m Char) 
+         => SFormat c m Char Tag
+openTag = open <$> char '<' *> name <*> (Pure (hsingleton [])) <* char '>' -- space *> sepBy attribute space)
 
-closeTag :: SFormat m Char Tag
-closeTag = close <$> string "</" @> name <@ char '>'
+closeTag :: (AlternativeC c m Char, Use Satisfy c m Char) 
+         => SFormat c m Char Tag
+closeTag = close <$> string "</" *> name <* char '>'
 
-commentTag :: SFormat m Char Tag
-commentTag = comment <$> string "<!--" @> manyTill token (string "-->")
+commentTag :: (AlternativeC c m Char, Use Satisfy c m Char) 
+           => SFormat c m Char Tag
+commentTag = comment <$> string "<!--" *> manyTill token (string "-->")
 
---cCharTag :: SFormat m Char Tag
+--cCharTag :: SFormat c m Char Tag
 --cCharTag = cChar <$> noneOf "<>!-"
 
-contentTag :: SFormat m Char Tag
+contentTag :: (AlternativeC c m Char, Use Satisfy c m Char) 
+           => SFormat c m Char Tag
 contentTag = content <$> some (satisfy (/= '<'))
 
 --------------------------------------------------------------------------------
 -- Attribute format
 
-attribute :: Format m Char '[Attribute]
-attribute = attr <$> name <@> char '=' @> value
+attribute :: (AlternativeC c m Char, Use Satisfy c m Char) 
+          => Format c m Char '[Attribute]
+attribute = attr <$> name <*> (char '=' *> value)
 
-value :: SFormat m Char String
-value =  char '\'' @> many (noneOf "'") <@ char '\''
-     <|> char '"' @> many (noneOf "\"") <@ char '"'
+value :: (AlternativeC c m Char, Use Satisfy c m Char)
+      => SFormat c m Char String
+value =  char '\'' *> many (noneOf "'") <* char '\''
+     <|> char '"' *> many (noneOf "\"") <* char '"'
 
 --------------------------------------------------------------------------------
 
-html :: SFormat m Char [Tag]
+html :: (AlternativeC c m Char, Use Satisfy c m Char)
+     => SFormat c m Char [Tag]
 html = many tag
 
-tag :: SFormat m Char Tag
-tag = openTag <|> closeTag <|> commentTag <|> contentTag
+-- Here we should use try because openTag and closeTag overlap 
+tag :: (AlternativeC c m Char, Use Satisfy c m Char)
+    =>  SFormat c m Char Tag
+tag = openTag <|> closeTag <|> commentTag <|> contentTag  
 
-htmlInput :: ByteString
+htmlInput :: String
 htmlInput = "<html>\n<body>\n\n<h1>My First Heading</h1>\n\n\
              \<p>My first paragraph.</p>\n\n</body>\n</html>"
 
-parseHtml :: Parser (HList '[[Tag]])
-parseHtml = mkParser html
+parseHtml :: Parsec String () [Tag]
+parseHtml = hHead A.<$> mkParser html A.<* eof
 
-printHtml :: HList '[[Tag]] -> Maybe String
-printHtml = mkPrinter html
+printHtml :: [Tag] -> Maybe String
+printHtml = mkPrinter html . hsingleton
 
 main :: IO ()
 main = do
-  case parseOnly (parseHtml <* endOfInput) htmlInput of
-    Left err -> fail err
+  case parse parseHtml "" htmlInput of
+    Left err -> fail (show err)
     Right h -> 
       case printHtml h of
         Just s -> putStrLn s
