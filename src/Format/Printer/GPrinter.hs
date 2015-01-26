@@ -16,6 +16,14 @@ import Control.Isomorphism.Partial
 class PrintToken m i s where
   printToken :: i -> m s
 
+class PrintHelp m where
+  printHelp :: m a -> String -> m a
+  printHelp = const
+
+class PrintTry m where
+  printTry :: m a -> m a
+  printTry = id
+
 instance (Show i, PrintToken m i s, Monad m) => PrintWith s m i (Satisfy (PrintWith s)) where
   mkPrinter' (Satisfy p) (Cons i _) | p i       = printToken i
   mkPrinter' (Satisfy p) (Cons i _) | otherwise = fail $ show i ++ " : predicate not satisfied" 
@@ -47,3 +55,9 @@ instance (Monoid s, Applicative m) => PrintWith s m i (Bind (PrintWith s)) where
   mkPrinter' (Bind s f1 k) hs = mappend <$> mkPrinter' f1 hs1 <*> mkPrinter' f2 hs2
     where (hs1, hs2) = split (toSList f1) s hs
           f2 = k hs1
+
+instance PrintHelp m => PrintWith s m i (Help (PrintWith s)) where
+  mkPrinter' (Help f msg) hs = printHelp (mkPrinter' f hs) msg
+
+instance PrintTry m => PrintWith s m i (Try (PrintWith s)) where
+  mkPrinter' (Try f) hs = printTry (mkPrinter' f hs)

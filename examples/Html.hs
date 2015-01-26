@@ -75,21 +75,21 @@ attr = Iso (Just . hsingleton . happly Attr) from (SCons (SCons SNil)) (SCons SN
 --------------------------------------------------------------------------------
 -- Tag format
 
-name :: (AlternativeC c m Char, Use Satisfy c m Char) 
+name :: (AlternativeC c m Char, FormatC c m)
         => SFormat c m Char String
 name = cons <$> letter <*> rest
   where rest = many (letter <|> digit <|> periodOrHyp)
         periodOrHyp = oneOf ".-"
 
-openTag :: (AlternativeC c m Char, Use Satisfy c m Char) 
+openTag :: (AlternativeC c m Char, FormatC c m)
          => SFormat c m Char Tag
 openTag = open <$> char '<' *> name <*> (Pure (hsingleton [])) <* char '>' -- space *> sepBy attribute space)
 
-closeTag :: (AlternativeC c m Char, Use Satisfy c m Char) 
+closeTag :: (AlternativeC c m Char, FormatC c m)
          => SFormat c m Char Tag
 closeTag = close <$> string "</" *> name <* char '>'
 
-commentTag :: (AlternativeC c m Char, Use Satisfy c m Char) 
+commentTag :: (AlternativeC c m Char, FormatC c m)
            => SFormat c m Char Tag
 commentTag = comment <$> string "<!--" *> manyTill token (string "-->")
 
@@ -103,25 +103,25 @@ contentTag = content <$> some (satisfy (/= '<'))
 --------------------------------------------------------------------------------
 -- Attribute format
 
-attribute :: (AlternativeC c m Char, Use Satisfy c m Char) 
+attribute :: (AlternativeC c m Char, FormatC c m)
           => Format c m Char '[Attribute]
 attribute = attr <$> name <*> (char '=' *> value)
 
-value :: (AlternativeC c m Char, Use Satisfy c m Char)
+value :: (AlternativeC c m Char, FormatC c m)
       => SFormat c m Char String
 value =  char '\'' *> many (noneOf "'") <* char '\''
      <|> char '"' *> many (noneOf "\"") <* char '"'
 
 --------------------------------------------------------------------------------
 
-html :: (AlternativeC c m Char, Use Satisfy c m Char)
+html :: (AlternativeC c m Char, FormatC c m, Use Try c m Char)
      => SFormat c m Char [Tag]
 html = many tag
 
 -- Here we should use try because openTag and closeTag overlap 
-tag :: (AlternativeC c m Char, Use Satisfy c m Char)
+tag :: (AlternativeC c m Char, FormatC c m, Use Try c m Char)
     =>  SFormat c m Char Tag
-tag = openTag <|> closeTag <|> commentTag <|> contentTag  
+tag = try openTag <|> try closeTag <|> commentTag <|> contentTag 
 
 htmlInput :: String
 htmlInput = "<html>\n<body>\n\n<h1>My First Heading</h1>\n\n\
