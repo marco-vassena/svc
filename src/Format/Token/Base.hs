@@ -11,10 +11,14 @@ import Format.Combinator
 
 import Control.Isomorphism.Partial 
 
-type MatchC c m i = (Eq i, Use Satisfy c m i, Use FMap c m i, Use Format c m i) 
+type MatchC c m i = (Eq i, Show i, 
+                     Use Format  c m i, 
+                     Use Satisfy c m i, 
+                     Use FMap    c m i, 
+                     Use Help    c m i)
 
 match :: MatchC c m i => i -> Format c m i '[]
-match x = ignore (hsingleton x) <$> satisfy (x ==)
+match x = ignore (hsingleton x) <$> satisfy (x ==) <?> show x
 
 token :: Use Satisfy c m i => Format c m i '[i]
 token = satisfy (const True)

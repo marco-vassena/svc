@@ -17,49 +17,51 @@ import Format.Combinator
 import Format.Combinator.Prim
 import Format.Token.Base
 
+type FormatC c m = (Use Satisfy c m Char, Use Format c m Char, Use Help c m Char)
+
 char :: MatchC c m Char => Char -> Format c m Char '[]
-char = match
+char c = match c <?> show [c]
 
 anyChar :: Use Satisfy c m Char => SFormat c m Char Char
 anyChar = token
 
 -- TODO add spaces
 
-space :: Use Satisfy c m Char => SFormat c m Char Char
-space = satisfy isSpace
+space :: FormatC c m => SFormat c m Char Char
+space = satisfy isSpace <?> "space"
 
 newline :: MatchC c m Char => Format c m Char '[]
-newline = char '\n'
+newline = char '\n' <?> "lf new-line"
 
-crlf :: (Use Satisfy c m Char, AlternativeC c m Char) => Format c m Char '[]
-crlf = char '\r' *> char '\n'
+crlf :: (FormatC c m, AlternativeC c m Char) => Format c m Char '[]
+crlf = char '\r' *> char '\n' <?> "crlf new-line"
 
-endOfLine :: (Use Satisfy c m Char, AlternativeC c m Char) => Format c m Char '[]
-endOfLine = newline <|> crlf
+endOfLine :: (FormatC c m, AlternativeC c m Char) => Format c m Char '[]
+endOfLine = newline <|> crlf <?> "new-line"
 
 tab :: MatchC c m Char => Format c m Char '[]
-tab = char '\t'
+tab = char '\t' <?> "tab"
 
-upper :: Use Satisfy c m Char => SFormat c m Char Char
-upper = satisfy isUpper
+upper :: FormatC c m => SFormat c m Char Char
+upper = satisfy isUpper <?> "uppercase letter"
 
-lower :: Use Satisfy c m Char => SFormat c m Char Char
-lower = satisfy isLower
+lower :: FormatC c m => SFormat c m Char Char
+lower = satisfy isLower <?> "lowercase letter"
 
-alphaNum :: Use Satisfy c m Char => SFormat c m Char Char
-alphaNum = satisfy isAlphaNum
+alphaNum :: FormatC c m => SFormat c m Char Char
+alphaNum = satisfy isAlphaNum <?> "letter or digit"
 
-letter :: Use Satisfy c m Char => SFormat c m Char Char
-letter = satisfy isAlpha
+letter :: FormatC c m => SFormat c m Char Char
+letter = satisfy isAlpha <?> "letter"
 
-digit :: Use Satisfy c m Char => SFormat c m Char Char
-digit = satisfy isDigit
+digit :: FormatC c m => SFormat c m Char Char
+digit = satisfy isDigit <?> "digit"
 
-hexDigit :: Use Satisfy c m Char => SFormat c m Char Char
-hexDigit = satisfy isHexDigit
+hexDigit :: FormatC c m => SFormat c m Char Char
+hexDigit = satisfy isHexDigit  <?> "hexadecimal digit"
 
-octDigit :: Use Satisfy c m Char => SFormat c m Char Char
-octDigit = satisfy isOctDigit
+octDigit :: FormatC c m => SFormat c m Char Char
+octDigit = satisfy isOctDigit <?> "octal digit"
 
-string :: (Use Satisfy c m Char, AlternativeC c m Char) => String -> Format c m Char '[]
+string :: (MatchC c m Char, AlternativeC c m Char) => String -> Format c m Char '[]
 string s = tokens s

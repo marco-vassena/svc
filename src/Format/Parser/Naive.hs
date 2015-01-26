@@ -15,6 +15,7 @@ module Format.Parser.Naive (
   ) where
 
 import Data.HList
+import Format.Syntax.Help
 import Format.Parser.Base
 import Format.Parser.GParser
 import Control.Applicative
@@ -54,6 +55,10 @@ instance Monad (Parser i) where
 -- the only instance needed to use the Format framework.
 instance ParseSatisfy (Parser i) i where
   parseSatisfy = pSatisfy
+
+instance ParseWith (Parser i) i (Help ParseWith) where
+  -- It is always safe to just ignore the message
+  mkParser' (Help f msg) = mkParser' f
 
 -- Returns the next token in the stream.
 nextToken :: Parser i i
