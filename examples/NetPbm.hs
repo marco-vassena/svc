@@ -21,10 +21,10 @@ import Format.Combinator
 import Format.Token
 import Format.Parser
 import Format.Parser.GParser
-import Format.Parser.Attoparsec
+import Format.Parser.Parsec
 import Format.Printer.Naive
 
-import Data.Attoparsec.ByteString.Char8 (Parser, endOfInput, parseOnly)
+import Text.Parsec (Parsec, eof, parse)
 
 import Util
 
@@ -57,25 +57,30 @@ pbmRawFormat = pbmHeader >>= \(Cons n (Cons m _)) -> img n m
 pbmHeader :: (AlternativeC c m Char, 
               Use Satisfy c m Char) 
           => Format c m Char '[Int, Int]
-pbmHeader = (string "P1\n" *> int <* spaces) <*> int <* spaces
-        -- comment = char '#' *> many noneOf "\n" <* char "\n"
+pbmHeader = (string "P1\n" *> comment *> int <* spaces) <*> int <* spaces 
+  
+comment :: (AlternativeC c m Char, 
+            Use Satisfy c m Char) 
+        => Format c m Char '[]
+comment = ignore (hsingleton Nothing) <$> optional cm
+  where cm = char '#' *> manyTill (satisfy (/= '\n')) (char '\n')
 
 img :: (Use Satisfy c m Char, AlternativeC c m Char) 
     => Int -> Int -> SFormat c m Char [[Char]]
 img n m = count n (count m (bit <* spaces))
   where bit = oneOf "01"
 
-pbmParser :: Parser Pbm
-pbmParser = hHead A.<$> (mkParser pbmFormat) A.<* endOfInput
+pbmParser :: Parsec ByteString () Pbm
+pbmParser = hHead A.<$> (mkParser pbmFormat) A.<* eof
 
 pbmPrinter :: Pbm -> Maybe ByteString
 pbmPrinter = mkPrinter pbmFormat . hsingleton
 
 roundtrip :: ByteString -> IO ByteString
 roundtrip s = do 
-  p <- either (\_ -> fail "Parser Failed") return (parseOnly pbmParser s)
-  print p
-  maybe (fail "Printer Failed") return (pbmPrinter p)
+  case parse pbmParser "" s of
+    Left e -> fail (show e) 
+    Right p -> print p >> maybe (fail "Printer Failed") return (pbmPrinter p)
 
 test :: String -> IO ()
 test s = B.readFile s M.>>= roundtrip M.>>= B.putStrLn
