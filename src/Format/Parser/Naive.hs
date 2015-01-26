@@ -56,6 +56,7 @@ instance ParseSatisfy (Parser i) i where
   parseSatisfy = pSatisfy
 
 instance ParseHelp (Parser i)
+instance ParseTry (Parser i)
 
 -- Returns the next token in the stream.
 nextToken :: Parser i i

@@ -15,4 +15,7 @@ instance Stream s m Char => ParseSatisfy (ParsecT s u m) Char where
   parseSatisfy = satisfy
 
 instance ParseHelp (ParsecT s u m) where
-  parseHelp    = (<?>)
+  parseHelp = (<?>)
+
+instance ParseTry (ParsecT s u m) where
+  parseTry = try

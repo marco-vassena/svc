@@ -12,5 +12,7 @@ instance ParseSatisfy Parser Char where
   parseSatisfy = satisfy
 
 instance ParseHelp Parser where
-  parseHelp    = (<?>)
+  parseHelp = (<?>)
 
+instance ParseTry Parser where
+  parseTry = try
