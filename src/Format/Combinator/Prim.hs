@@ -18,6 +18,16 @@ many :: AlternativeC c m i => SList xs -> Format c m i xs -> Format c m i (Map [
 many s f = some s f
         <|> inverse (allEmpty s) <$> unit
 
+-- When applied consists of the longest matching rule
+-- When unapplied consists of the shortest matching rule
+many0 :: AlternativeC c m i => Format c m i '[] -> Format c m i (Map [] '[])
+many0 f = ignore hEmpty <$> many (SCons SNil) (f *> pure hEmpty)
+  where hEmpty = hsingleton []
+
+some0 :: AlternativeC c m i => Format c m i '[] -> Format c m i '[]
+some0 f = ignore hOne <$> some (SCons SNil) (f *> pure hOne)
+  where hOne = hsingleton [[]]
+
 some :: AlternativeC c m i => SList xs -> Format c m i xs -> Format c m i (Map [] xs)
 some s f = inverse (combine s) <$> f <*> many s f
 

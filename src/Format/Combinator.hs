@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE GADTs #-}
 
 -- This module provides common combinators
 
@@ -19,13 +20,19 @@ import qualified Format.Combinator.Prim as P
 import Data.HList
 import Format.Base
 
+-- TODO remove the KnownSList constraint
 many :: (AlternativeC c m i, KnownSList xs) 
      => Format c m i xs -> Format c m i (Map [] xs)
-many = P.many slist
+many f = case toSList f of 
+          SNil -> P.many0 f
+          (SCons s) -> P.many (SCons s) f
 
+-- TODO remove the KnownSList constraint
 some :: (AlternativeC c m i, KnownSList xs) 
      => Format c m i xs -> Format c m i (Map [] xs)
-some = P.some slist
+some f = case toSList f of 
+          SNil -> P.some0 f
+          (SCons s) -> P.some (SCons s) f
 
 sepBy :: (AlternativeC c m i, KnownSList xs) 
       => Format c m i xs -> Format c m i '[] -> Format c m i (Map [] xs)
