@@ -10,7 +10,7 @@ import Control.Isomorphism.Partial
 import Data.HList
 
 -- | A lexeme that recognizes integers.
-int :: (Use Satisfy c m Char, AlternativeC c m Char) => SFormat c m Char Int
+int :: (FormatC c m, AlternativeC c m Char) => SFormat c m Char Int
 int = readShow <$> some digit
   
 -- | An isomorphism naturally defined for Read/Show objects.

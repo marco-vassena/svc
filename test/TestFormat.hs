@@ -20,7 +20,7 @@ import Test.HUnit.Base
 import Test.HUnit.Text
 
 -- An identifier is a non-empty sequence of letters
-identifier :: (AlternativeC c m Char, Use Satisfy c m Char) => Format c m Char '[[Char]]
+identifier :: (FormatC c m, AlternativeC c m Char) => Format c m Char '[[Char]]
 identifier = some letter
 
 parseId :: Parser Char String
@@ -52,7 +52,7 @@ testFalseIds = TestLabel "False Identifiers" $ TestList $
 
 --------------------------------------------------------------------------------
 -- 0 or more white space characters
-spaces :: (AlternativeC c m Char, Use Satisfy c m Char) => Format c m Char '[[Char]]
+spaces :: (AlternativeC c m Char, FormatC c m) => Format c m Char '[[Char]]
 spaces = many space
 
 parseSpaces :: Parser Char String
@@ -78,7 +78,7 @@ testFalseSpaces = TestLabel "False Spaces" $ TestList $
   zipWith (~=?) (repeat Nothing) (map printSpaces falseSpaces)
 
 --------------------------------------------------------------------------------
-twoDigits :: (AlternativeC c m Char, Use Satisfy c m Char) => Format c m Char '[[Char]]
+twoDigits :: (AlternativeC c m Char, FormatC c m) => Format c m Char '[[Char]]
 twoDigits = count 2 digit
 
 trueTwoDigits :: [String]
@@ -107,7 +107,7 @@ testFalseDigits = TestLabel "False Digits" $ TestList $
 --------------------------------------------------------------------------------
 
 -- Match 3 dots
-dots :: (AlternativeC c m Char, Use Satisfy c m Char) => Format c m Char '[]
+dots :: (FormatC c m, AlternativeC c m Char) => Format c m Char '[]
 dots = count 3 (char '.')
 
 parseDots :: Parser Char (HList '[])
@@ -166,7 +166,7 @@ testFalseBind = TestLabel "False Bind" $ TestList $
 
 --------------------------------------------------------------------------------
 
-comment :: (Use Satisfy c m Char, AlternativeC c m Char) => SFormat c m Char String
+comment :: (FormatC c m, AlternativeC c m Char) => SFormat c m Char String
 comment = string "<!--" *> manyTill token (string "-->")
 
 parseComment :: Parser Char String
@@ -198,7 +198,7 @@ testFalseComment = TestLabel "False Comments" $ TestList $
 
 --------------------------------------------------------------------------------
 -- many single space character
-manySpace :: (Use Satisfy c m Char, AlternativeC c m Char) => Format c m Char '[]
+manySpace :: (FormatC c m, AlternativeC c m Char) => Format c m Char '[]
 manySpace = many (char ' ')
 
 trueMSpace :: [String]
