@@ -11,8 +11,14 @@ import Data.HList
 import Control.Applicative
 import Control.Isomorphism.Partial
 
+import Data.Proxy
+
 class ParseSatisfy m i where
   parseSatisfy :: (i -> Bool) -> m i
+
+class ParseHelp m where
+  parseHelp :: m a -> String -> m a
+  parseHelp = const
 
 instance Applicative m => ParseWith m i (Seq ParseWith) where
   mkParser' (Seq f1 f2) = happend <$> mkParser' f1 <*> mkParser' f2
@@ -27,7 +33,6 @@ instance (Alternative m, Monad m) => ParseWith m i (FMap ParseWith) where
     case apply i args of
       Just xs -> pure xs
       Nothing -> empty
-
 
 instance Alternative m => ParseWith m i (Alt ParseWith) where
   mkParser' (Alt f1 f2) = mkParser' f1 <|> mkParser' f2
@@ -46,3 +51,6 @@ instance Monad m => ParseWith m i (Bind ParseWith) where
 
 instance (Functor m, ParseSatisfy m i) => ParseWith m i (Satisfy ParseWith) where
   mkParser' (Satisfy p) = hsingleton <$> parseSatisfy p
+
+instance ParseHelp m => ParseWith m i (Help ParseWith) where
+  mkParser' (Help f msg) = parseHelp (mkParser' f) msg
