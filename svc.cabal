@@ -25,7 +25,7 @@ library
                       Format.Printer.GPrinter, Format.Parser.GParser
   other-modules:      Format.Combinator.Base, Format.Combinator.Prim
   build-depends:      base >=4.7 && <4.8, bytestring >=0.10, text >=1.1, parsec >=3.1, mtl >=2.1, 
-                      transformers >= 0.3, uu-parsinglib, ListLike, attoparsec
+                      transformers >= 0.3, uu-parsinglib, ListLike, attoparsec, bytestring
   default-language:   Haskell2010
 
 -- TODO split the dependencies for examples such as parsec, uu-parsinglib etc
@@ -42,7 +42,7 @@ test-suite test-format
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test, src
   main-is:            TestFormat.hs
-  build-depends:      base >=4.7 && <4.8, svc, HUnit
+  build-depends:      base >=4.7 && <4.8, svc, HUnit, bytestring
   default-language:   Haskell2010
 
 

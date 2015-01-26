@@ -11,9 +11,19 @@ module Format.Printer.Naive (
   , Printer
   ) where
 
-import Format.Base
-import Format.Printer.Base
+import Control.Applicative
+
 import Data.HList
+import Data.ByteString.Char8
+
+import Format.Base hiding (pure)
+import Format.Printer.Base
 import Format.Printer.GPrinter
 
 type Printer = Maybe
+
+instance (Applicative m) => PrintToken m i [i] where
+  printToken = pure . (:[])
+
+instance (Applicative m) => PrintToken m Char ByteString where
+  printToken = pure . singleton

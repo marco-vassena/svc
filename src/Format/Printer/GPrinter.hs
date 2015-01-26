@@ -16,9 +16,6 @@ import Control.Isomorphism.Partial
 class PrintToken m i s where
   printToken :: i -> m s
 
-instance (Applicative m) => PrintToken m i [i] where
-  printToken = pure . (:[])
-
 instance (Show i, PrintToken m i s, Monad m) => PrintWith s m i (Satisfy (PrintWith s)) where
   mkPrinter' (Satisfy p) (Cons i _) | p i       = printToken i
   mkPrinter' (Satisfy p) (Cons i _) | otherwise = fail $ show i ++ " : predicate not satisfied" 
