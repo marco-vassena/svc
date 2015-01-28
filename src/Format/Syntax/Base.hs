@@ -35,7 +35,7 @@ data Satisfy c (m :: * -> *) (i :: *) (xs :: [ * ]) where
   Satisfy :: (i -> Bool) -> Satisfy c m i '[i]
  
 data FMap c (m :: * -> *) (i :: *) (xs :: [ * ]) where
-  FMap :: (c m i a) => Iso args xs -> a m i args -> FMap c m i xs
+  FMap :: (c m i a) => Iso m args xs -> a m i args -> FMap c m i xs
  
 data Alt c (m :: * -> *) (i :: *) (xs :: [ * ]) where
   Alt :: (c m i a, c m i b, Reify (a m i)) 
@@ -98,7 +98,7 @@ satisfy = format . Satisfy
 infixr 4 <$>
 (<$>) :: (Use FMap c m i, 
           Use a c m i) 
-      => Iso args xs -> a c m i args -> Format c m i xs
+      => Iso m args xs -> a c m i args -> Format c m i xs
 f <$> x = format (FMap f x)
 
 pure :: Use Pure c m i => HList xs -> Format c m i xs

@@ -5,7 +5,7 @@
 
 module Format.Parser.GParser where
 
-import Format.Syntax hiding ((<$>), (<*>), (<|>), pure, fail)
+import Format.Syntax hiding ((<$>), (<*>), (<|>), pure, fail, (>>=))
 import Format.Parser.Base
 import Data.HList
 import Control.Applicative
@@ -32,11 +32,11 @@ instance Applicative m => ParseWith m i (Seq ParseWith) where
 -- need m to be at least Alternative (empty) or a Monad (fail)
 -- How can we relax this constraint?
 instance (Alternative m, Monad m) => ParseWith m i (FMap ParseWith) where
-  mkParser' (FMap i f) = do 
-    args <- mkParser' f
-    case apply i args of
-      Just xs -> pure xs
-      Nothing -> empty
+  mkParser' (FMap i f) = mkParser' f >>= apply i 
+--    args <- mkParser' f
+--    case apply i args of
+--      Just xs -> pure xs
+--      Nothing -> empty
 
 instance Alternative m => ParseWith m i (Alt ParseWith) where
   mkParser' (Alt f1 f2) = mkParser' f1 <|> mkParser' f2

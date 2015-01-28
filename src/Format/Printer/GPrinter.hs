@@ -5,7 +5,7 @@
 
 module Format.Printer.GPrinter where
 
-import Format.Syntax hiding ((<$>), (<*>), (<|>), pure, fail)
+import Format.Syntax hiding ((<$>), (<*>), (<|>), pure, fail, (>>=))
 import Format.Printer.Base
 import Data.Monoid
 import Data.HList
@@ -43,10 +43,10 @@ instance PrintWith s m i (Format (PrintWith s)) where
 -- need m to be at least Alternative (empty) or a Monad (fail)
 -- How can we relax this constraint?
 instance Monad m => PrintWith s m i (FMap (PrintWith s)) where
-  mkPrinter' (FMap i f) xs = do 
-    case unapply i xs of
-      Just ys -> mkPrinter' f ys
-      Nothing -> fail "Deconstructor failed"
+  mkPrinter' (FMap i f) xs = unapply i xs >>= mkPrinter' f 
+--    case unapply i xs of
+--      Just ys -> mkPrinter' f ys
+--      Nothing -> fail "Deconstructor failed"
 
 instance (Monoid s, Applicative m) => PrintWith s m i (Pure (PrintWith s)) where
   mkPrinter' (Pure hs) hs' = pure mempty

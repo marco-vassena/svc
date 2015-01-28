@@ -13,6 +13,7 @@ import qualified Prelude as P
 import Format.Syntax
 import Data.HList
 import Control.Isomorphism.Partial
+import Control.Applicative (Alternative)
 
 --------------------------------------------------------------------------------
 
@@ -40,6 +41,6 @@ optional :: (AltC Format FMap c m i, Use Pure c m i)
          => SFormat c m i a -> SFormat c m i (Maybe a)
 optional f = (just <$> f) <|> (nothing <$> unit)
 
-(<+>) :: AltC Format FMap c m i
+(<+>) :: (Alternative m, AltC Format FMap c m i)
       => SFormat c m i a -> SFormat c m i b -> SFormat c m i (Either a b)
 f1 <+> f2 = (left <$> f1) <|> (right <$> f2)
