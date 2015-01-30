@@ -37,7 +37,7 @@ choice :: AltC Format Format c m i =>  [Format c m i xs] -> Format c m i xs
 choice (x:xs) = P.foldr (<|>) (error "choice: Add Empty") (x:xs)
 choice [] = error "Format c.Combinator.choice: empty list"
 
-optional :: (AltC Format FMap c m i, Use Pure c m i) 
+optional :: (AltC Format FMap c m i, Use Pure c m i, Alternative m) 
          => SFormat c m i a -> SFormat c m i (Maybe a)
 optional f = (just <$> f) <|> (nothing <$> unit)
 

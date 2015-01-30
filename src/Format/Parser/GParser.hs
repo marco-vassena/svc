@@ -27,16 +27,8 @@ class ParseTry m where
 instance Applicative m => ParseWith m i (Seq ParseWith) where
   mkParser' (Seq f1 f2) = happend <$> mkParser' f1 <*> mkParser' f2
 
--- TODO
--- It seems that in order to deal with partial isomorphisms we
--- need m to be at least Alternative (empty) or a Monad (fail)
--- How can we relax this constraint?
-instance (Alternative m, Monad m) => ParseWith m i (FMap ParseWith) where
-  mkParser' (FMap i f) = mkParser' f >>= apply i 
---    args <- mkParser' f
---    case apply i args of
---      Just xs -> pure xs
---      Nothing -> empty
+instance (Functor m) => ParseWith m i (FMap ParseWith) where
+  mkParser' (FMap i f) = apply i <$> mkParser' f 
 
 instance Alternative m => ParseWith m i (Alt ParseWith) where
   mkParser' (Alt f1 f2) = mkParser' f1 <|> mkParser' f2

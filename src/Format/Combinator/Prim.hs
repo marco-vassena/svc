@@ -18,19 +18,19 @@ import qualified Control.Isomorphism.Partial as C
 
 many :: AlternativeC c m i => SList xs -> Format c m i xs -> Format c m i (Map [] xs)
 many s f = some s f
-        <|> inverse (allEmpty s) <$> unit
+        <|> allEmpty s <$> unit
 
 some :: AlternativeC c m i => SList xs -> Format c m i xs -> Format c m i (Map [] xs)
-some s f = inverse (combine s) <$> f <*> many s f
+some s f = combine s <$> f <*> many s f
 
-sepBy :: AlternativeC c m i 
+sepBy :: AlternativeC c m i
       => Format c m i '[] -> SList xs -> Format c m i xs -> Format c m i (Map [] xs)
 sepBy sep s f = sepBy1 sep s f 
-             <|> inverse (allEmpty s) <$> unit
+             <|> allEmpty s <$> unit
 
-sepBy1 :: AlternativeC c m i 
+sepBy1 :: AlternativeC c m i
        => Format c m i '[] -> SList xs -> Format c m i xs -> Format c m i (Map [] xs)
-sepBy1 sep s f = inverse (combine s) <$> f <*> many s (sep *> f)
+sepBy1 sep s f = combine s <$> f <*> many s (sep *> f)
 
 -- | The `chainl1` combinator is used to parse a
 -- left-associative chain of infix operators. 
@@ -41,10 +41,10 @@ chainl1 arg op f = C.foldl s f <$> arg <*> many s (op <*> arg)
 
 count :: AlternativeC c m i
       => SList xs -> Int -> Format c m i xs -> Format c m i (Map [] xs)
-count s n f | n <= 0    = inverse (allEmpty s) <$> unit 
-count s n f | otherwise = inverse (combine s)  <$> f <*> count s (n - 1) f
+count s n f | n <= 0    = allEmpty s <$> unit 
+count s n f | otherwise = combine s  <$> f <*> count s (n - 1) f
 
-manyTill :: AlternativeC c m i 
+manyTill :: AlternativeC c m i
          => Format c m i '[] -> SList xs -> Format c m i xs -> Format c m i (Map [] xs)
-manyTill end s p =  inverse (combine  s) <$> p   <*> manyTill end s p
-                <|> inverse (allEmpty s) <$> end
+manyTill end s p =  combine  s <$> p   <*> manyTill end s p
+                <|> allEmpty s <$> end

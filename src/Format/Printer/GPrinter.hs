@@ -42,11 +42,11 @@ instance PrintWith s m i (Format (PrintWith s)) where
 -- It seems that in order to deal with partial isomorphisms we
 -- need m to be at least Alternative (empty) or a Monad (fail)
 -- How can we relax this constraint?
-instance Monad m => PrintWith s m i (FMap (PrintWith s)) where
-  mkPrinter' (FMap i f) xs = unapply i xs >>= mkPrinter' f 
---    case unapply i xs of
---      Just ys -> mkPrinter' f ys
---      Nothing -> fail "Deconstructor failed"
+instance Alternative m => PrintWith s m i (FMap (PrintWith s)) where
+  mkPrinter' (FMap i f) hs =
+    case unapply i hs  of 
+      Just ys -> mkPrinter' f ys
+      Nothing -> empty
 
 instance (Monoid s, Applicative m) => PrintWith s m i (Pure (PrintWith s)) where
   mkPrinter' (Pure hs) hs' = pure mempty

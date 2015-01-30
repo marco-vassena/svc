@@ -15,41 +15,40 @@ import Data.HList
 -- TODO Define plain Iso rather than CIso
 
 -- Conventient synonim for isomorphisms that target one type
-type CIso f xs a = Iso f xs '[ a ]
+type CIso xs a = Iso xs '[ a ]
 
 -- Helper smart constructors that fills the obvious part of the
--- definition for a 'CIso f'.
-iso :: Alternative f => (HList xs -> f a) -> (a -> f (HList xs)) -> SList xs -> CIso f xs a
-iso from to s = Iso f (to . hHead) s (SCons SNil)
-  where f hs = hsingleton <$> from hs
+-- definition for a 'CIso'.
+iso :: (HList xs -> a) -> (a -> Maybe (HList xs)) -> SList xs -> CIso xs a
+iso from to s = Iso (hsingleton . from) (to . hHead) s (SCons SNil)
 
 -- All these definitions can be automatically derived using TH
-nil :: Alternative f => CIso f '[] [ a ]
-nil = iso (pure . const []) proj SNil
-  where proj [] = pure Nil
-        proj _  = empty
+nil :: CIso '[] [ a ]
+nil = iso (happly []) proj SNil
+  where proj [] = Just Nil
+        proj _  = Nothing
 
-cons :: Alternative f => CIso f '[a , [a]] [ a ]
-cons = iso (pure . happly (:)) proj (SCons (SCons SNil))
-  where proj (x:xs) = pure $ Cons x (Cons xs Nil)
-        proj _      = empty
+cons :: CIso '[a , [a]] [ a ]
+cons = iso (happly (:)) proj (SCons (SCons SNil))
+  where proj (x:xs) = Just $ Cons x (Cons xs Nil)
+        proj _      = Nothing
 
-just :: Alternative f => CIso f '[ a ] (Maybe a) 
-just = iso (pure . happly Just) proj (SCons SNil)
-  where proj (Just x) = pure (Cons x Nil)
-        proj _        = empty
+just :: CIso '[ a ] (Maybe a) 
+just = iso (happly Just) proj (SCons SNil)
+  where proj (Just x) = Just (Cons x Nil)
+        proj _        = Nothing
 
-nothing :: Alternative f => CIso f '[] (Maybe a) 
-nothing = iso (const empty) proj SNil
-  where proj Nothing = pure Nil
-        proj _       = empty
+nothing :: CIso '[] (Maybe a) 
+nothing = iso (happly Nothing) proj SNil
+  where proj Nothing = Just Nil
+        proj _       = Nothing
 
-left :: Alternative f => CIso f '[ a ] (Either a b)
-left = iso (pure . happly Left) proj (SCons SNil)
-  where proj (Left x) = pure (Cons x Nil)
-        proj _        = empty
+left :: CIso '[ a ] (Either a b)
+left = iso (happly Left) proj (SCons SNil)
+  where proj (Left x) = Just (Cons x Nil)
+        proj _        = Nothing
 
-right :: Alternative f => CIso f '[ b ] (Either a b) 
-right = iso (pure . happly Right) proj (SCons SNil)
-  where proj (Right x) = pure (Cons x Nil)
-        proj _         = empty
+right :: CIso '[ b ] (Either a b) 
+right = iso (happly Right) proj (SCons SNil)
+  where proj (Right x) = Just (Cons x Nil)
+        proj _         = Nothing
