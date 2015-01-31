@@ -104,10 +104,10 @@ ignore hs = Iso f g (toSList hs) SNil
 -- foldl defined as primitive
 foldl :: SList xs -> SList ys -> Iso (Append ys xs) ys -> Iso (Append ys (Map [] xs)) ys
 foldl s1 s2 i = Iso f g (sappend s2 (smap proxyList s1)) s2
-  where f hs = hfoldl s1 s2 h ys xss
-          where (ys, xss) = split s1 (smap proxyList s2) hs
-                h (Cons e Nil) hs = apply i (Cons e hs)
-        g = Just . hunfoldl s1 (unapply i) z
+  where f hs = hfoldl s1 h ys xss
+          where (ys, xss) = split s2 (smap proxyList s1) hs
+                h ys xs = apply i (happend ys xs)
+        g = Just . hunfoldl s1 s2 (unapply i)
 
 foldr :: SList xs -> SList ys -> Iso (Append xs ys) ys -> Iso (Append (Map [] xs) ys) ys
 foldr s1 s2 i = Iso f g (sappend (smap proxyList s1) s2) s2

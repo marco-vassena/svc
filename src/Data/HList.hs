@@ -62,6 +62,8 @@ hfoldr :: SList xs -> (HList xs -> b -> b) -> b -> HList (Map [] xs) -> b
 hfoldr s f z hs = foldr f z (toList s hs)
 
 -- TODO refactoring
+-- TODO try to use b rather than HList ys
+-- TODO define hunfoldPrim and hunfold
 hunfoldl :: SList xs -> SList ys -> (HList ys -> Maybe (HList (Append ys xs))) 
                                  -> HList ys -> HList (Append ys (Map [] xs))
 hunfoldl s1 s2 f z = case unfoldlPrim h z of
@@ -91,10 +93,6 @@ unfoldlPrim f z = (z, go z [])
 -- TODO : This should not be exported
 unfoldrPrim :: (b -> Maybe (a, b)) -> b -> (b, [a])
 unfoldrPrim f b = (b, unfoldr f b)
-  where go b =
-          case f b of
-            Just (a, b') -> a : go b'
-            Nothing      -> []
 
 -- Returns a singleton 'HList'
 hsingleton :: a -> HList '[ a ]
