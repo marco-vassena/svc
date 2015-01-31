@@ -16,6 +16,7 @@ module Data.HList where
 import GHC.TypeLits
 import Data.Proxy
 import Data.Type.Equality
+import Data.List
 import Control.Applicative
 
 -- Heterogeneous list, indexed by a type level list that
@@ -61,17 +62,39 @@ hfoldr :: SList xs -> (HList xs -> b -> b) -> b -> HList (Map [] xs) -> b
 hfoldr s f z hs = foldr f z (toList s hs)
 
 -- TODO refactoring
-hunfoldl :: SList xs -> (a -> Maybe (HList (a ': xs))) -> a -> HList (a ': (Map [] xs))
-hunfoldl s f z = case unfoldlPrim h z of
-                    (e, xs) -> Cons e (unList s xs)
-  where h e = f e >>= \(Cons e' hs) -> return (e', hs)
+hunfoldl :: SList xs -> SList ys -> (HList ys -> Maybe (HList (Append ys xs))) 
+                                 -> HList ys -> HList (Append ys (Map [] xs))
+hunfoldl s1 s2 f z = case unfoldlPrim h z of
+                    (ys, xss) -> happend ys (unList s1 xss)
+  where h e = do 
+              hs <- f e 
+              let (ys, xs) = split s2 s1 hs
+              return (ys, xs)
 
+hunfoldr :: SList xs -> SList ys -> (HList ys -> Maybe (HList (Append xs ys))) 
+                     -> HList ys -> HList (Append (Map [] xs) ys)
+hunfoldr s1 s2 f z = case unfoldrPrim h z of
+                      (ys, xss) -> happend (unList s1 xss) ys
+  where h e = do
+                hs <- f e 
+                let (xs, ys) = split s1 s2 hs
+                return (xs, ys)
+
+-- TODO : This should not be exported
 unfoldlPrim :: (b -> Maybe (b, a)) -> b -> (b, [a])
-unfoldlPrim f z = r z []
-  where r e xs = 
+unfoldlPrim f z = (z, go z [])
+  where go e xs = 
           case f e of
-            Just (e', x) -> r e' (x:xs)
-            Nothing      -> (e, xs)
+            Just (e', x) -> go e' (x:xs)
+            Nothing      -> xs
+
+-- TODO : This should not be exported
+unfoldrPrim :: (b -> Maybe (a, b)) -> b -> (b, [a])
+unfoldrPrim f b = (b, unfoldr f b)
+  where go b =
+          case f b of
+            Just (a, b') -> a : go b'
+            Nothing      -> []
 
 -- Returns a singleton 'HList'
 hsingleton :: a -> HList '[ a ]

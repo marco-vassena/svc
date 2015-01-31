@@ -14,6 +14,7 @@ module Control.Isomorphism.Partial.Prim
   , allEmpty
   , ignore
   , foldl
+  , foldr
   ) where
 
 import Prelude (($), fst, snd, otherwise, Eq, (==), Bool)
@@ -101,12 +102,19 @@ ignore hs = Iso f g (toSList hs) SNil
         g _ = Just hs
 
 -- foldl defined as primitive
-foldl :: SList xs -> Iso (a ': xs) '[ a ] -> Iso (a ': Map [] xs) '[ a ]
-foldl s i = Iso f g (SCons (smap proxyList s)) (sunapply i)
-  where f (Cons z hs) = hfoldl s h (Cons z Nil) hs
-          where h (Cons e Nil) hs = apply i (Cons e hs)
-        g (Cons z Nil) = Just $ hunfoldl s h z
-          where h e = unapply i (hsingleton e)
+foldl :: SList xs -> SList ys -> Iso (Append ys xs) ys -> Iso (Append ys (Map [] xs)) ys
+foldl s1 s2 i = Iso f g (sappend s2 (smap proxyList s1)) s2
+  where f hs = hfoldl s1 s2 h ys xss
+          where (ys, xss) = split s1 (smap proxyList s2) hs
+                h (Cons e Nil) hs = apply i (Cons e hs)
+        g = Just . hunfoldl s1 (unapply i) z
+
+foldr :: SList xs -> SList ys -> Iso (Append xs ys) ys -> Iso (Append (Map [] xs) ys) ys
+foldr s1 s2 i = Iso f g (sappend (smap proxyList s1) s2) s2
+  where f hs = hfoldr s1 h ys xss
+          where (xss, ys) = split (smap proxyList s1) s2 hs
+                h xs ys = apply i (happend xs ys)
+        g = Just . hunfoldr s1 s2 (unapply i)
 
 --------------------------------------------------------------------------------
 -- TODO maybe remove.
