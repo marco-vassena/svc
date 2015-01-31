@@ -29,9 +29,7 @@ instance Arbitrary Tree where
 testFoldLApply :: [Tree] -> Bool
 testFoldLApply ts = actual == expected
   where expected = P.foldl Branch Leaf ts
-        actual = case apply foldlTree $ Cons Leaf (Cons ts Nil) of
-                  Nothing -> error "foldlTree failed"
-                  Just (Cons t Nil) -> t
+        actual = hHead $ apply foldlTree $ Cons Leaf (Cons ts Nil)
 
 -- | Checks the correctness of foldlTree with the inverse semantics (unfoldl).
 testFoldLUnapply :: Tree -> Bool

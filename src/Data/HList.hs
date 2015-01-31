@@ -54,6 +54,25 @@ hmap' :: SList xs -> (forall a . f a -> f a) -> HList (Map f xs) -> HList (Map f
 hmap' SNil f Nil = Nil
 hmap' (SCons s) f (Cons x xs) = Cons (f x) (hmap' s f xs)
 
+hfoldl :: SList xs -> (b -> HList xs -> b) -> b -> HList (Map [] xs) -> b
+hfoldl s f z hs = foldl f z (toList s hs)
+
+hfoldr :: SList xs -> (HList xs -> b -> b) -> b -> HList (Map [] xs) -> b
+hfoldr s f z hs = foldr f z (toList s hs)
+
+-- TODO refactoring
+hunfoldl :: SList xs -> (a -> Maybe (HList (a ': xs))) -> a -> HList (a ': (Map [] xs))
+hunfoldl s f z = case unfoldlPrim h z of
+                    (e, xs) -> Cons e (unList s xs)
+  where h e = f e >>= \(Cons e' hs) -> return (e', hs)
+
+unfoldlPrim :: (b -> Maybe (b, a)) -> b -> (b, [a])
+unfoldlPrim f z = r z []
+  where r e xs = 
+          case f e of
+            Just (e', x) -> r e' (x:xs)
+            Nothing      -> (e, xs)
+
 -- Returns a singleton 'HList'
 hsingleton :: a -> HList '[ a ]
 hsingleton a = Cons a Nil

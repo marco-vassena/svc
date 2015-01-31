@@ -38,6 +38,13 @@ instance Reify2 Iso where
 identity ::  SList xs -> Iso xs xs
 identity s = Iso id Just s s
 
+-- | Compose two isomoprhism. Corresponds to (.) from Category.
+(<.>) :: Iso ys zs -> Iso xs ys -> Iso xs zs
+(<.>) g f = Iso (apply g . apply f) (unapply g >=> unapply f) (sapply f) (sunapply g)
+
+infixr 9 <.>
+
+
 infixr 3 ***
 -- | Joins two isomorphisms, appending inputs and outputs in order.
 (***) ::  Iso xs ys -> Iso zs ws -> Iso (Append xs zs) (Append ys ws)
@@ -93,14 +100,13 @@ ignore hs = Iso f g (toSList hs) SNil
   where f _ = Nil
         g _ = Just hs
 
+-- foldl defined as primitive
 foldl :: SList xs -> Iso (a ': xs) '[ a ] -> Iso (a ': Map [] xs) '[ a ]
-foldl s i = Iso f P.undefined (SCons (smap proxyList s)) (sunapply i)
-  where f (Cons z as)= hsingleton $ P.foldl h z xs
-          where Just xs = toListMaybe s as
-        -- h :: HList '[ a ] -> HList xs -> HList '[ a ]
-        h e hs = hHead $ apply i (Cons e hs)
-
-
+foldl s i = Iso f g (SCons (smap proxyList s)) (sunapply i)
+  where f (Cons z hs) = hfoldl s h (Cons z Nil) hs
+          where h (Cons e Nil) hs = apply i (Cons e hs)
+        g (Cons z Nil) = Just $ hunfoldl s h z
+          where h e = unapply i (hsingleton e)
 
 --------------------------------------------------------------------------------
 -- TODO maybe remove.

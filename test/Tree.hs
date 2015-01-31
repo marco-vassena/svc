@@ -14,12 +14,12 @@ data Tree = Branch Tree Tree
   deriving (Show, Eq)
 
 leaf :: CIso '[] Tree
-leaf = iso (const Leaf) proj SNil
+leaf = iso (happly Leaf) proj SNil
   where proj (Branch _ _) = Nothing
         proj Leaf         = Just Nil
 
 branch :: CIso '[Tree, Tree] Tree
-branch = iso (\(Cons b1 (Cons b2 _)) -> Branch b1 b2) proj (SCons (SCons SNil))
+branch = iso (happly Branch) proj (SCons (SCons SNil))
   where proj (Branch b1 b2) = Just $ Cons b1 (Cons b2 Nil)
         proj _ = Nothing
 
