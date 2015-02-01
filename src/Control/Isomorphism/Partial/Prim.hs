@@ -78,8 +78,8 @@ invert s1 s2 i = Iso f g (sapply i) (sappend s2 s1)
         f hs = switch . split s1 s2 $ apply i hs
         g hs = unapply i . switch $ split s2 s1 hs
 
--- Transforms a list of Nothing lists in an Nothing hlist.
--- If some list is non Nothing the isomorphism fails.
+-- Transforms a list of empty lists in an empty hlist.
+-- If some list is non empty the isomorphism fails.
 allEmpty ::  SList as -> Iso '[] (Map [] as)
 allEmpty SNil = identity SNil
 allEmpty (SCons s) = nil *** (allEmpty s)
@@ -101,20 +101,31 @@ ignore hs = Iso f g (toSList hs) SNil
   where f _ = Nil
         g _ = Just hs
 
--- foldl defined as primitive
-foldl :: SList xs -> SList ys -> Iso (Append ys xs) ys -> Iso (Append ys (Map [] xs)) ys
-foldl s1 s2 i = Iso f g (sappend s2 (smap proxyList s1)) s2
-  where f hs = hfoldl s1 h ys xss
-          where (ys, xss) = split s2 (smap proxyList s1) hs
+-- Generalized foldl.
+-- This signature corresponds to the usual:
+-- foldl :: (b -> a -> b) -> b -> [ a ] -> b
+foldl :: SList as -> Iso (Append bs as) bs -> Iso (Append bs (Map [] as)) bs
+foldl s1 i = Iso f g (sappend s2 s1') s2
+  where s1' = smap proxyList s1
+        s2 = sunapply i
+        f hs = hfoldl s1 h ys xss
+          where (ys, xss) = split s2 s1' hs
                 h ys xs = apply i (happend ys xs)
-        g = Just . hunfoldl s1 s2 (unapply i)
-
-foldr :: SList xs -> SList ys -> Iso (Append xs ys) ys -> Iso (Append (Map [] xs) ys) ys
-foldr s1 s2 i = Iso f g (sappend (smap proxyList s1) s2) s2
-  where f hs = hfoldr s1 h ys xss
-          where (xss, ys) = split (smap proxyList s1) s2 hs
+        g zs = Just $ happend zs (hunfoldl s1 h zs)
+          where h ys = unapply i ys >>= return . split s2 s1
+                
+-- Generalized foldr.
+-- This signature corresponds to the usual:
+-- foldr :: (a -> b -> b) -> b -> [ a ] -> b
+foldr :: SList xs -> Iso (Append xs ys) ys -> Iso (Append (Map [] xs) ys) ys
+foldr s1 i = Iso f g (sappend s1' s2) s2
+  where s1' = smap proxyList s1
+        s2  = sunapply i
+        f hs = hfoldr s1 h ys xss
+          where (xss, ys) = split s1' s2 hs
                 h xs ys = apply i (happend xs ys)
-        g = Just . hunfoldr s1 s2 (unapply i)
+        g ys = Just $ happend (hunfoldr s1 h ys) ys
+          where h ys = unapply i ys >>= return . split s1 s2
 
 --------------------------------------------------------------------------------
 -- TODO maybe remove.

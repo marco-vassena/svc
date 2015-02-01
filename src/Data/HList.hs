@@ -55,51 +55,41 @@ hmap' :: SList xs -> (forall a . f a -> f a) -> HList (Map f xs) -> HList (Map f
 hmap' SNil f Nil = Nil
 hmap' (SCons s) f (Cons x xs) = Cons (f x) (hmap' s f xs)
 
-hfoldl :: SList xs -> (b -> HList xs -> b) -> b -> HList (Map [] xs) -> b
-hfoldl s f z hs = foldl f z (toList s hs)
+--------------------------------------------------------------------------------
+-- Folding HList as if they were normal lists.
+-- This functions convert the argument HList to a plain list 
+-- and then fold/unfold it.
+--------------------------------------------------------------------------------
 
 hfoldr :: SList xs -> (HList xs -> b -> b) -> b -> HList (Map [] xs) -> b
 hfoldr s f z hs = foldr f z (toList s hs)
 
--- TODO refactoring
--- TODO try to use b rather than HList ys
--- TODO define hunfoldPrim and hunfold
-hunfoldl :: SList xs -> SList ys -> (HList ys -> Maybe (HList (Append ys xs))) 
-                                 -> HList ys -> HList (Append ys (Map [] xs))
-hunfoldl s1 s2 f z = case unfoldlPrim h z of
-                    (ys, xss) -> happend ys (unList s1 xss)
-  where h e = do 
-              hs <- f e 
-              let (ys, xs) = split s2 s1 hs
-              return (ys, xs)
+hunfoldr :: SList xs -> (b -> Maybe (HList xs, b))
+                      -> b -> HList (Map [] xs)
+hunfoldr s f z = unList s (unfoldr f z)
 
-hunfoldr :: SList xs -> SList ys -> (HList ys -> Maybe (HList (Append xs ys))) 
-                     -> HList ys -> HList (Append (Map [] xs) ys)
-hunfoldr s1 s2 f z = case unfoldrPrim h z of
-                      (ys, xss) -> happend (unList s1 xss) ys
-  where h e = do
-                hs <- f e 
-                let (xs, ys) = split s1 s2 hs
-                return (xs, ys)
+hfoldl :: SList xs -> (b -> HList xs -> b) -> b -> HList (Map [] xs) -> b
+hfoldl s f z hs = foldl f z (toList s hs)
 
--- TODO : This should not be exported
-unfoldlPrim :: (b -> Maybe (b, a)) -> b -> (b, [a])
-unfoldlPrim f z = (z, go z [])
+hunfoldl :: SList xs -> (b -> Maybe (b, HList xs)) -> b -> HList (Map [] xs)
+hunfoldl s f z = unList s $ unfoldl f z
+
+unfoldl :: (b -> Maybe (b, a)) -> b -> [a]
+unfoldl f z = go z []
   where go e xs = 
           case f e of
             Just (e', x) -> go e' (x:xs)
             Nothing      -> xs
 
--- TODO : This should not be exported
-unfoldrPrim :: (b -> Maybe (a, b)) -> b -> (b, [a])
-unfoldrPrim f b = (b, unfoldr f b)
-
+--------------------------------------------------------------------------------
 -- Returns a singleton 'HList'
 hsingleton :: a -> HList '[ a ]
 hsingleton a = Cons a Nil
 
 hHead :: HList (x ': xs) -> x
 hHead (Cons x _) = x
+
+-- TODO add tail
 
 --------------------------------------------------------------------------------
 -- The singleton type of lists, which allows us to take a list as a

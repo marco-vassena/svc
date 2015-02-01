@@ -36,7 +36,7 @@ sepBy1 sep s f = combine s <$> f <*> many s (sep *> f)
 -- left-associative chain of infix operators. 
 chainl1 :: AlternativeC c m i 
         => SFormat c m i a -> SFormat c m i b -> Iso '[a, b, a] '[a] -> SFormat c m i a
-chainl1 arg op f = C.foldl s (SCons SNil) f <$> arg <*> many s (op <*> arg)
+chainl1 arg op f = C.foldl s f <$> arg <*> many s (op <*> arg)
   where s = SCons (SCons SNil)
 
 count :: AlternativeC c m i
