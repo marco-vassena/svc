@@ -45,7 +45,7 @@ testFoldLUnapply t = actual == (expected t)
 testFoldRApply :: [Tree] -> Bool
 testFoldRApply ts = actual == expected
   where expected = P.foldr Branch Leaf ts
-        actual = hHead . apply foldrTree $ Cons ts (Cons Leaf Nil) 
+        actual = hHead . apply foldrTree $ Cons Leaf (Cons ts Nil) 
 
 -- | Checks the correctness of foldrTree with the inverse semantics (unfoldr).
 testFoldRUnapply :: Tree -> Bool
@@ -55,7 +55,7 @@ testFoldRUnapply t = actual == expected t
                 f (Branch t1 t2) = Just (t1, t2)
         actual = case unapply foldrTree $ Cons t Nil of
                     Nothing -> error "foldrTree failed"
-                    Just (Cons ts (Cons t Nil)) -> ts
+                    Just (Cons t (Cons ts Nil)) -> ts
 
 --------------------------------------------------------------------------------
 

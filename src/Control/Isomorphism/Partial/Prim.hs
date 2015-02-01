@@ -15,6 +15,7 @@ module Control.Isomorphism.Partial.Prim
   , ignore
   , foldl
   , foldr
+  , commute
   ) where
 
 import Prelude (($), fst, snd, otherwise, Eq, (==), Bool)
@@ -78,6 +79,10 @@ invert s1 s2 i = Iso f g (sapply i) (sappend s2 s1)
         f hs = switch . split s1 s2 $ apply i hs
         g hs = unapply i . switch $ split s2 s1 hs
 
+swap :: SList xs -> SList ys -> Iso (Append xs ys) (Append ys xs)
+swap s1 s2 = Iso (f s1 s2) (Just . f s2 s1) (sappend s1 s2) (sappend s2 s1)
+  where f s1 s2 = P.uncurry (P.flip happend) . split s1 s2
+
 -- Transforms a list of empty lists in an empty hlist.
 -- If some list is non empty the isomorphism fails.
 allEmpty ::  SList as -> Iso '[] (Map [] as)
@@ -117,14 +122,14 @@ foldl s1 i = Iso f g (sappend s2 s1') s2
 -- Generalized foldr.
 -- This signature corresponds to the usual:
 -- foldr :: (a -> b -> b) -> b -> [ a ] -> b
-foldr :: SList xs -> Iso (Append xs ys) ys -> Iso (Append (Map [] xs) ys) ys
-foldr s1 i = Iso f g (sappend s1' s2) s2
+foldr :: SList as -> Iso (Append as bs) bs -> Iso (Append bs (Map [] as)) bs
+foldr s1 i = Iso f g (sappend s2 s1') s2
   where s1' = smap proxyList s1
         s2  = sunapply i
         f hs = hfoldr s1 h ys xss
-          where (xss, ys) = split s1' s2 hs
+          where (ys, xss) = split s2 s1' hs
                 h xs ys = apply i (happend xs ys)
-        g ys = Just $ happend (hunfoldr s1 h ys) ys
+        g ys = Just $ happend ys (hunfoldr s1 h ys)
           where h ys = unapply i ys >>= return . split s1 s2
 
 --------------------------------------------------------------------------------
@@ -142,8 +147,5 @@ associate s1 s2 s3 = Iso f g (sappend s1 (sappend s2 s3)) (sappend (sappend s1 s
 
 -- | Isomorphisms are commutative.
 commute :: SList xs -> SList ys -> Iso (Append xs ys) (Append ys xs)
-commute s1 s2 = Iso (f s1 s2) (Just . f s2 s1) (sappend s1 s2) (sappend s2 s1)
-  where -- TODO refactor switch
-        f :: SList xs -> SList ys -> HList (Append xs ys) -> HList (Append ys xs)
-        f s1 s2 hs = happend ys xs
-          where (xs, ys) = split s1 s2 hs
+commute s1 s2 =  Iso (f s1 s2) (Just . f s2 s1) (sappend s1 s2) (sappend s2 s1)
+  where f s1 s2 = P.uncurry (P.flip happend) . split s1 s2
