@@ -17,5 +17,5 @@ int = readShow <$> some digit
 readShow :: (Read a, Show a) => Iso '[String] '[a] 
 readShow = Iso r s p p
   where p = SCons SNil
-        r = Just . hsingleton . happly read
+        r = hsingleton . happly read
         s = Just . hsingleton . happly show

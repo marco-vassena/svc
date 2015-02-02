@@ -32,10 +32,8 @@ between l r p = l *> p <* r
 --failWith = Fail . toSList
 
 -- Tries each format until one succeeds.
--- The given list may not be empty.
-choice :: AltC Format Format c m i =>  [Format c m i xs] -> Format c m i xs
-choice (x:xs) = P.foldr (<|>) (error "choice: Add Empty") (x:xs)
-choice [] = error "Format c.Combinator.choice: empty list"
+choice :: (AltC Format Format c m i, Use Empty c m i, KnownSList xs) =>  [Format c m i xs] -> Format c m i xs
+choice xs = P.foldr (<|>) empty xs
 
 optional :: (AltC Format FMap c m i, Use Pure c m i, Alternative m) 
          => SFormat c m i a -> SFormat c m i (Maybe a)

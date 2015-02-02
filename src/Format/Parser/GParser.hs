@@ -5,7 +5,7 @@
 
 module Format.Parser.GParser where
 
-import Format.Syntax hiding ((<$>), (<*>), (<|>), pure, fail, (>>=))
+import Format.Syntax hiding ((<$>), (<*>), (<|>), pure, fail, (>>=), empty)
 import Format.Parser.Base
 import Data.HList
 import Control.Applicative
@@ -32,6 +32,9 @@ instance (Functor m) => ParseWith m i (FMap ParseWith) where
 
 instance Alternative m => ParseWith m i (Alt ParseWith) where
   mkParser' (Alt f1 f2) = mkParser' f1 <|> mkParser' f2
+
+instance Alternative m => ParseWith m i (Empty ParseWith) where
+  mkParser' (Empty _) = empty
 
 instance ParseWith m i (Format ParseWith) where
   mkParser' (Format f) = mkParser' f

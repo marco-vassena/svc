@@ -5,7 +5,7 @@
 
 module Format.Printer.GPrinter where
 
-import Format.Syntax hiding ((<$>), (<*>), (<|>), pure, fail, (>>=))
+import Format.Syntax hiding ((<$>), (<*>), (<|>), pure, fail, (>>=), empty)
 import Format.Printer.Base
 import Data.Monoid
 import Data.HList
@@ -32,8 +32,11 @@ instance (Applicative m, Monoid s) => PrintWith s m i (Seq (PrintWith s)) where
   mkPrinter' (Seq f1 f2) hs = mappend <$> mkPrinter' f1 hs1 <*> mkPrinter' f2 hs2
     where (hs1, hs2) = split (toSList f1) (toSList f2) hs
 
-instance (Alternative m) => PrintWith s m i (Alt (PrintWith s)) where
+instance Alternative m => PrintWith s m i (Alt (PrintWith s)) where
   mkPrinter' (Alt f1 f2) hs = mkPrinter' f1 hs <|> mkPrinter' f2 hs
+
+instance Alternative m => PrintWith s m i (Empty (PrintWith s)) where
+  mkPrinter' (Empty _) _ = empty
 
 instance PrintWith s m i (Format (PrintWith s)) where
   mkPrinter' (Format f) = mkPrinter' f

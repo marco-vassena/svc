@@ -4,6 +4,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Expr where
 
@@ -13,13 +14,17 @@ import Format.Syntax hiding ((>>=), fail)
 import Format.Combinator
 import Format.Token.Char
 import Format.Printer.Naive
-import Format.Parser.Naive
+import Format.Parser.UU
+import qualified Format.Parser.Naive as N
 import Format.Parser.Base
 
 import qualified Control.Applicative as A
 import Control.Monad
-import Control.Isomorphism.Partial
+import Control.Isomorphism.Partial hiding (foldr)
 
+
+import Text.ParserCombinators.UU.Utils
+import Text.ParserCombinators.UU.BasicInstances
 import Util
 
 -------------------------------------------------------------------------------
@@ -74,43 +79,53 @@ priority Times = 1
 priority Plus = 2
 
 -- Format c that recognizes binary operators
-bop :: (Use Satisfy c m Char, AlternativeC c m Char) => SFormat c m Char Bop
+bop :: (Use Help c m Char, Use Satisfy c m Char, AlternativeC c m Char) => SFormat c m Char Bop
 bop = plus <$> char '+' <|> times <$> char '*'
 
 -- | A format surrounded by parenthesis.
-parens :: (Use Satisfy c m Char, AlternativeC c m Char) 
+parens :: (Use Satisfy c m Char, AlternativeC c m Char, Use Help c m Char) 
        => Format c m Char xs -> Format c m Char xs
 parens f = char '(' *> f <* char ')'
+
+
+expr :: (Use Help c m Char, 
+         Use Empty c m Char,
+         Use Satisfy c m Char, AlternativeC c m Char) => SFormat c m Char Expr
+expr = foldr gen fact [addis, multis]
+  where addis, multis :: (Use Satisfy c m Char, 
+                          AlternativeC c m Char, 
+                          Use Help c m Char) => [SFormat c m Char Bop]
+        addis = [plus <$> char '+']
+        multis = [times <$> char '*']
+
+gen :: (AlternativeC c m Char, Use Empty c m Char)
+    => [SFormat c m Char Bop] -> SFormat c m Char Expr -> SFormat c m Char Expr
+gen ops f = chainl1 f (choice ops) binOp
 
 -- FIX : loop when printing variables that are not consistent
 -- with the grammar, e.g. Var "1".
 -- Note this definition relies on arbitrary backtracking when parsing.
-expr :: (Use Satisfy c m Char, AlternativeC c m Char) => SFormat c m Char Expr
-expr = exp 2
-  where exp :: (Use Satisfy c m Char, AlternativeC c m Char) => Int -> SFormat c m Char Expr
-        exp 0 =  var <$> some letter
-             <|> lit <$> int
-             <|> (parens expr)                 -- When printing this may not terminate.
-        exp 1 = chainl1 (exp 0) bop (binOpPrio 1)
-        exp 2 = chainl1 (exp 1) bop (binOpPrio 2)
-
--- | Succeeds only with the operators of the right priority.
-binOpPrio :: Int -> Iso '[Expr, Bop, Expr] '[Expr]
-binOpPrio n = binOp <.> subset s3 checkPrio
-  where s3 = SCons (SCons (SCons SNil))
-        checkPrio (Cons x (Cons op (Cons y _))) = priority op == n
+fact :: (Use Satisfy c m Char, 
+         Use Help c m Char, 
+         Use Empty c m Char, AlternativeC c m Char) => SFormat c m Char Expr
+fact =  var <$> some letter
+    <|> lit <$> int
+    <|> parens expr                 -- When printing this may not terminate.
 
 --------------------------------------------------------------------------------
 
-parseExpr :: Parser Char Expr
+parseExpr :: Parser Expr
 parseExpr = hHead A.<$> mkParser expr
+
+parseNExpr :: N.Parser Char Expr
+parseNExpr = hHead A.<$> mkParser expr
 
 printExpr :: Expr -> Maybe String
 printExpr = mkPrinter expr . hsingleton
 
 roundtrip :: String -> IO String
 roundtrip s = do 
-  e <- maybe (fail "Parser Failed") return (parseM parseExpr s)
+  let e = runParser "" parseExpr s
   print e 
   maybe (fail "Printer Failed") return (printExpr e)
 

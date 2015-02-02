@@ -41,6 +41,9 @@ data Alt c (m :: * -> *) (i :: *) (xs :: [ * ]) where
   Alt :: (c m i a, c m i b, Reify (a m i)) 
       =>  a m i xs -> b m i xs -> Alt c m i xs
 
+data Empty c (m :: * -> *) (i :: *) (xs :: [ * ]) where
+  Empty :: SList xs -> Empty c m i xs
+
 data Pure c (m :: * -> *) (i :: *) (xs :: [ * ]) where
   Pure :: HList xs -> Pure c m i xs
 
@@ -92,6 +95,9 @@ infixr 3 <|>
 (<|>) :: AltC a b c m i => a c m i xs -> b c m i xs -> Format c m i xs
 p <|> q = format (Alt p q)
 
+empty :: (Use Empty c m i, KnownSList xs) => Format c m i xs
+empty = format (Empty slist)
+
 satisfy :: Use Satisfy c m i => (i -> Bool) -> Format c m i '[i]
 satisfy = format . Satisfy
 
@@ -112,7 +118,7 @@ type Use a c m i = c m i (a c)
 -- Short-hand for common group of constraints, used together
 type FunctorC c m i = (Use FMap c m i, Use Format c m i) 
 type ApplicativeC c m i = (Use Pure c m i, Use Seq c m i, FunctorC c m i)
-type AlternativeC c m i = (ApplicativeC c m i, Use Alt c m i) -- Add empty ?
+type AlternativeC c m i = (ApplicativeC c m i, Use Alt c m i) -- TODO: Add empty
 
 --------------------------------------------------------------------------------
 
@@ -139,3 +145,6 @@ instance Reify (Fail c m i) where
 
 instance Reify (FMap c m i) where
   toSList (FMap i f) = sunapply i
+
+instance Reify (Empty c m i) where
+  toSList (Empty s) = s

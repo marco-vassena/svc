@@ -219,7 +219,7 @@ instance HApply xs c => HApply (x ': xs) c where
 --------------------------------------------------------------------------------
 -- Proof that two 'HList' have the same length.
 data SameLength (xs :: [ * ]) (ys :: [ * ]) where
-  Empty :: SameLength '[] '[]
+  Zero :: SameLength '[] '[]
   One :: SameLength xs ys -> SameLength (x ': xs) (y ': ys)
 
 -- @'zipWith'@ generalises @'zip'@ by zipping with the function given 
@@ -229,7 +229,7 @@ data SameLength (xs :: [ * ]) (ys :: [ * ]) where
 -- have the same length, thus no elements are discarded. 
 hZipWith :: SameLength xs ys -> (forall a b . a -> b -> f a b) 
          -> HList xs -> HList ys -> HList (ZipWith f xs ys)
-hZipWith Empty f Nil Nil = Nil
+hZipWith Zero f Nil Nil = Nil
 hZipWith (One p) f (Cons x xs) (Cons y ys) = Cons (f x y) (hZipWith p f xs ys)
 
 -- | Zips two 'HList' of the same length, in pairs.
@@ -241,7 +241,7 @@ hzip p xs ys = hZipWith p (,) xs ys
 
 -- | Unzip a zipped list in two distinct 'HList'.
 hunzip :: SameLength xs ys -> HList (ZipWith (,) xs ys) -> (HList xs, HList ys)
-hunzip Empty Nil = (Nil, Nil)
+hunzip Zero Nil = (Nil, Nil)
 hunzip (One p) (Cons (a, b) xs) =
   case hunzip p xs of
     (as, bs) -> (Cons a as, Cons b bs)
@@ -249,7 +249,7 @@ hunzip (One p) (Cons (a, b) xs) =
 -- The property 'SameLength' is symmetric.
 -- We can switch the two indexed lists freely.
 sameLengthSym :: SameLength xs ys -> SameLength ys xs
-sameLengthSym Empty = Empty
+sameLengthSym Zero = Zero
 sameLengthSym (One p) = One (sameLengthSym p)
 
 -- | Proof that type-level Map does not change the length of a type level list:
@@ -257,7 +257,7 @@ sameLengthSym (One p) = One (sameLengthSym p)
 -- @'SameLength' as ('Map' f as)@.
 -- This function is lazy in the function f, which is needed only to fix the type @f@.
 mapPreservesLength :: Proxy f -> SList as -> SameLength as (Map f as)
-mapPreservesLength _ SNil = Empty
+mapPreservesLength _ SNil = Zero
 mapPreservesLength p (SCons s) = One (mapPreservesLength p s)
 
 -- A proxy that fix the functor to list [].
@@ -265,7 +265,7 @@ proxyList :: Proxy []
 proxyList = Proxy
 
 instance Reify2 SameLength where
-  toSList2 Empty = (SNil, SNil)
+  toSList2 Zero = (SNil, SNil)
   toSList2 (One p) =
     case toSList2 p of
       (s1, s2) -> (SCons s1, SCons s2)
