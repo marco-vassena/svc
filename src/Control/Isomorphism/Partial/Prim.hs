@@ -17,6 +17,7 @@ module Control.Isomorphism.Partial.Prim
   , foldr
   , commute
   , (<.>)
+  , iff
   ) where
 
 import Prelude (($), fst, snd, otherwise, Eq, (==), Bool)
@@ -40,6 +41,12 @@ instance Reify2 Iso where
 -- we need a 'SList' object to determine its shape.
 identity ::  SList xs -> Iso xs xs
 identity s = Iso id Just s s
+
+-- Turns a constant isomoprhism in identity
+iff :: Iso '[] xs -> Iso xs xs
+iff i = Iso f g (sunapply i) (sunapply i)
+  where f _  = apply i Nil
+        g hs = unapply i hs >> return hs
 
 -- | Compose two isomoprhism. Corresponds to (.) from Category.
 (<.>) :: Iso ys zs -> Iso xs ys -> Iso xs zs

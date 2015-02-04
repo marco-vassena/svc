@@ -91,16 +91,13 @@ parens f = char '(' *> f <* char ')'
 expr :: (Use Help c m Char, 
          Use Empty c m Char,
          Use Satisfy c m Char, AlternativeC c m Char) => SFormat c m Char Expr
-expr = foldr gen fact [addis, multis]
-  where addis, multis :: (Use Satisfy c m Char, 
-                          AlternativeC c m Char, 
-                          Use Help c m Char) => [SFormat c m Char Bop]
-        addis = [plus <$> char '+']
-        multis = [times <$> char '*']
+expr = foldr gen fact [('+', plus), ('*', times)]
 
-gen :: (AlternativeC c m Char, Use Empty c m Char)
-    => [SFormat c m Char Bop] -> SFormat c m Char Expr -> SFormat c m Char Expr
-gen ops f = chainl1 f (choice ops) binOp
+gen :: (AlternativeC c m Char, Use Satisfy c m Char, Use Help c m Char)
+    => (Char, Iso '[] '[Bop]) -> SFormat c m Char Expr -> SFormat c m Char Expr
+gen (c, i) f = chainl1 f op checkBinOp
+  where op = i <$> char c
+        checkBinOp = binOp <.> (identity (SCons SNil) *** iff i *** identity (SCons SNil))
 
 -- FIX : loop when printing variables that are not consistent
 -- with the grammar, e.g. Var "1".
