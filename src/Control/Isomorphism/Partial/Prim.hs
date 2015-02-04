@@ -16,6 +16,7 @@ module Control.Isomorphism.Partial.Prim
   , foldl
   , foldr
   , commute
+  , (<.>)
   ) where
 
 import Prelude (($), fst, snd, otherwise, Eq, (==), Bool)
@@ -116,9 +117,10 @@ foldl s1 i = Iso f g (sappend s2 s1') s2
         f hs = hfoldl s1 h ys xss
           where (ys, xss) = split s2 s1' hs
                 h ys xs = apply i (happend ys xs)
-        g zs = Just $ happend zs (hunfoldl s1 h zs)
+        g zs = Just (happend es hs)
           where h ys = unapply i ys >>= return . split s2 s1
-                
+                (es, hs) = hunfoldl s1 h zs
+
 -- Generalized foldr.
 -- This signature corresponds to the usual:
 -- foldr :: (a -> b -> b) -> b -> [ a ] -> b

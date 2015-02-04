@@ -71,15 +71,16 @@ hunfoldr s f z = unList s (unfoldr f z)
 hfoldl :: SList xs -> (b -> HList xs -> b) -> b -> HList (Map [] xs) -> b
 hfoldl s f z hs = foldl f z (toList s hs)
 
-hunfoldl :: SList xs -> (b -> Maybe (b, HList xs)) -> b -> HList (Map [] xs)
-hunfoldl s f z = unList s $ unfoldl f z
+hunfoldl :: SList xs -> (b -> Maybe (b, HList xs)) -> b -> (b, HList (Map [] xs))
+hunfoldl s f z = (e, unList s hs)
+  where (e, hs) = unfoldl f z
 
-unfoldl :: (b -> Maybe (b, a)) -> b -> [a]
+unfoldl :: (b -> Maybe (b, a)) -> b -> (b, [a])
 unfoldl f z = go z []
   where go e xs = 
           case f e of
             Just (e', x) -> go e' (x:xs)
-            Nothing      -> xs
+            Nothing      -> (e, xs)
 
 --------------------------------------------------------------------------------
 -- Returns a singleton 'HList'
