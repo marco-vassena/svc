@@ -138,8 +138,9 @@ foldr s1 i = Iso f g (sappend s2 s1') s2
         f hs = hfoldr s1 h ys xss
           where (ys, xss) = split s2 s1' hs
                 h xs ys = apply i (happend xs ys)
-        g ys = Just $ happend ys (hunfoldr s1 h ys)
+        g ys = Just $ happend es hs
           where h ys = unapply i ys >>= return . split s1 s2
+                (es, hs) = hunfoldr s1 h ys
 
 --------------------------------------------------------------------------------
 -- TODO maybe remove.

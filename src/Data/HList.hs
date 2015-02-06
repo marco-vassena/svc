@@ -16,7 +16,6 @@ module Data.HList where
 import GHC.TypeLits
 import Data.Proxy
 import Data.Type.Equality
-import Data.List
 import Control.Applicative
 
 -- Heterogeneous list, indexed by a type level list that
@@ -64,9 +63,12 @@ hmap' (SCons s) f (Cons x xs) = Cons (f x) (hmap' s f xs)
 hfoldr :: SList xs -> (HList xs -> b -> b) -> b -> HList (Map [] xs) -> b
 hfoldr s f z hs = foldr f z (toList s hs)
 
+-- | Note that the base element is defined only if the unfolded list
+-- is finite.
 hunfoldr :: SList xs -> (b -> Maybe (HList xs, b))
-                      -> b -> HList (Map [] xs)
-hunfoldr s f z = unList s (unfoldr f z)
+                      -> b -> (b, HList (Map [] xs))
+hunfoldr s f z = (e, unList s hs)
+  where (e, hs) = unfoldr f z
 
 hfoldl :: SList xs -> (b -> HList xs -> b) -> b -> HList (Map [] xs) -> b
 hfoldl s f z hs = foldl f z (toList s hs)
@@ -81,6 +83,16 @@ unfoldl f z = go z []
           case f e of
             Just (e', x) -> go e' (x:xs)
             Nothing      -> (e, xs)
+
+-- Custom unfoldr because we need also the "zero" element
+unfoldr :: (b -> Maybe (a, b)) -> b -> (b, [a])
+unfoldr f b = case unzip (go b) of
+                ([] , []) -> (b, [])
+                (es , hs) -> (last es, hs)
+  where go b = case f b of
+                 Just (a, b') -> (b, a) : go b'
+                 Nothing      -> []
+
 
 --------------------------------------------------------------------------------
 -- Returns a singleton 'HList'
