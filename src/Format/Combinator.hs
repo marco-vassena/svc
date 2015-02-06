@@ -33,6 +33,7 @@ module Format.Combinator (
   , count
   , manyTill
   , P.chainl1
+  , P.chainr1
   ) where
 
 import Format.Combinator.Base

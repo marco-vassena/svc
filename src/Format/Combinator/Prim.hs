@@ -41,9 +41,9 @@ chainl1 arg op f = C.foldl s f <$> arg <*> many s (op <*> arg)
 
 chainr1 :: AlternativeC c m i 
         => SFormat c m i a -> SFormat c m i b -> Iso '[a, b, a] '[a] -> SFormat c m i a
-chainr1 arg op f = C.foldr s f <$> arg <*> (commute (SCons SNil) (SCons SNil) <$> g)
+chainr1 arg op f = C.foldr s f <$> (commute s (SCons SNil) <$> (many s (arg <*> op) <*> arg))
   where s = SCons (SCons SNil)
-        g = many s (op <*> arg)
+
 count :: AlternativeC c m i
       => SList xs -> Int -> Format c m i xs -> Format c m i (Map [] xs)
 count s n f | n <= 0    = allEmpty s <$> unit 

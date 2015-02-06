@@ -95,9 +95,8 @@ expr = foldr gen fact [('+', plus), ('*', times)]
 
 gen :: (AlternativeC c m Char, Use Satisfy c m Char, Use Help c m Char)
     => (Char, Iso '[] '[Bop]) -> SFormat c m Char Expr -> SFormat c m Char Expr
-gen (c, i) f = chainl1 f op checkBinOp
-  where op = i <$> char c
-        checkBinOp = binOp <.> (identity (SCons SNil) *** iff i *** identity (SCons SNil))
+gen (c, i) f = chainr1 f (i <$> char c) checkBinOp 
+  where checkBinOp = binOp <.> (identity (SCons SNil) *** iff i *** identity (SCons SNil))
 
 -- FIX : loop when printing variables that are not consistent
 -- with the grammar, e.g. Var "1".
