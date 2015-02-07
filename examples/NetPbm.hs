@@ -30,14 +30,13 @@ import Util
 
 whitespace :: (FormatC c m, AlternativeC c m Char) 
             => Format c m Char '[]
-whitespace = some (char ' ' <|> char '\t' <|> char '\n')
+whitespace = some (char ' ' <|> tab  <|> newline <|> comment)
 
 -- | Recognizes a comment and discards its value. 
 comment :: (AlternativeC c m Char, FormatC c m)
         => Format c m Char '[]
-comment = ignore (hsingleton Nothing) <$> optional cm
-  where cm = char '#' *> manyTill (satisfy (/= '\n')) (char '\n')
-
+comment = ignore (hsingleton []) <$> cm
+  where cm = char '#' *> manyTill (satisfy (/= '\n')) newline
 
 --------------------------------------------------------------------------------
 data Pbm = Pbm Int Int [[Char]]
@@ -67,7 +66,7 @@ pbmRawFormat = pbmHeader >>= \(Cons n (Cons m _)) -> img n m
 -- | Recognizes the pbm header and the dimensions of the image
 pbmHeader :: (AlternativeC c m Char, FormatC c m ) 
           => Format c m Char '[Int, Int]
-pbmHeader = (string "P1\n" *> comment *> whitespace *> int <* whitespace) <*> int <* whitespace 
+pbmHeader = (string "P1" *> whitespace *> int <* whitespace) <*> int <* whitespace 
 
 -- | Recognizes a table of space-separated bits 
 img :: (FormatC c m, AlternativeC c m Char) 
