@@ -89,13 +89,12 @@ parens f = char '(' *> f <* char ')'
 
 
 expr :: (Use Help c m Char, 
-         Use Empty c m Char,
          Use Satisfy c m Char, AlternativeC c m Char) => SFormat c m Char Expr
 expr = foldr gen fact [('+', plus), ('*', times)]
 
 gen :: (AlternativeC c m Char, Use Satisfy c m Char, Use Help c m Char)
     => (Char, Iso '[] '[Bop]) -> SFormat c m Char Expr -> SFormat c m Char Expr
-gen (c, i) f = chainr1 f (i <$> char c) checkBinOp 
+gen (c, i) f = chainl1 f (i <$> char c) checkBinOp 
   where checkBinOp = binOp <.> (identity (SCons SNil) *** iff i *** identity (SCons SNil))
 
 -- FIX : loop when printing variables that are not consistent
@@ -103,7 +102,7 @@ gen (c, i) f = chainr1 f (i <$> char c) checkBinOp
 -- Note this definition relies on arbitrary backtracking when parsing.
 fact :: (Use Satisfy c m Char, 
          Use Help c m Char, 
-         Use Empty c m Char, AlternativeC c m Char) => SFormat c m Char Expr
+         AlternativeC c m Char) => SFormat c m Char Expr
 fact =  var <$> some letter
     <|> lit <$> int
     <|> parens expr                 -- When printing this may not terminate.
