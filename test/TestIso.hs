@@ -9,7 +9,7 @@ import qualified Prelude as P
 import Control.Isomorphism.Partial
 import Control.Monad
 import Data.HList
-import Data.List
+import qualified Data.List as L
 import System.Exit
 import Test.QuickCheck
 import Tree
@@ -50,7 +50,7 @@ testFoldRApply ts = actual == expected
 -- | Checks the correctness of foldrTree with the inverse semantics (unfoldr).
 testFoldRUnapply :: Tree -> Bool
 testFoldRUnapply t = actual == expected t
-  where expected = unfoldr f
+  where expected = L.unfoldr f
           where f Leaf = Nothing
                 f (Branch t1 t2) = Just (t1, t2)
         actual = case unapply foldrTree $ Cons t Nil of

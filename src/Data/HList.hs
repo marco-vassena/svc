@@ -60,6 +60,8 @@ hmap' (SCons s) f (Cons x xs) = Cons (f x) (hmap' s f xs)
 -- and then fold/unfold it.
 --------------------------------------------------------------------------------
 
+-- TODO quickcheck test : foldl/unfoldl not being inverse lead to subtle bugs
+
 hfoldr :: SList xs -> (HList xs -> b -> b) -> b -> HList (Map [] xs) -> b
 hfoldr s f z hs = foldr f z (toList s hs)
 
@@ -85,13 +87,15 @@ unfoldl f z = go z []
             Nothing      -> (e, xs)
 
 -- Custom unfoldr because we need also the "zero" element
+-- Note that unlike the correspondent function from Data.List
+-- it will fail terminate only if the unfolded list is finite
+-- (as it happens for unfoldl).
 unfoldr :: (b -> Maybe (a, b)) -> b -> (b, [a])
-unfoldr f b = case unzip (go b) of
-                ([] , []) -> (b, [])
-                (es , hs) -> (last es, hs)
-  where go b = case f b of
-                 Just (a, b') -> (b, a) : go b'
-                 Nothing      -> []
+unfoldr f b = go b []
+  where go b acc =
+          case f b of
+            Just (a, b') -> go b' (a:acc)
+            Nothing      -> (b, reverse acc)
 
 
 --------------------------------------------------------------------------------
