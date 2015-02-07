@@ -35,7 +35,7 @@ between l r p = l *> p <* r
 choice :: (AltC Format Format c m i, Use Empty c m i, KnownSList xs) =>  [Format c m i xs] -> Format c m i xs
 choice xs = P.foldr (<|>) empty xs
 
-optional :: (AltC Format FMap c m i, Use Pure c m i, Alternative m) 
+optional :: (AltC Format FMap c m i, Use Pure c m i) 
          => SFormat c m i a -> SFormat c m i (Maybe a)
 optional f = (just <$> f) <|> (nothing <$> unit)
 

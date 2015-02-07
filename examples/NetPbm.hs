@@ -41,11 +41,11 @@ comment = ignore (hsingleton Nothing) <$> optional cm
 
 --------------------------------------------------------------------------------
 data Pbm = Pbm Int Int [[Char]]
-  deriving Show
+  deriving (Show, Eq)
 
 -- | Partial isomorphism for 'Pbm'
 pbm :: Iso '[Int, Int, [[Char]]] '[Pbm]
-pbm = Iso (Just . hsingleton . happly Pbm) f (SCons (SCons (SCons SNil))) (SCons SNil)
+pbm = Iso (hsingleton . happly Pbm) f (SCons (SCons (SCons SNil))) (SCons SNil)
   where f :: PFunction '[Pbm] '[Int, Int, [[Char]]]
         f (Cons (Pbm n m img) _) = Just $ Cons n (Cons m (Cons img Nil))
 --------------------------------------------------------------------------------
@@ -67,7 +67,7 @@ pbmRawFormat = pbmHeader >>= \(Cons n (Cons m _)) -> img n m
 -- | Recognizes the pbm header and the dimensions of the image
 pbmHeader :: (AlternativeC c m Char, FormatC c m ) 
           => Format c m Char '[Int, Int]
-pbmHeader = (string "P1\n" *> comment *> int <* whitespace) <*> int <* whitespace 
+pbmHeader = (string "P1\n" *> comment *> whitespace *> int <* whitespace) <*> int <* whitespace 
 
 -- | Recognizes a table of space-separated bits 
 img :: (FormatC c m, AlternativeC c m Char) 

@@ -18,6 +18,7 @@ import Format.Printer.Naive
 import System.Exit
 import Test.HUnit.Base
 import Test.HUnit.Text
+import Utility
 
 -- An identifier is a non-empty sequence of letters
 identifier :: (FormatC c m, AlternativeC c m Char) => Format c m Char '[[Char]]
@@ -236,9 +237,6 @@ tests = TestLabel "Format" $ TestList $ [
   TestLabel "ManyTill"     $ TestList [testTrueComment, testFalseComment],
   TestLabel "Spaces"       $ TestList [testTrueMSpace, testFalseMSpace]
   ]
-
-hasFailed :: Counts -> Bool
-hasFailed (Counts c t e f) = e > 0 || f > 0
 
 main :: IO ()
 main = do

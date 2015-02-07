@@ -36,29 +36,35 @@ test-suite test-iso
   hs-source-dirs:     test, src
   main-is:            TestIso.hs
   other-modules :     Tree, Utility
-  build-depends:      base >=4.7 && <4.8, svc, QuickCheck
+  build-depends:      base >=4.7 && <4.8, svc, QuickCheck, HUnit
   default-language:   Haskell2010
 
 test-suite test-format
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test, src
   main-is:            TestFormat.hs
-  build-depends:      base >=4.7 && <4.8, svc, HUnit, bytestring
+  build-depends:      base >=4.7 && <4.8, svc, QuickCheck, HUnit, bytestring
   default-language:   Haskell2010
 
 test-suite test-expr
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test, src, examples
   main-is:            TestExpr.hs
-  other-modules :     Expr
-  build-depends:      base >=4.7 && <4.8, QuickCheck, bytestring, uu-parsinglib, ListLike
+  build-depends:      base >=4.7 && <4.8, QuickCheck, HUnit, bytestring, uu-parsinglib, ListLike
   default-language:   Haskell2010
 
 test-suite test-csv
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test, src, examples
   main-is:            TestCsv.hs
-  build-depends:      base >=4.7 && <4.8, QuickCheck, bytestring, uu-parsinglib, ListLike
+  build-depends:      base >=4.7 && <4.8, QuickCheck, HUnit, bytestring, uu-parsinglib, ListLike
+  default-language:   Haskell2010
+
+test-suite test-netpbm
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test, src, examples
+  main-is:            TestNetPbm.hs
+  build-depends:      base >=4.7 && <4.8, QuickCheck, HUnit, parsec, bytestring, directory, transformers
   default-language:   Haskell2010
 
 
