@@ -46,7 +46,28 @@ test-suite test-format
   build-depends:      base >=4.7 && <4.8, svc, HUnit, bytestring
   default-language:   Haskell2010
 
+test-suite test-examples
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test, src, examples
+  main-is:            TestExpr.hs
+  other-modules :     Expr
+  build-depends:      base >=4.7 && <4.8, QuickCheck, bytestring, uu-parsinglib, ListLike
+  default-language:   Haskell2010
 
+ 
+test-suite test-all
+  type:            exitcode-stdio-1.0
+  --x-uses-tf:       true
+  build-depends:   
+                   base >= 4,
+                   HUnit,
+                   QuickCheck,
+                   test-framework >= 0.4.1,
+                   test-framework-quickcheck2,
+                   test-framework-hunit
+  hs-source-dirs:  src, test, examples
+  default-language: Haskell2010
+  main-is:         Main.hs
 
 --executable svc
 --  -- main-is:             

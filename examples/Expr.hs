@@ -31,11 +31,11 @@ import Util
 data Expr = Var String
           | Lit Int
           | BinOp Expr Bop Expr
-  deriving Show
+  deriving (Show, Eq)
 
 data Bop = Plus
          | Times
-  deriving Show
+  deriving (Show, Eq)
 
 --------------------------------------------------------------------------------
 -- Expr isomorphisms
