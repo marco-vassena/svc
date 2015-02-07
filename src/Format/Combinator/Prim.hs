@@ -32,6 +32,9 @@ sepBy1 :: AlternativeC c m i
        => Format c m i '[] -> SList xs -> Format c m i xs -> Format c m i (Map [] xs)
 sepBy1 sep s f = combine s <$> f <*> many s (sep *> f)
 
+-- TODO add isomorphism conditions required to ensure that chainl/chainr
+-- are invertible isomorphisms.
+
 -- | The `chainl1` combinator is used to parse a
 -- left-associative chain of infix operators. 
 chainl1 :: AlternativeC c m i 

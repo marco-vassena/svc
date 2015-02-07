@@ -106,7 +106,8 @@ hsingleton a = Cons a Nil
 hHead :: HList (x ': xs) -> x
 hHead (Cons x _) = x
 
--- TODO add tail
+hTail :: HList (x ': xs) -> HList xs
+hTail (Cons x hs) = hs
 
 --------------------------------------------------------------------------------
 -- The singleton type of lists, which allows us to take a list as a
@@ -146,6 +147,9 @@ instance Reify2 f => Reify (f xs) where
 
 instance Eq (HList '[]) where
   Nil == Nil = True
+
+instance (Eq x, Eq (HList xs)) => Eq (HList (x ': xs)) where
+  Cons x xs == Cons y ys = x == y && xs == ys 
 
 --------------------------------------------------------------------------------
 
@@ -324,3 +328,4 @@ instance Show (HList '[]) where
 
 instance (Show x, Show (HList xs)) => Show (HList (x ': xs)) where
   show (Cons x xs) = unwords ["Cons", show x, show xs]
+
