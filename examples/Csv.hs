@@ -24,7 +24,7 @@ import Util
 --------------------------------------------------------------------------------
 -- | Csv specification as Grammar
 --------------------------------------------------------------------------------
-csvGrammar :: (Use Satisfy c m Char, AlternativeC c m Char) 
+csvGrammar :: (Use Satisfy c m Char, AlternativeC c m Char, Use Help c m Char) 
            => Format c m Char '[Int, [Int], [Int], [[Int]]]
 csvGrammar = csvRow <*> many (char '\n' *> csvRow)
   where csvRow = int <*> many (char ',' *> int)
@@ -33,7 +33,7 @@ csvGrammar = csvRow <*> many (char '\n' *> csvRow)
 
 -- An algebraic data type that represents a Csv table
 data Csv = Csv [[Int]]
-  deriving Show
+  deriving (Show, Eq)
 
 -- | Isomorphism for Csv data type
 csv :: CIso '[ [[Int]] ] Csv 
@@ -41,12 +41,12 @@ csv = iso (happly Csv) proj (SCons SNil)
   where proj (Csv xss) = Just $ Cons xss Nil
 
 -- | A format that targets a raw HList '[ [[Int]] ]
-rawFormat :: (Use Satisfy c m Char, AlternativeC c m Char) => Format c m Char '[ [[Int]] ]
+rawFormat :: (Use Satisfy c m Char, Use Help c m Char, AlternativeC c m Char) => Format c m Char '[ [[Int]] ]
 rawFormat = sepBy row newline
-  where row = sepBy int (char ',')
+  where row = sepBy1 int (char ',')
 
 -- | A format that targets directly the CSV data type
-csvFormat :: (Use Satisfy c m Char, AlternativeC c m Char) => SFormat c m Char Csv
+csvFormat :: (Use Satisfy c m Char, Use Help c m Char, AlternativeC c m Char) => SFormat c m Char Csv
 csvFormat = csv <$> rawFormat
 
 -- TODO add utility functions to hide the packing/unpacking for singleton HList
