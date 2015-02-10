@@ -25,8 +25,15 @@ library
                       Control.Isomorphism.Partial.Constructors Control.Isomorphism.Partial.Base, 
                       Format.Printer.GPrinter, Format.Parser.GParser
   other-modules:      Format.Combinator.Base, Format.Combinator.Prim
-  build-depends:      base >=4.7 && <4.8, bytestring >=0.10, text >=1.1, parsec >=3.1, mtl >=2.1, 
-                      transformers >= 0.3, uu-parsinglib, ListLike, attoparsec, bytestring
+  build-depends:      base >=4.7 && <4.8, mtl >=2.1, transformers >= 0.3, 
+
+                      -- Parser/Printer bindings
+                      bytestring >=0.10, text >=1.1, parsec >=3.1, 
+                      uu-parsinglib, ListLike, attoparsec,
+
+                      -- GDiff
+                      gdiff-ig >= 0.2
+
   default-language:   Haskell2010
 
 -- TODO split the dependencies for examples such as parsec, uu-parsinglib etc
@@ -57,7 +64,7 @@ test-suite test-csv
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test, src, examples
   main-is:            TestCsv.hs
-  build-depends:      base >=4.7 && <4.8, QuickCheck, HUnit, bytestring, uu-parsinglib, ListLike
+  build-depends:      base >=4.7 && <4.8, QuickCheck, HUnit, bytestring, uu-parsinglib, ListLike,
   default-language:   Haskell2010
 
 test-suite test-netpbm
