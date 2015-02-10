@@ -17,13 +17,18 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:     src
+                      -- TODO clean up this section
   exposed-modules:    Format, Format.Syntax, Format.Syntax.Base, Format.Syntax.Help, Format.Syntax.Try
                       Format.Parser, Format.Printer,
                       Format.Printer.Naive, Format.Printer.Base, Data.HList, Control.Isomorphism.Partial.Prim,
                       Format.Parser.Naive, Format.Parser.UU, Format.Parser.Parsec, Format.Parser.Attoparsec,
                       Format.Parser.Base, Format.Token, Format.Token.Char, Format.Combinator
                       Control.Isomorphism.Partial.Constructors Control.Isomorphism.Partial.Base, 
-                      Format.Printer.GPrinter, Format.Parser.GParser
+                      Format.Printer.GPrinter, Format.Parser.GParser,
+
+                      -- Version control
+                      Repository
+              
   other-modules:      Format.Combinator.Base, Format.Combinator.Prim
   build-depends:      base >=4.7 && <4.8, mtl >=2.1, transformers >= 0.3, 
 
@@ -32,6 +37,7 @@ library
                       uu-parsinglib, ListLike, attoparsec,
 
                       -- GDiff
+                      instant-generics >= 0.4,
                       gdiff-ig >= 0.2
 
   default-language:   Haskell2010
@@ -64,7 +70,7 @@ test-suite test-csv
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test, src, examples
   main-is:            TestCsv.hs
-  build-depends:      base >=4.7 && <4.8, QuickCheck, HUnit, bytestring, uu-parsinglib, ListLike,
+  build-depends:      base >=4.7 && <4.8, QuickCheck, HUnit, bytestring, uu-parsinglib, ListLike
   default-language:   Haskell2010
 
 test-suite test-netpbm
