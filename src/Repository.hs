@@ -6,13 +6,6 @@ import Data.Typeable
 import Generics.Instant.TH
 import Generics.Instant.GDiff
 
--- | Represents a change in some value.
--- It allows to patch the old value and get the new value (forward)
--- and the other way around (backward).
-data Delta = Delta { forward :: EditScript,
-                     backward :: EditScript }
-  deriving (Show)
-
 data Repo a where
   Repo :: GDiff a => [EditScript] -> Maybe a -> Repo a
 
@@ -27,13 +20,20 @@ empty = Repo [] Nothing
 commit :: GDiff a => a -> Repo a -> Repo a
 commit y (Repo hs x) = Repo (dF : hs) (Just y)
   where dF = diff x (Just y)
-        dB = diff (Just y) x -- TODO can this be computed mechanically from the other way?
 
 -- @back n r@ rolls back @n@ commits in the repo @r@
+-- The returned repo is some kind of "detached state",
+-- where the previous history is available, but 
+-- the future commits are discarded.
 back :: Int -> Repo a -> Repo a
 back n (Repo hs v) = Repo past (foldr unsafePatch Nothing past)
+  where (future, past) = splitAt n hs
+
+-- Returns the n-th version of the repo.
+-- (0-th is the empty repo).
+version :: Int -> Repo a -> Repo a
+version n r@(Repo hs _) = back (l - n) r
   where l = length hs
-        (past, future) = splitAt (l - n) (reverse hs)
 
 -- Calls patch and throws error if it fails
 unsafePatch :: GDiff a => EditScript -> a -> a
@@ -47,6 +47,11 @@ r0 = empty
 r1 = commit 1 r0
 r2 = commit 2 r1
 r3 = commit 3 r2
+
+-- Branching is the result of commiting from a previous state
+-- b2 shares the first commits with r2, but the last differs.
+b2 :: Repo Int
+b2 = commit 4 r1
 
 --------------------------------------------------------------------------------
 -- Auxiliary GDiff instances
