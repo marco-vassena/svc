@@ -15,7 +15,7 @@ import Control.Monad.Trans.State.Lazy
 type BName = String
 
 -- Reference to parents commits
-type Parents a = [HashId]
+type Parents a = [Commit a] -- TODO HashId should probably be enough
 
 -- An integer representing the Hash of the EditScript
 -- used to uniquely identify commits.
@@ -52,6 +52,9 @@ newBranch :: BName -> Repo a ()
 newBranch b = modify f
   where f (RState m h) = RState (M.insert b [] m) h
 
+getCurrentBranch :: Repo a [Commit a]
+getCurrentBranch = gets (branch . tip) >>= getBranch
+
 getBranch :: BName -> Repo a [Commit a]
 getBranch b =  do
   m <- gets branches
@@ -63,8 +66,16 @@ getHead :: Repo a (Head a)
 getHead = gets tip
 
 putHead :: Head a -> Repo a ()
-putHead h = modify f
+putHead h = modifyHead (const h)
   where f (RState m _) = RState m h
+
+modifyHead :: (Head a -> Head a) -> Repo a ()
+modifyHead f = modify g
+  where g (RState m h) = RState m (f h)
+
+putValue :: Maybe a -> Repo a ()
+putValue v = modifyHead g
+  where g (Head b _) = Head b v
 
 addCommit :: BName -> Commit a -> Repo a ()
 addCommit b c = modify f
@@ -72,9 +83,12 @@ addCommit b c = modify f
 
 setHead :: (Show a, GDiff a) => BName -> Repo a ()
 setHead b = do
-  cs <- getBranch b >>= \cs -> return [delta c | c <- cs]
-  let v = foldr unsafePatch Nothing cs
+  v <- getBranch b >>= return . computeValue
   putHead (Head b v)
+
+computeValue :: (Show a, GDiff a) => [Commit a] -> Maybe a
+computeValue cs = foldr unsafePatch Nothing ds
+  where ds = [delta c | c <- cs]
 
 -- Change branch
 switch :: (Show a, GDiff a) => BName -> Repo a ()
@@ -82,7 +96,6 @@ switch b = setHead b
 
 getValue :: Repo a (Maybe a)
 getValue = gets (value . tip)
-  
 
 -- Initialize repository:
 --- * master branch
@@ -97,7 +110,7 @@ getParents b = do
   cs <- getBranch b
   case cs of
     [] -> return []
-    (c:cs) -> return [hashId c]
+    (c:cs) -> return [c]
 
 -- Produces a new Repo containing the new value,
 -- and keeps track in the history of the deltas
@@ -107,23 +120,26 @@ commit y = do
   ps <- getParents b
   let d = diff x (Just y)
   let newCommit = Commit 0 d ps
-  let newHead = Head b (Just y) 
   addCommit b newCommit
-  putHead newHead
+  putValue (Just y)
   
----- @back n r@ rolls back @n@ commits in the repo @r@
----- The returned repo is some kind of "detached state",
----- where the previous history is available, but 
----- the future commits are discarded.
-----back :: Int -> Repo a -> Repo a
-----back n (Repo hs v) = Repo past (foldr unsafePatch Nothing past)
-----  where (future, past) = splitAt n hs
---
------- Returns the n-th version of the repo.
------- (0-th is the empty repo).
-----version :: Int -> Repo a -> Repo a
-----version n r@(Repo hs _) = back (l - n) r
-----  where l = length hs
+-- @back n r@ rolls back @n@ commits in the repo @r@
+-- The returned repo is some kind of "detached state",
+-- where the previous history is available, but 
+-- the future commits are discarded.
+back :: (Show a, GDiff a) => Int -> Repo a ()
+back n = do
+  cs <- getCurrentBranch 
+  let (future, past) = splitAt n cs
+  let v = computeValue past
+  putValue v
+
+-- Returns the n-th version of the repo.
+-- (0-th is the empty repo).
+version :: (Show a, GDiff a) => Int -> Repo a ()
+version n = do
+  l <- getCurrentBranch >>= return . length 
+  back (l - n)
 
 -- Calls patch and throws error if it fails
 unsafePatch :: (GDiff a, Show a) => EditScript -> a -> a
@@ -132,24 +148,60 @@ unsafePatch d x =
     Just y -> y
     Nothing -> error $ "patch:\t" ++ show d ++ "\nfailed over:\t" ++ show x
 
+-- TODO use set, they may not be unique
+commonAncestors :: Commit a -> Commit a -> [Commit a]
+commonAncestors c1 c2 = 
+  let cs = concat [commonAncestors p1 p2 | p1 <- parents c1, p2 <- parents c2] in
+  if hashId c1 == hashId c2 
+    then c1 : cs
+    else cs
 
-example0 :: Repo Int (Maybe Int)
-example0 = do
-  initRepo
-  getValue
+merge :: BName -> Repo Int ()
+merge b = do
+  c1 <- getCurrentBranch >>= return . head
+  c2 <- getBranch b >>= return . head
+  case commonAncestors c1 c2 of
+    [] -> error $ "No common ancestor with " ++ b 
+    [ p ] -> error "3-way-merge"
+    _ -> error "octupus merge"
 
-example1 :: Repo Int (Maybe Int)
-example1 = do
-  initRepo
-  commit 1
-  commit 2
-  getValue
+--------------------------------------------------------------------------------
+-- Examples
 
----- Branching is the result of commiting from a previous state
----- b2 shares the first commits with r2, but the last differs.
---b2 :: Repo Int
---b2 = commit 4 r1
+base :: Repo Int ()
+base = initRepo
 
+c1 :: Repo Int ()
+c1 = base >> commit 1
+
+c23 :: Repo Int ()
+c23 = commit 2 >> commit 3
+
+back2 :: Repo Int ()
+back2 = c23 >> back 2
+
+branchDev :: Repo Int ()
+branchDev = newBranch "dev" 
+
+d4 :: Repo Int ()
+d4 = branchDev >> commit 4
+
+mergeOk :: Repo Int ()
+mergeOk = do
+  c1
+  (newBranch "dev" >> setHead "dev" >> commit 4)
+  setHead "master"
+  c23
+  merge "dev"
+
+conflict :: Repo Int ()
+conflict = do
+  c1 
+  (newBranch "dev" >> setHead "dev" >> commit 4)
+  setHead "master" 
+  c23 
+  merge "dev"
+  
 --------------------------------------------------------------------------------
 -- Auxiliary GDiff instances
 --------------------------------------------------------------------------------
@@ -173,3 +225,18 @@ instance Typeable a => Build (Maybe a)  where
 instance GDiff a => GDiff (Maybe a)
 
 --------------------------------------------------------------------------------
+-- Debug
+
+showRepo :: (GDiff a, Show a) => Repo a b -> String
+showRepo r = 
+  case runRepo (r >> showInternal) of
+    Left e -> show e
+    Right s -> s
+  where showInternal :: (GDiff a, Show a) => Repo a String
+        showInternal = do
+          bs <- gets branches >>= return . M.assocs
+          let bs' = [(b, cs, (scanr (\c -> unsafePatch (delta c)) Nothing cs)) | (b, cs) <- bs]
+          return . concatMap unlines $ [ b : zipWith showCommit cs vs | (b , cs, vs) <- bs']
+
+        showCommit :: Show a => Commit a -> Maybe a -> String
+        showCommit c a = unwords ["\t", show (hashId c), show a]
