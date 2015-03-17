@@ -20,15 +20,6 @@ data  Path a = Root a
 
 instance Hashable a => Hashable (Path a) where
 
--- Ord and Eq instance use the hash of the  Path a
-newtype HPath a = HPath {dpath :: Path a}
-
-instance Hashable a => Eq (HPath a) where
-  HPath p == HPath q = hash p == hash q
-
-instance Hashable a => Ord (HPath a) where
-  HPath p <= HPath q = hash p <= hash q
-
 -- Returns the depth of a path
 depth :: Path a -> Depth
 depth (Root _) = 0
@@ -47,6 +38,18 @@ merge :: Hashable a => Path a ->  Path a -> EditScript ->  Path a
 merge p1 p2 e | hash p1 < hash p2 = Merge p1 p2 (max (depth p1) (depth p2) + 1) e
 merge p1 p2 e | otherwise         = merge p2 p1 e
 
+--------------------------------------------------------------------------------
+
+-- Wrapper of Path used to overload Hash-based operations.
+newtype HPath a = HPath {dpath :: Path a}
+
+-- Ord and Eq instance use the hash of the  Path a
+instance Hashable a => Eq (HPath a) where
+  HPath p == HPath q = hash p == hash q
+
+instance Hashable a => Ord (HPath a) where
+  HPath p <= HPath q = hash p <= hash q
+
 -- Returns all the subpaths of a path, grouped by depth level, in descending order.
 levels :: Hashable a => Path a -> [(Depth, Set (HPath a))]
 levels r@(Root x)= [(depth r, S.singleton (HPath r))]
@@ -62,10 +65,13 @@ combine a@((d1,xs):ds1) b@((d2,ys):ds2) =
     EQ -> (d1, xs `S.union` ys) : combine ds1 ds2
     GT -> (d1, xs) : combine ds1 b
 
+--------------------------------------------------------------------------------
+
 data Lca a = One (Path a)
            | Two (Path a) (Path a)
   deriving Show
 
+-- Computes the lowest common ancestor of two paths.
 lca :: Hashable a => Path a ->  Path a -> Lca a
 lca p1 p2 = 
   case find (not . S.null) (zipWith common ls1 ls2) of
@@ -79,52 +85,3 @@ lca p1 p2 =
         ls1 = dropWhile ((> d) . fst) (levels p1)
         ls2 = dropWhile ((> d) . fst) (levels p2)
         common (_, ls1) (_, ls2) = S.intersection ls1 ls2
-
---------------------------------------------------------------------------------
--- TODO move to another module
-
--- Abstract data type that tracks the diff of an object in a Path and 
--- maintain the latest version of the object
-data Head a = Head a (Path a)
-  deriving Show
-
--- Smart constructor that creates an Head out of a path.
-mkHead :: GDiff a => Path a -> Head a
-mkHead r@(Root z) = Head z r
-mkHead n@(Node p d e) = Head x n
-  where x = patch' e (value (mkHead p))
-mkHead m@(Merge p q d e) = mkHeadFromLca (lca p q) k
-  where k h =  Head (patch' e (value h)) m
-
-mkHeadFromLca :: GDiff a => Lca a -> (Head a -> Head a) -> Head a
-mkHeadFromLca (One r)     k = k (mkHead r)
-mkHeadFromLca (Two r0 r1) k = mkHeadFromLca (lca r0 r1) k
-
--- Calls error if patch fails.
-patch' :: GDiff a => EditScript -> a -> a
-patch' e x = 
-  case patch e x of
-    Just y -> y
-    Nothing -> error "patch': patch failed"
-
-value :: Head a -> a
-value (Head x p) = x
-
-path :: Head a -> Path a
-path (Head x p) = p
-
--- Used to intuitively track the history of changes
--- Adds a new version
-add :: GDiff a => a -> Head a -> Head a
-add x (Head y p) = Head x (node p d)
-  where d = diff y x
-
-mergeHeads :: GDiff a => a -> Head a -> Head a -> Head a
-mergeHeads x (Head _ p) (Head _ q) = Head x (mergeWith x p q)
-
--- Maybe this should be the default smart constructor for
--- merge rather than merge.
-mergeWith :: (GDiff a, Hashable a) => a -> Path a -> Path a -> Path a
-mergeWith x p1 p2 = merge p1 p2 (diff v x)
-  where v = value h 
-        h = mkHeadFromLca (lca p1 p2) id

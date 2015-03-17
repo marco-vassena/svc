@@ -16,3 +16,4 @@ module Repo (
   ) where
 
 import Repo.Path
+import Repo.Head

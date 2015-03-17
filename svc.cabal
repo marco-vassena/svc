@@ -27,9 +27,13 @@ library
                       Format.Printer.GPrinter, Format.Parser.GParser,
 
                       -- Version control
-                      Repo, Repo.Path
+                      Repo
               
-  other-modules:      Format.Combinator.Base, Format.Combinator.Prim
+  other-modules:      Format.Combinator.Base, Format.Combinator.Prim, 
+
+                      -- Repository
+                      Repo.Path, Repo.Head
+
   build-depends:      base >=4.7 && <4.8, mtl >=2.2, transformers >= 0.3, 
 
                       -- Parser/Printer bindings
