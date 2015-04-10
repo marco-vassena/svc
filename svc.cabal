@@ -32,7 +32,7 @@ library
   other-modules:      Format.Combinator.Base, Format.Combinator.Prim, 
 
                       -- Repository
-                      Repo.Path, Repo.Head
+                      Repo.Path, Repo.Head, Repo.Diff3
 
   build-depends:      base >=4.7 && <4.8, mtl >=2.2, transformers >= 0.3, 
 
@@ -46,7 +46,8 @@ library
 
                       -- Repo
                       containers >= 0.5,
-                      hashable >= 1.2
+                      hashable >= 1.2,
+                      ghc-prim
 
   default-language:   Haskell2010
 
