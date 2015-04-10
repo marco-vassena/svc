@@ -78,8 +78,8 @@ type SeqC a b c m i = (UseAndReify a c m i, UseAndReify b c m i, Use Seq c m i)
 a <*> b = format (Seq a b)
 
 (*>) :: SeqC a b c m i => a c m i '[] -> b c m i ys -> Format c m i ys
-p *> q = 
-  case leftIdentityAppend (toSList q) of
+p *> q =
+  case leftIdentityAppend (toSList q) of  -- TODO here the proof is not actually needed
     Refl -> p <*> q
 
 (<*) :: SeqC a b c m i => a c m i xs -> b c m i '[] -> Format c m i xs

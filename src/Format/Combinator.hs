@@ -48,8 +48,8 @@ import Format.Syntax
 atMost :: AlternativeC c m i => Int -> Format c m i '[] -> 
           (forall xs . SList xs -> Format c m i xs -> Format c m i (Map [] xs)) -> Format c m i '[]
 atMost n f k = ignore hs <$> (k (SCons SNil) (f *> pure hs))
-  where hs :: HList '[[[a]]]
-        hs = hsingleton $ replicate n []
+  where hs :: HList '[[a]]
+        hs = hsingleton $ replicate n undefined
 
 many :: AlternativeC c m i
      => Format c m i xs -> Format c m i (Map [] xs)

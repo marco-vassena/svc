@@ -25,8 +25,8 @@ token = satisfy (const True)
 
 tokens :: (MatchC c m i, AlternativeC c m i) => [i] -> Format c m i '[]
 tokens xs = go xs <?> show xs
-  where go [] = identity SNil <$> unit
-        go (x:xs) = identity SNil <$> match x <*> (go xs)
+  where go [] = identity SNil <$> unit -- Just unit
+        go (x:xs) = identity SNil <$> match x <*> (go xs) -- TODO you can remove identity from here
 
 oneOf :: (Eq i, Use Satisfy c m i) => [ i ] -> Format c m i '[ i ]
 oneOf xs = satisfy (`elem` xs)
