@@ -32,10 +32,22 @@ instance Metric Char where
 instance Metric Int where
   distance x y = if x == y then 0 else 1
 
-data ETree a = Ch2 Double a a [ETree a]
-             | Ins a [ETree a]
-             | Del a [ETree a]
+data ETree a = Ch2 Double a a (EList a)
+             | Ins a (EList a)
+             | Del a (EList a)
   deriving (Show, Eq)
+
+data EList a = ConsA (ETree a) (EList a) -- Add
+             | ConsD (ETree a) (EList a) -- Delete
+             | ConsC (ETree a) (EList a) -- Change
+             | Nil
+  deriving (Show, Eq)
+
+toList :: EList a -> [ETree a]
+toList Nil = []
+toList (ConsA t es) = t : toList es
+toList (ConsC t es) = t : toList es
+toList (ConsD t es) = t : toList es
 
 -- At the moment we are not considering the size of the trees
 cost :: ETree a -> Double
@@ -43,13 +55,14 @@ cost (Ch2 d _ _ es) = d + costs es
 cost (Del _ es) = 1 + costs es
 cost (Ins _ es) = 1 + costs es
 
-costs :: [ETree a] -> Double
-costs = sum . map cost
+-- TODO avoid list conversion ... use Foldable
+costs :: EList a -> Double
+costs = sum . map cost . toList
 
 (&) :: ETree a -> ETree a -> ETree a
 a & b = if cost a <= cost b then a else b
 
-(&&&) :: [ETree a] -> [ETree a] -> [ETree a]
+(&&&) :: EList a -> EList a -> EList a
 as &&& bs = if costs as <= costs bs then as else bs
 
 -- TODO memoization
@@ -59,18 +72,18 @@ diff n@(Node x xs) m@(Node y ys) = a & b & c
         b = Ins y (diffs [n] ys) 
         c = Ch2 (distance x y) x y (diffs xs ys)
 
-diffs :: Metric a => [Tree a] -> [Tree a] -> [ETree a]
-diffs [] [] = []
-diffs (x:xs) [] = del x : diffs xs []
-diffs [] (y:ys) = ins y : diffs [] ys
+diffs :: Metric a => [Tree a] -> [Tree a] -> EList a 
+diffs [] [] = Nil
+diffs (x:xs) [] = ConsD (del x) (diffs xs [])
+diffs [] (y:ys) = ConsA (ins y) (diffs [] ys)
 diffs (x:xs) (y:ys) = a &&& b &&& c
-  where a = diff x y : diffs xs ys
-        b = del x : diffs xs (y:ys)
-        c = ins y : diffs (x:xs) ys
+  where a = ConsC (diff x y) (diffs xs ys)
+        b = ConsD (del x) (diffs xs (y:ys))
+        c = ConsA (ins y) (diffs (x:xs) ys)
 
 ins, del :: Tree a -> ETree a
-ins (Node x xs) = Ins x (map ins xs) 
-del (Node x xs) = Del x (map del xs)
+ins (Node x xs) = Ins x $ foldr ConsA Nil (map ins xs) 
+del (Node x xs) = Del x $ foldr ConsD Nil (map del xs)
 
 -- TODO 
 -- diff3 (how ETrees are compared for conflicts?)
