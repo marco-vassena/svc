@@ -1,155 +1,183 @@
-{-# LANGUAGE TemplateHaskell            #-}
-{-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE RankNTypes #-}
+
+-- Type class approach
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FunctionalDependencies #-}
 
 module Repo.Diff3 where
 
-import GHC.Generics (Generic)
-import Generics.Instant.TH
-import qualified Generics.Instant.GDiff as G (diff)
-import Generics.Instant.GDiff hiding (diff, Del, Ins, Cpy)
-import Data.Typeable
-import Data.Hashable
+import Data.HList
+import Data.Proxy
+import Data.Type.Equality hiding (apply)
+import Data.List
 
-data Tree a = Node a [Tree a]
-  deriving (Show, Eq, Typeable, Generic)
+-- Signature of a constructor
+type family Sig (a :: Constr) :: [*]
 
-leaf :: a -> Tree a
-leaf x = Node x []
+-- Constructor's result type
+type family Res (a :: Constr) :: *
 
-class Metric a where
-  -- Laws:
-  --  d x y = d y x                  (symmetry)
-  --  d x y >= 0                          (non-negativity)
-  --  d x x = 0                           (identity)
-  --  d x z <= d x y + d y z    (triangle inequality)
-  distance :: a -> a -> Double
+-- A generic well-typed representation of a data-type
+data DTree a where
+  Node :: (Family f, ShowDT sig) => f sig res -> DList DTree sig -> DTree res
 
-instance Metric Char where
-  distance x y = if x == y then 0 else 1
+instance Show (DTree a) where
+  show (Node c args) = "Node " ++ show c ++ " [" ++ xs ++ "]"
+    where xs = concat $ intersperse ", " (dmap show args)
 
-instance Metric Int where
-  distance x y = if x == y then 0 else 1
+dmap :: (forall x . f x -> a) -> DList f xs -> [ a ]
+dmap f DNil = []
+dmap f (DCons x xs) = f x : dmap f xs
 
-data ETree a = Ch2 Double a a (EList a)
-             | Ins a (EList a)
-             | Del a (EList a)
-  deriving (Show, Eq)
+class ShowDT sig where
+  
+instance ShowDT '[] where
+instance (Show (DTree a), ShowDT xs) => ShowDT (a ': xs) where
 
-data EList a = ConsA (ETree a) (EList a) -- Add
-             | ConsD (ETree a) (EList a) -- Delete
-             | ConsC (ETree a) (EList a) -- Change
-             | Nil
-  deriving (Show, Eq)
+-- A typed list that contains the children (arguments) of a constructor.
+data DList f xs where
+  DNil :: DList f '[]
+  DCons :: f a -> DList f as -> DList f (a ': as)
 
-toList :: EList a -> [ETree a]
-toList Nil = []
-toList (ConsA t es) = t : toList es
-toList (ConsC t es) = t : toList es
-toList (ConsD t es) = t : toList es
-
--- At the moment we are not considering the size of the trees
-cost :: ETree a -> Double
-cost (Ch2 d _ _ es) = d + costs es
-cost (Del _ es) = 1 + costs es
-cost (Ins _ es) = 1 + costs es
-
--- TODO avoid list conversion ... use Foldable
-costs :: EList a -> Double
-costs = sum . map cost . toList
-
-(&) :: ETree a -> ETree a -> ETree a
-a & b = if cost a <= cost b then a else b
-
-(&&&) :: EList a -> EList a -> EList a
-as &&& bs = if costs as <= costs bs then as else bs
-
--- TODO memoization
-diff :: Metric a => Tree a -> Tree a -> ETree a
-diff n@(Node x xs) m@(Node y ys) = a & b & c
-  where a = Del x (diffs xs [m])
-        b = Ins y (diffs [n] ys) 
-        c = Ch2 (distance x y) x y (diffs xs ys)
-
-diffs :: Metric a => [Tree a] -> [Tree a] -> EList a 
-diffs [] [] = Nil
-diffs (x:xs) [] = ConsD (del x) (diffs xs [])
-diffs [] (y:ys) = ConsA (ins y) (diffs [] ys)
-diffs (x:xs) (y:ys) = a &&& b &&& c
-  where a = ConsC (diff x y) (diffs xs ys)
-        b = ConsD (del x) (diffs xs (y:ys))
-        c = ConsA (ins y) (diffs (x:xs) ys)
-
-ins, del :: Tree a -> ETree a
-ins (Node x xs) = Ins x $ foldr ConsA Nil (map ins xs) 
-del (Node x xs) = Del x $ foldr ConsD Nil (map del xs)
-
--- TODO 
--- diff3 (how ETrees are compared for conflicts?)
--- EList (ConsA / ConsD / ConsC)
-
--- Generic part
--- More interesting use case lists of lists of integers
--- > We need a more refined tree structure : nodes and leaves 
---   may contain arbitrary types and constructors
--- Issues:
---  > Subtrees with different types may be compared
---  > distance requires two elements of the same type (no existential)
-
--- The nice properties of the Tree view are
--- 1) Precise representation of embedding (shape change vs value change)
--- 2) It's easy to compare 2 edits to find conflicts.
-
--- In order to maintain the tree structure we cannot use simply Cpy, but 
--- we need Ch2 which encodes Cpy (when distance is 0) or a value change.
--- Without that we could not match properly examples like
--- 1          0
--- | \        | \
--- 2  3       2  3
--- Because we need to call diffs on the children.
-
--- Example with l1 l2 l3 : why is [1,4,5,2,3,6] a good resolution?
---  1) It preserves most of the ordering (embedding).
---  2) Values are not duplicated
---  3) Minimizes the changes to shape
---------------------------------------------------------------------------------
--- Example
-
-t1, t2, t3 :: Tree Char
-
-t1 = Node 'a' [Node 'b' [],
-               Node 'c' [Node 'd' [],
-                         Node 'e' []]]
-
-t2 = Node 'a' [Node 'd' [Node 'b' []],
-               Node 'e' []]
-
-t3 = Node 'a' [Node 'b' [Node 'g' []],
-               Node 'f' [Node 'd' [],
-                         Node 'e' []]]
-
-node :: a -> Tree a -> Tree a
-node x t = Node x [t]
-
-l1, l2, l3 :: Tree Int
-l1 = foldr node (leaf 6) [1,2,3,4,5]
-l2 = foldr node (leaf 6) [1,4,5,2,3]
-l3 = foldr node (leaf 6) [1,2,4,5,3]
+class TreeLike a where
+  toTree :: a -> DTree a
+  fromTree :: DTree a -> a
 
 --------------------------------------------------------------------------------
--- GDiff for Tree
+-- Use case
 
-$(deriveAll ''Tree)
-instance (Show a, GDiff a) => SEq      (Tree a) where shallowEq  = shallowEqDef
-instance (Show a, GDiff a) => Build    (Tree a) where build      = buildDef
-instance (Show a, GDiff a) => Children (Tree a) where children   = childrenDef
-instance (Show a, GDiff a) => GDiff (Tree a)
+data Expr = Add Expr Expr
+          | Times Expr Expr
+          | If Expr Expr Expr
+          | BVal Bool
+          | IVal Int
+  deriving (Show, Eq)
 
-instance Show a => Pretty (Tree a) where
-  pretty (Node x _) = "Node " ++ show x
+e0 :: Expr
+e0 = Add (IVal 1) (IVal 2)
 
-instance Hashable a => Hashable (Tree a) where
+e1 :: Expr
+e1 = Times e0 (IVal 3)
 
-x = Node 'a' [leaf 'b', leaf 'c']
-y = Node 'd' [leaf 'b', Node 'c' [leaf 'e']]
+e2 :: Expr
+e2 = If (BVal True) e0 e1
+
+--------------------------------------------------------------------------------
+-- With singleton types (like GDiff)
+
+data ExprF xs a where
+  Add''   :: ExprF [Expr,Expr] Expr
+  Times'' :: ExprF [Expr,Expr] Expr
+  If''    :: ExprF [Expr, Expr,Expr] Expr
+  IVal''  :: ExprF '[Int] Expr
+  BVal''  :: ExprF '[Bool] Expr
+  Bool''  :: Bool -> ExprF '[] Bool
+  Int''   :: Int -> ExprF '[] Int
+
+instance TreeLike Expr where
+  toTree (Add e1 e2) = Node Add'' args
+    where args = DCons (toTree e1) $ DCons (toTree e2) DNil
+  toTree (Times e1 e2) = Node Times'' args
+    where args = DCons (toTree e1) $ DCons (toTree e2) DNil
+  toTree (If e1 e2 e3) = Node If'' args
+    where args = DCons (toTree e1) $ DCons (toTree e2) $ DCons (toTree e3) $ DNil
+  toTree (IVal i) = Node IVal'' $ DCons t DNil
+    where t = Node (Int'' i) DNil
+  toTree (BVal b) = Node BVal'' $ DCons t DNil
+    where t = Node (Bool'' b) DNil
+
+  fromTree (Node c cs) = apply c cs
+
+instance TreeLike Int where
+  toTree i = Node (Int'' i) DNil -- Not so sure this makes sense
+  fromTree (Node f DNil) = apply f DNil
+
+instance TreeLike Bool where
+  toTree b = Node (Bool'' b) DNil
+  fromTree (Node f DNil) = apply f DNil
+
+class Family f where
+  apply :: f xs a -> DList DTree xs -> a
+  string :: f xs a -> String
+
+instance Family ExprF where
+  apply Add'' (DCons e1 (DCons e2 DNil)) = Add (fromTree e1) (fromTree e2)
+  apply Times'' (DCons e1 (DCons e2 DNil)) = Times (fromTree e1) (fromTree e2)
+  apply If'' (DCons e0 (DCons e1 (DCons e2 DNil))) = If (fromTree e0) (fromTree e1) (fromTree e2) 
+  apply IVal'' (DCons i DNil) = IVal (fromTree i)
+  apply BVal'' (DCons b DNil) = BVal (fromTree b)
+  apply (Int'' i) DNil = i
+  apply (Bool'' b) DNil = b
+  
+  string Add'' = "Add"
+  string (Int'' i) = show i
+  string (Bool'' b) = show b
+  string IVal'' = "IVal"
+  string BVal'' = "BVal"
+  string If''   = "If"
+  string Times'' = "Times"
+
+instance Family f => Show (f sig a) where
+  show c = string c
+
+--------------------------------------------------------------------------------
+-- With Type families
+
+-- Reified constructors to be used at the type level
+data Add
+data Times
+data If
+data BVal
+data IVal
+
+class TEq a b where
+  tEq :: Proxy a -> Proxy b -> Maybe (a :~: b)
+
+instance TEq Add Add where
+  tEq Proxy Proxy = Just Refl
+
+instance TEq a b where
+  tEq _ _ = Nothing
+
+data Constr = Add'
+            | Times'
+            | If'
+            | BVal'
+            | IVal'
+
+type instance Sig Add' = [Expr, Expr]
+type instance Res Add' = Expr
+type instance Sig Times' = [Expr, Expr]
+type instance Res Times' = Expr
+type instance Sig If' = [Expr, Expr, Expr]
+type instance Res If' = Expr
+type instance Sig BVal' = '[Expr]
+type instance Res BVal' = Expr
+type instance Sig IVal' = '[Expr]
+type instance Res IVal' = Expr
+
+--------------------------------------------------------------------------------
+-- With type classes
+
+--class Sig' c (args :: [*]) res | c -> args res where
+--instance Sig' Add [Expr, Expr] Expr where
+
+--data DTree' a where
+--  Node' :: Sig' c args res => Proxy c -> DList DTree' args -> DTree' res
+
+--toTree' :: Expr -> DTree' Expr
+--toTree' (Add e1 e2) = Node' (Proxy :: Proxy Add) args
+--    where args = DCons (toTree' e1) $ DCons (toTree' e2) $ DNil
+--
+--fromTree' :: DTree' Expr -> Expr
+--fromTree' (Node' Proxy (DCons t1 (DCons t2 DNil))) = Add (fromTree' t1) (fromTree' t2)
+
+
