@@ -7,112 +7,126 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Repo.Diff3 where
 
 import Data.List
+import Data.Type.Equality
 
 -- A generic well-typed representation of a data-type
-data DTree a where
-  Node :: (Family f, ShowDT sig) => f sig res -> DList DTree sig -> DTree res
-
-instance Show (DTree a) where
-  show (Node c args) = "Node " ++ show c ++ " [" ++ xs ++ "]"
-    where xs = concat $ intersperse ", " (dmap show args)
-
-dmap :: (forall x . f x -> a) -> DList f xs -> [ a ]
-dmap f DNil = []
-dmap f (DCons x xs) = f x : dmap f xs
-
-class ShowDT sig where
-  
-instance ShowDT '[] where
-instance (Show (DTree a), ShowDT xs) => ShowDT (a ': xs) where
+data DTree f a where
+  -- TODO you could remove Family f from here since f is exposed.
+  Node :: (Family f, ShowDT f sig) => f sig res -> DList (DTree f) sig -> DTree f res
 
 -- A typed list that contains the children (arguments) of a constructor.
 data DList f xs where
   DNil :: DList f '[]
   DCons :: f a -> DList f as -> DList f (a ': as)
 
-class TreeLike a where
-  toTree :: a -> DTree a
-  fromTree :: DTree a -> a
+dmap :: (forall x . f x -> a) -> DList f xs -> [ a ]
+dmap f DNil = []
+dmap f (DCons x xs) = f x : dmap f xs
 
-
-
---------------------------------------------------------------------------------
--- Use case
-
-data Expr = Add Expr Expr
-          | Times Expr Expr
-          | If Expr Expr Expr
-          | BVal Bool
-          | IVal Int
-  deriving (Show, Eq)
-
-e0 :: Expr
-e0 = Add (IVal 1) (IVal 2)
-
-e1 :: Expr
-e1 = Times e0 (IVal 3)
-
-e2 :: Expr
-e2 = If (BVal True) e0 e1
+class TreeLike f a where
+  toTree :: a -> DTree f a
+  fromTree :: DTree f a -> a
 
 --------------------------------------------------------------------------------
--- With singleton types (like GDiff)
+class Metric f where
+  distance :: f xs a -> f ys a -> Double
 
-data ExprF xs a where
-  Add''   :: ExprF [Expr,Expr] Expr
-  Times'' :: ExprF [Expr,Expr] Expr
-  If''    :: ExprF [Expr, Expr,Expr] Expr
-  IVal''  :: ExprF '[Int] Expr
-  BVal''  :: ExprF '[Bool] Expr
-  Bool''  :: Bool -> ExprF '[] Bool
-  Int''   :: Int -> ExprF '[] Int
+-- | The ETree datatype represents a tree-shaped well-typed edit script
+data ETree a where
+  Ins :: Family f => f xs a -> EList ETree xs -> ETree a
+  Del :: Family f => f xs a -> EList ETree '[ a ] -> ETree a
+  Upd :: (Family f, Metric f) => f xs a -> f ys a -> EList ETree ys -> ETree a  -- TODO add distance
 
-instance TreeLike Expr where
-  toTree (Add e1 e2) = Node Add'' args
-    where args = DCons (toTree e1) $ DCons (toTree e2) DNil
-  toTree (Times e1 e2) = Node Times'' args
-    where args = DCons (toTree e1) $ DCons (toTree e2) DNil
-  toTree (If e1 e2 e3) = Node If'' args
-    where args = DCons (toTree e1) $ DCons (toTree e2) $ DCons (toTree e3) $ DNil
-  toTree (IVal i) = Node IVal'' $ DCons t DNil
-    where t = Node (Int'' i) DNil
-  toTree (BVal b) = Node BVal'' $ DCons t DNil
-    where t = Node (Bool'' b) DNil
+data EList f xs where
+  ENil :: EList f '[]
+  ConsU :: f x -> EList f xs -> EList f (x ': xs)
+  ConsA :: f x -> EList f xs -> EList f (x ': xs)
+  ConsD :: f x -> EList f xs -> EList f xs
 
-  fromTree (Node c cs) = apply c cs
+emap :: (forall x . f x -> a) -> EList f xs -> [ a ]
+emap _ ENil = []
+emap f (ConsA x xs) = f x : emap f xs
+emap f (ConsD x xs) = f x : emap f xs
+emap f (ConsU x xs) = f x : emap f xs
 
-instance TreeLike Int where
-  toTree i = Node (Int'' i) DNil -- Not so sure this makes sense
-  fromTree (Node f DNil) = apply f DNil
 
-instance TreeLike Bool where
-  toTree b = Node (Bool'' b) DNil
-  fromTree (Node f DNil) = apply f DNil
+-- TODO probably we want to store the cost with the ETree
+cost :: ETree a -> Double
+cost (Ins _ xs) = 1 + costs xs
+cost (Del _ xs) = 1 + costs xs
+cost (Upd x y xs) = distance x y + costs xs
+
+costs :: EList ETree xs -> Double
+costs xs = sum (emap cost xs)
+
+-- Returns the best edit tree (least distance)
+(&) :: ETree a -> ETree a -> ETree a
+x & y = if cost x <= cost y then x else y
+
+-- Returns the best edit list (least distance)
+(&&&) :: EList ETree xs -> EList ETree xs -> EList ETree xs
+xs &&& ys = if costs xs <= costs ys then xs else ys
+
+-- TODO memoization
+diff :: Metric f => DTree f a -> DTree f a -> ETree a
+diff n@(Node f xs) m@(Node g ys) =
+  case decEq f g of
+    Just Refl -> a & b & (Upd f g (diffs xs ys))
+    Nothing -> a & b
+  where a = Del f (diffs xs (dsingleton m))
+        b = Ins g (diffs (dsingleton n) ys)
+        
+diffs :: Metric f => DList (DTree f) xs -> DList (DTree f) ys -> EList ETree ys
+diffs DNil DNil = ENil
+diffs DNil (DCons x xs) = ConsA (ins x) (diffs DNil xs)
+diffs (DCons x xs) DNil = ConsD (ins x) (diffs xs DNil)
+diffs d1@(DCons x xs) d2@(DCons y ys) = 
+  case decEq' x y of
+    Just Refl -> a &&& b &&& (ConsU (diff x y) (diffs xs ys))
+    Nothing -> a &&& b
+  where a = ConsD (ins x) (diffs xs d2)
+        b = ConsA (ins y) (diffs d1 ys)
+ 
+ins :: DTree f xs -> ETree xs
+ins (Node f xs) = Ins f (insList xs)
+
+insList :: DList (DTree f) xs -> EList ETree xs
+insList DNil = ENil
+insList (DCons x xs) = ConsA (ins x) (insList xs)
+
+dsingleton :: f a -> DList f '[ a ]
+dsingleton x = DCons x DNil
+
+decEq' :: DTree f a -> DTree f b -> Maybe (a :~: b)
+decEq' (Node a xs) (Node b ys) = decEq a b
+
+--------------------------------------------------------------------------------
 
 class Family f where
-  apply :: f xs a -> DList DTree xs -> a
+  decEq :: f xs a -> f ys b -> Maybe (a :~: b)  -- We need to treat basic values differently
+  apply :: f xs a -> DList (DTree f) xs -> a
   string :: f xs a -> String
 
-instance Family ExprF where
-  apply Add'' (DCons e1 (DCons e2 DNil)) = Add (fromTree e1) (fromTree e2)
-  apply Times'' (DCons e1 (DCons e2 DNil)) = Times (fromTree e1) (fromTree e2)
-  apply If'' (DCons e0 (DCons e1 (DCons e2 DNil))) = If (fromTree e0) (fromTree e1) (fromTree e2) 
-  apply IVal'' (DCons i DNil) = IVal (fromTree i)
-  apply BVal'' (DCons b DNil) = BVal (fromTree b)
-  apply (Int'' i) DNil = i
-  apply (Bool'' b) DNil = b
-  
-  string Add'' = "Add"
-  string (Int'' i) = show i
-  string (Bool'' b) = show b
-  string IVal'' = "IVal"
-  string BVal'' = "BVal"
-  string If''   = "If"
-  string Times'' = "Times"
+instance Show (DTree f a) where
+  show (Node c args) = "Node " ++ string c ++ " [" ++ xs ++ "]"
+    where xs = concat $ intersperse ", " (dmap show args)
 
-instance Family f => Show (f sig a) where
-  show c = string c
+-- A class used to collect show instances for type-lists.
+class ShowDT f sig where
+  
+instance ShowDT f '[] where
+instance (Show (DTree f a), ShowDT f xs) => ShowDT f (a ': xs) where
+
+instance Show (ETree a) where
+  show (Ins f xs) = unwords ["Ins", string f, showLikeList xs]
+  show (Del f xs) = unwords ["Del", string f, showLikeList xs]
+  show (Upd x y xs) = unwords ["Upd", string x, string y, showLikeList xs]
+  
+showLikeList :: EList ETree xs -> String
+showLikeList args = "[" ++ concat xss ++ "]"
+  where xss = intersperse ", " (emap show args)

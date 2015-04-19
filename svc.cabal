@@ -12,7 +12,7 @@ maintainer:          m.vassena@students.uu.nl
 -- copyright:           
 category:            Development
 build-type:          Simple
-extra-source-files:  README.md examples/*
+extra-source-files:  README.md examples/* examples/Diff3
 cabal-version:       >=1.10
 
 library
