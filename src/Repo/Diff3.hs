@@ -4,26 +4,13 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 
--- Type class approach
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FunctionalDependencies #-}
-
 module Repo.Diff3 where
 
-import Data.HList
-import Data.Proxy
-import Data.Type.Equality hiding (apply)
 import Data.List
-
--- Signature of a constructor
-type family Sig (a :: Constr) :: [*]
-
--- Constructor's result type
-type family Res (a :: Constr) :: *
 
 -- A generic well-typed representation of a data-type
 data DTree a where
@@ -50,6 +37,8 @@ data DList f xs where
 class TreeLike a where
   toTree :: a -> DTree a
   fromTree :: DTree a -> a
+
+
 
 --------------------------------------------------------------------------------
 -- Use case
@@ -127,57 +116,3 @@ instance Family ExprF where
 
 instance Family f => Show (f sig a) where
   show c = string c
-
---------------------------------------------------------------------------------
--- With Type families
-
--- Reified constructors to be used at the type level
-data Add
-data Times
-data If
-data BVal
-data IVal
-
-class TEq a b where
-  tEq :: Proxy a -> Proxy b -> Maybe (a :~: b)
-
-instance TEq Add Add where
-  tEq Proxy Proxy = Just Refl
-
-instance TEq a b where
-  tEq _ _ = Nothing
-
-data Constr = Add'
-            | Times'
-            | If'
-            | BVal'
-            | IVal'
-
-type instance Sig Add' = [Expr, Expr]
-type instance Res Add' = Expr
-type instance Sig Times' = [Expr, Expr]
-type instance Res Times' = Expr
-type instance Sig If' = [Expr, Expr, Expr]
-type instance Res If' = Expr
-type instance Sig BVal' = '[Expr]
-type instance Res BVal' = Expr
-type instance Sig IVal' = '[Expr]
-type instance Res IVal' = Expr
-
---------------------------------------------------------------------------------
--- With type classes
-
---class Sig' c (args :: [*]) res | c -> args res where
---instance Sig' Add [Expr, Expr] Expr where
-
---data DTree' a where
---  Node' :: Sig' c args res => Proxy c -> DList DTree' args -> DTree' res
-
---toTree' :: Expr -> DTree' Expr
---toTree' (Add e1 e2) = Node' (Proxy :: Proxy Add) args
---    where args = DCons (toTree' e1) $ DCons (toTree' e2) $ DNil
---
---fromTree' :: DTree' Expr -> Expr
---fromTree' (Node' Proxy (DCons t1 (DCons t2 DNil))) = Add (fromTree' t1) (fromTree' t2)
-
-
