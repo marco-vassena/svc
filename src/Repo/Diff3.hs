@@ -16,7 +16,7 @@ import Data.Type.Equality
 
 -- A generic well-typed representation of a data-type
 data DTree f a where
-  Node :: (Family f, ShowDT f sig) => f sig res -> DList f sig -> DTree f res
+  Node :: f sig res -> DList f sig -> DTree f res
 
 -- A typed list that contains the children (arguments) of a constructor.
 data DList f xs where
@@ -37,22 +37,19 @@ class Metric f where
 
 -- | The ETree datatype represents a tree-shaped well-typed edit script
 data ETree f a where
-  Ins :: f xs a -> EList f xs -> ETree f a
-  Del :: f xs a -> EList f '[ a ] -> ETree f a
-  Upd :: f xs a -> f ys a -> EList f ys -> ETree f a  -- TODO add distance
+  Ins :: f xs a -> EList f xs -> ETree f a  -- Inserts something new in the tree
+  Del :: f xs a -> EList f '[ a ] -> ETree f a -- Removes something from the original tree
+  Upd :: f xs a -> f ys a -> EList f ys -> ETree f a  -- Replaces something in the original tree
 
 data EList f xs where
   ENil :: EList f '[]
-  ConsU :: ETree f x -> EList f xs -> EList f (x ': xs)
-  ConsA :: ETree f x -> EList f xs -> EList f (x ': xs)
+  Cons :: ETree f x -> EList f xs -> EList f (x ': xs) -- Updates a child of a node in the origianl tree
   ConsD :: ETree f x -> EList f xs -> EList f xs
 
 emap :: (forall x . ETree f x -> a) -> EList f xs -> [ a ]
 emap _ ENil = []
-emap f (ConsA x xs) = f x : emap f xs
+emap f (Cons x xs) = f x : emap f xs
 emap f (ConsD x xs) = f x : emap f xs
-emap f (ConsU x xs) = f x : emap f xs
-
 
 -- TODO probably we want to store the cost with the ETree
 cost :: Metric f => ETree f a -> Int
@@ -72,7 +69,7 @@ x & y = if cost x <= cost y then x else y
 xs &&& ys = if costs xs <= costs ys then xs else ys
 
 -- TODO memoization
-diff :: Metric f => DTree f a -> DTree f a -> ETree f a
+diff :: (Family f, Metric f) => DTree f a -> DTree f a -> ETree f a
 diff n@(Node f xs) m@(Node g ys) =
   case decEq f g of
     Just Refl -> a & b & (Upd f g (diffs xs ys))
@@ -80,28 +77,44 @@ diff n@(Node f xs) m@(Node g ys) =
   where a = Del f (diffs xs (dsingleton m))
         b = Ins g (diffs (dsingleton n) ys)
         
-diffs :: Metric f => DList f xs -> DList f ys -> EList f ys
+diffs :: (Family f, Metric f) => DList f xs -> DList f ys -> EList f ys
 diffs DNil DNil = ENil
-diffs DNil (DCons x xs) = ConsA (ins x) (diffs DNil xs)
+diffs DNil (DCons x xs) = Cons (ins x) (diffs DNil xs)
 diffs (DCons x xs) DNil = ConsD (ins x) (diffs xs DNil)
 diffs d1@(DCons x xs) d2@(DCons y ys) = 
   case decEq' x y of
-    Just Refl -> a &&& b &&& (ConsU (diff x y) (diffs xs ys))
+    Just Refl -> a &&& b &&& (Cons (diff x y) (diffs xs ys))
     Nothing -> a &&& b
   where a = ConsD (ins x) (diffs xs d2)
-        b = ConsA (ins y) (diffs d1 ys)
+        b = Cons (ins y) (diffs d1 ys)
  
-ins :: DTree f xs -> ETree f xs
+ins :: (Family f, Metric f) => DTree f xs -> ETree f xs
 ins (Node f xs) = Ins f (insList xs)
 
-insList :: DList f xs -> EList f xs
+insList :: (Family f, Metric f) => DList f xs -> EList f xs
 insList DNil = ENil
-insList (DCons x xs) = ConsA (ins x) (insList xs)
+insList (DCons x xs) = Cons (ins x) (insList xs)
+
+-- An ETree a contains all the information to reconstruct
+-- the target tree.
+patch :: Family f => ETree f a -> DTree f a
+patch (Ins x xs) = Node x (patchEList xs)
+patch (Del x xs) = 
+  case patchEList xs of
+    DCons d DNil -> d
+patch (Upd _ x xs) = Node x (patchEList xs)
+
+patchEList :: Family f => EList f xs -> DList f xs
+patchEList ENil = DNil
+patchEList (Cons x xs) = DCons (patch x) $ patchEList xs
+patchEList (ConsD _ xs) = patchEList xs
+    
+--------------------------------------------------------------------------------
 
 dsingleton :: DTree f a -> DList f '[ a ]
 dsingleton x = DCons x DNil
 
-decEq' :: DTree f a -> DTree f b -> Maybe (a :~: b)
+decEq' :: Family f => DTree f a -> DTree f b -> Maybe (a :~: b)
 decEq' (Node a xs) (Node b ys) = decEq a b
 
 decEq'' :: Family f => ETree f a -> ETree f b -> Maybe (a :~: b)
@@ -126,8 +139,8 @@ diff3 :: (Family f, Metric f) => ETree f a -> ETree f a -> ETree f a
 diff3 (Upd o x xs) (Upd _ y ys)
   | distance x y == 0 = Upd o y (diffs3 xs ys) 
   | otherwise         = conflict x y
-diff3 u@(Upd o x xs) (Ins y ys) = Ins y (align1 u ys)
-diff3 (Ins x xs) u@(Upd o y ys) = Ins x (align2 xs u)
+diff3 u@(Upd o x xs) (Ins y ys) = Ins y (align u ys)
+diff3 (Ins x xs) u@(Upd o y ys) = Ins x (align u xs)
 diff3 (Ins x xs) (Ins y ys) =
   let c = conflict x y in
   case decEq x y of
@@ -149,44 +162,37 @@ deletedOrChanged o a b = error msg
         deleted = "deleted " ++ string a
         changed = string o ++ " changed to " ++ string b
 
-align1 :: ETree f a -> EList f xs -> EList f xs
-align1 = undefined
-
-align2 :: EList f xs -> ETree f a -> EList f xs
-align2 = undefined
+align :: (Metric f, Family f) => ETree f a -> EList f xs -> EList f xs
+align e ENil = error $ "Could Not Align ETree " ++ show e ++ "\nInvalid EditTree?"
+align e (Cons e' es) = 
+  case decEq'' e e' of
+    Just Refl -> Cons (diff3 e e') es
+    Nothing -> error "conflicting types"
+align e (ConsD e' es) = 
+  case decEq'' e e' of
+    Just Refl -> ConsD (diff3 e e') es
+    Nothing -> error "conflicting types"
 
 diffs3 :: (Family f, Metric f) => EList f xs -> EList f ys -> EList f ys
-diffs3 (ConsU x xs) (ConsU y ys) = 
+diffs3 (Cons x xs) (Cons y ys) = 
   case decEq'' x y of
-    Just Refl -> ConsU (diff3 x y) (diffs3 xs ys)
-    Nothing -> error "conflicting types" -- TODO here, down in the trees there could be matching parts
-diffs3 (ConsA x xs) (ConsA y ys) =  
-   case decEq'' x y of
-    Just Refl -> ConsA (diff3 x y) (diffs3 xs ys)
+    Just Refl -> Cons (diff3 x y) (diffs3 xs ys)
     Nothing -> error "conflicting types" -- TODO here, down in the trees there could be matching parts
 diffs3 (ConsD x xs) (ConsD y ys) =  
    case decEq'' x y of
     Just Refl -> ConsD (diff3 x y) (diffs3 xs ys)
     Nothing -> error "conflicting types" -- TODO here, down in the trees there could be matching parts
-diffs3 (ConsD x xs) (ConsA y ys) = undefined
-diffs3 (ConsA x xs) (ConsD y ys) = undefined
 
 --------------------------------------------------------------------------------
 
 class Family f where
-  decEq :: f xs a -> f ys b -> Maybe (a :~: b)  -- We need to treat basic values differently
+  decEq :: f xs a -> f ys b -> Maybe (a :~: b)
   apply :: f xs a -> DList f xs -> a
   string :: f xs a -> String
 
-instance Show (DTree f a) where
+instance Family f => Show (DTree f a) where
   show (Node c args) = "Node " ++ string c ++ " [" ++ xs ++ "]"
     where xs = concat $ intersperse ", " (dmap show args)
-
--- A class used to collect show instances for type-lists.
-class ShowDT f sig where
-  
-instance ShowDT f '[] where
-instance (Show (DTree f a), ShowDT f xs) => ShowDT f (a ': xs) where
 
 instance Family f => Show (ETree f a) where
   show (Ins f xs) = "Ins " ++ string f ++ " (" ++ show xs ++ ")"
@@ -195,6 +201,5 @@ instance Family f => Show (ETree f a) where
 
 instance Family f => Show (EList f xs) where
   show ENil = "ENil"
-  show (ConsA x xs) = "ConsA " ++ show x ++ " (" ++ show xs ++ ")"
+  show (Cons x xs) = "Cons " ++ show x ++ " (" ++ show xs ++ ")"
   show (ConsD x xs) = "ConsD " ++ show x ++ " (" ++ show xs ++ ")"
-  show (ConsU x xs) = "ConsU " ++ show x ++ " (" ++ show xs ++ ")"

@@ -23,6 +23,11 @@ e1 = Times e0 (IVal 3)
 e2 :: Expr
 e2 = If (BVal True) e0 e1
 
+t0, t1, t2 :: DTree ExprF Expr
+t0 = toTree e0
+t1 = toTree e1
+t2 = toTree e2
+
 --------------------------------------------------------------------------------
 -- With singleton types (like GDiff)
 
