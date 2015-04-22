@@ -38,12 +38,12 @@ class Metric f where
 -- | The ETree datatype represents a tree-shaped well-typed edit script
 data ETree f a where
   Ins :: f xs a -> EList f xs -> ETree f a  -- Inserts something new in the tree
-  Del :: f xs a -> EList f '[ a ] -> ETree f a -- Removes something from the original tree
+  Del :: f xs a -> EList f '[ b ] -> ETree f b -- Removes something from the original tree
   Upd :: f xs a -> f ys a -> EList f ys -> ETree f a  -- Replaces something in the original tree
 
 data EList f xs where
   ENil :: EList f '[]
-  Cons :: ETree f x -> EList f xs -> EList f (x ': xs) -- Updates a child of a node in the origianl tree
+  Cons :: ETree f x -> EList f xs -> EList f (x ': xs)
   ConsD :: ETree f x -> EList f xs -> EList f xs
 
 emap :: (forall x . ETree f x -> a) -> EList f xs -> [ a ]
@@ -69,10 +69,10 @@ x & y = if cost x <= cost y then x else y
 xs &&& ys = if costs xs <= costs ys then xs else ys
 
 -- TODO memoization
-diff :: (Family f, Metric f) => DTree f a -> DTree f a -> ETree f a
+diff :: (Family f, Metric f) => DTree f a -> DTree f b -> ETree f b
 diff n@(Node f xs) m@(Node g ys) =
   case decEq f g of
-    Just Refl -> a & b & (Upd f g (diffs xs ys))
+    Just Refl -> a & b & Upd f g (diffs xs ys)
     Nothing -> a & b
   where a = Del f (diffs xs (dsingleton m))
         b = Ins g (diffs (dsingleton n) ys)
@@ -81,10 +81,7 @@ diffs :: (Family f, Metric f) => DList f xs -> DList f ys -> EList f ys
 diffs DNil DNil = ENil
 diffs DNil (DCons x xs) = Cons (ins x) (diffs DNil xs)
 diffs (DCons x xs) DNil = ConsD (ins x) (diffs xs DNil)
-diffs d1@(DCons x xs) d2@(DCons y ys) = 
-  case decEq' x y of
-    Just Refl -> a &&& b &&& (Cons (diff x y) (diffs xs ys))
-    Nothing -> a &&& b
+diffs d1@(DCons x xs) d2@(DCons y ys) = a &&& b &&& Cons (diff x y) (diffs xs ys)
   where a = ConsD (ins x) (diffs xs d2)
         b = Cons (ins y) (diffs d1 ys)
  
@@ -127,8 +124,12 @@ data SF f a where
 
 getTarget :: ETree f a -> SF f a
 getTarget (Ins f _ ) = SF f
-getTarget (Del f _ ) = SF f
+getTarget (Del _ xs) = getTarget' xs
 getTarget (Upd _ f _) = SF f
+
+getTarget' :: EList f '[ a ] -> SF f a
+getTarget' (Cons x _) = getTarget x
+getTarget' (ConsD _ xs) = getTarget' xs
 
 --------------------------------------------------------------------------------
 -- Diff3
@@ -155,10 +156,10 @@ diff3 (Del x xs) u2@(Upd o y ys)
   | otherwise         = deletedOrChanged o x y 
 
 conflict a b = error msg
-  where msg = "conflict: " ++ string a ++ " <-> " ++ string b
+  where msg = "Value Conflict: " ++ string a ++ " <-> " ++ string b
 
 deletedOrChanged o a b = error msg
-  where msg = "conflict: " ++ deleted ++ " <-> " ++ changed
+  where msg = "Shape conflict: " ++ deleted ++ " <-> " ++ changed
         deleted = "deleted " ++ string a
         changed = string o ++ " changed to " ++ string b
 
