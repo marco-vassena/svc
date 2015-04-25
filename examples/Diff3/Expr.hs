@@ -53,6 +53,7 @@ instance Family ExprF where
   string If''   = "If"
   string Times'' = "Times"
 
+  -- TODO here we should return Just Refl also for constructors of the same data-type
   decEq (Int'' _) (Int'' _) = Just Refl
   decEq (Bool'' _) (Bool'' _) = Just Refl
   decEq IVal'' IVal'' = Just Refl
