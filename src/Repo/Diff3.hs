@@ -69,6 +69,7 @@ class a :<: f where
   view :: Proxy f -> a -> View f a
 
 -- TODO memoization
+-- TODO better entry point
 diff :: (Family f, Metric f) => Proxy f -> DList f xs -> DList f ys -> ES f xs ys
 diff _ DNil DNil = End
 diff p (DCons x xs) DNil = 
@@ -98,13 +99,10 @@ data ES3 f xs ys ws where
        -> ES3 f (a ': zs) (a ': ws) (a ': us)
   End3 :: ES3 f '[] '[] '[]
 
-(=?=) :: Family f => f xs a -> f ys b -> (Maybe (xs :~: ys), Maybe (a :~: b))
-x =?= y = undefined
-
-aligned :: Family f => f xs a -> f ys b -> (xs :~: ys, a :~: b)
+aligned :: Family f => f xs a -> f ys b -> (xs :~: ys , a :~: b)
 aligned a b =
   case a =?= b of
-    (Just Refl, Just Refl) -> (Refl, Refl)
+    Just (Refl, Refl) -> (Refl, Refl)
     _ -> error $ "Script not aligned: " ++ string a ++ " <-> " ++ string b
 
 -- TODO refactoring : There is an overlap between distance and =?=.
@@ -113,28 +111,28 @@ aligned a b =
 diff3 :: (Family f, Metric f) => ES f xs ys -> ES f xs zs -> ES3 f xs ys zs
 diff3 (Upd o x xs) (Upd o' y ys) = 
   case aligned o o' of
-    (Refl, Refl) -> case x =?= y of 
-              (Just Refl, Just Refl) -> if distance x y == 0 then Upd3 o x (diff3 xs ys) else conflict x y
-              _ -> conflict x y
+    (Refl, Refl) -> 
+      case x =?= y of 
+        Just (Refl, Refl) -> Upd3 o x (diff3 xs ys)
+        _ -> conflict x y
 diff3 (Upd o x xs) (Del o' ys) =
   case aligned o o' of
     (Refl, Refl) -> 
       case o =?= x of
-        (Just Refl, Just Refl) -> if distance o x == 0 then Del2 o (diff3 xs ys) else removedAndUpdated o x
+        Just (Refl, Refl) -> Del2 o (diff3 xs ys)
         _ -> removedAndUpdated o x
 diff3 (Del o xs) (Upd o' y ys) =
   case aligned o o' of
     (Refl, Refl) -> 
       case o' =?= y of
-        (Just Refl, Just Refl) -> if distance o' y == 0 then Del1 o (diff3 xs ys) else removedAndUpdated o y
+        Just (Refl, Refl) -> Del1 o (diff3 xs ys)
         _ -> removedAndUpdated o y
 diff3 (Del x xs) (Del y ys) =
   case aligned x y of
     (Refl, Refl) -> Del3 x (diff3 xs ys)
 diff3 (Ins x xs) (Ins y ys) = 
   case x =?= y of
-    (Just Refl, Just Refl) -> 
-      if distance x y == 0 then Ins3 x (diff3 xs ys) else conflict x y
+    Just (Refl, Refl) -> Ins3 x (diff3 xs ys)
     _ -> conflict x y
 diff3 (Ins x xs) a = Ins1 x (diff3 xs a) 
 diff3 a (Ins y ys) = Ins2 y (diff3 a ys)
@@ -150,7 +148,12 @@ removedAndUpdated o x = error msg
         updated = "updated to " ++ string x
 ----------------------------------------------------------------------------------
 class Family f where
+  -- TODO better name
   decEq :: f xs a -> f ys b -> Maybe (a :~: b)
+  
+  -- Succeds only if the singleton types represents exactly the same constructor
+  (=?=) :: Family f => f xs a -> f ys b -> Maybe ( a :~: b , xs :~: ys )
+
   string :: f xs a -> String
   build :: f xs a -> DList f xs -> a
 
@@ -168,3 +171,14 @@ instance Family f => Show (ES f xs ys) where
   show (Ins x xs) = "Ins " ++ string x ++ " $ " ++ show xs
   show (Del x xs) = "Del " ++ string x ++ " $ " ++ show xs
   show (Upd f g xs) = "Upd " ++ string f ++ " " ++ string g ++ " $ " ++ show xs
+
+instance Family f => Show (ES3 f xs ys zs) where
+  show End3 = "End3"
+  show (Ins1 x xs) = "Ins1 " ++ string x ++ " $ " ++ show xs
+  show (Ins2 x xs) = "Ins2 " ++ string x ++ " $ " ++ show xs
+  show (Ins3 x xs) = "Ins3 " ++ string x ++ " $ " ++ show xs
+  show (Del1 x xs) = "Del1 " ++ string x ++ " $ " ++ show xs
+  show (Del2 x xs) = "Del2 " ++ string x ++ " $ " ++ show xs
+  show (Del3 x xs) = "Del3 " ++ string x ++ " $ " ++ show xs
+  show (Upd3 x y xs) = "Upd3 " ++ string x ++ " " ++ string y ++ " $ " ++ show xs
+

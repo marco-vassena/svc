@@ -6,6 +6,7 @@
 module Expr where
 
 import Data.HList
+import Data.Proxy -- TODO remove
 import Repo.Diff3 hiding (Add)
 import Data.Type.Equality hiding (build)
 
@@ -24,6 +25,9 @@ e1 = Times e0 (IVal 3)
 
 e2 :: Expr
 e2 = If (BVal True) e0 e1
+
+d01 = diff (Proxy :: Proxy ExprF) (DCons e0 DNil) (DCons e1 DNil)
+d02 = diff (Proxy :: Proxy ExprF) (DCons e0 DNil) (DCons e2 DNil)
 
 --------------------------------------------------------------------------------
 
@@ -53,15 +57,42 @@ instance Family ExprF where
   string If''   = "If"
   string Times'' = "Times"
 
-  -- TODO here we should return Just Refl also for constructors of the same data-type
   decEq (Int'' _) (Int'' _) = Just Refl
   decEq (Bool'' _) (Bool'' _) = Just Refl
   decEq IVal'' IVal'' = Just Refl
+  decEq IVal'' BVal'' = Just Refl
+  decEq IVal'' Times'' = Just Refl
+  decEq IVal'' Add'' = Just Refl
+  decEq IVal'' If'' = Just Refl
+  decEq BVal'' IVal'' = Just Refl
   decEq BVal'' BVal'' = Just Refl
+  decEq BVal'' Times'' = Just Refl
+  decEq BVal'' Add'' = Just Refl
+  decEq BVal'' If'' = Just Refl
+  decEq Times'' IVal'' = Just Refl
+  decEq Times'' BVal'' = Just Refl
   decEq Times'' Times'' = Just Refl
+  decEq Times'' Add'' = Just Refl
+  decEq Times'' If'' = Just Refl
+  decEq Add'' IVal'' = Just Refl
   decEq Add'' Add'' = Just Refl
+  decEq Add'' Times'' = Just Refl
+  decEq Add'' If'' = Just Refl
+  decEq If'' IVal'' = Just Refl
+  decEq If'' Times'' = Just Refl
+  decEq If'' Add'' = Just Refl
   decEq If'' If'' = Just Refl
-  decEq _    _    = Nothing
+  decEq _ _ = Nothing
+
+  (=?=) (Int'' _) (Int'' _) = Just (Refl, Refl)
+  (=?=) (Bool'' _) (Bool'' _) = Just (Refl, Refl)
+  (=?=) IVal'' IVal'' = Just (Refl, Refl)
+  (=?=) BVal'' BVal'' = Just (Refl, Refl)
+  (=?=) Times'' Times'' = Just (Refl, Refl)
+  (=?=) Add'' Add'' = Just (Refl, Refl)
+  (=?=) If'' If'' = Just (Refl, Refl)
+  (=?=) _    _    = Nothing
+
 
 instance Expr :<: ExprF where
   view _ (Add e1 e2) = View Add'' $ DCons e1 $ DCons e2 DNil
