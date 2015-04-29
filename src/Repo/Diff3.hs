@@ -37,6 +37,7 @@ data ES f xs ys where
   -- | Terminates the edit script
   End :: ES f '[] '[]
 
+-- Entry point, still needs type annotations for @f@.
 gdiff :: (Family f, Metric f, a :<: f, b :<: f) => a -> b -> ES f '[ a ] '[ b ]
 gdiff x y = getDiff $ diffT Proxy (DCons x DNil) (DCons y DNil)
 
@@ -58,6 +59,8 @@ x & y = if cost x <= cost y then x else y
 data View f a where
   View :: f xs a -> DList f xs -> View f a
 
+--------------------------------------------------------------------------------
+
 data DList f xs where
   DNil :: DList f '[]
   DCons :: (x :<: f) => x -> DList f xs -> DList f (x ': xs)
@@ -66,6 +69,7 @@ dappend :: DList f xs -> DList f ys -> DList f (xs :++: ys)
 dappend DNil ys = ys
 dappend (DCons x xs) ys = DCons x (dappend xs ys)
 
+--------------------------------------------------------------------------------
 
 -- Represents the fact that a type a belongs to a particular
 -- family of mutually recursive data-types
@@ -90,9 +94,14 @@ diff p (DCons x xs) (DCons y ys) =
         Just Refl -> i & d & u
           where u = Upd f g $ diff p (dappend fs xs) (dappend gs ys)
 
+patch :: ES f xs ys -> DList f xs -> DList f ys
+patch e d = undefined
+
 -------------------------------------------------------------------------------- 
 -- Memoization
+--------------------------------------------------------------------------------
 
+-- Memoization table
 data EST f xs ys where
   CC :: f xs a -> f ys b 
      -> ES f (a ': zs) (b ': ws) 
@@ -108,6 +117,7 @@ data EST f xs ys where
      -> EST f '[] (b ': ys)
   NN :: ES f '[] '[] -> EST f '[] '[]
 
+-- Returns the edit script contained in an EST table.
 getDiff :: EST f xs ys -> ES f xs ys
 getDiff (CC _ _ e _ _ _) = e
 getDiff (CN _ e _) = e
@@ -145,6 +155,10 @@ best f g i d c =
   where a = Del f $ getDiff d
         b = Ins g $ getDiff i
         ab = a & b
+
+--------------------------------------------------------------------------------
+-- Auxiliary functions and datatypes used in diffT.
+--------------------------------------------------------------------------------
 
 extendI :: (Metric f, Family f) => f xs a -> DList f ys -> EST f (xs :++: ys) zs -> EST f (a ': ys) zs
 extendI f _ d@(NN e) = CN f (Del f e) d
@@ -188,7 +202,10 @@ extractD (CC f g e _ i _) = DES f e i
 --------------------------------------------------------------------------------
 -- Diff3 
 --------------------------------------------------------------------------------
+-- TODO move to split in different modules
 
+-- An edit script @ES3 f xs ys zs@ represents is an edit scripts
+-- that represents changes from @xs@ to @ys@ and from @xs@ to @zs@.
 data ES3 f xs ys ws where
   Ins1 :: f xs a -> ES3 f ys (xs :++: zs) ws -> ES3 f ys (a ': zs) ws
   Ins2 :: f xs a -> ES3 f ys ws (xs :++: zs) -> ES3 f ys ws (a ': zs)
@@ -201,25 +218,29 @@ data ES3 f xs ys ws where
   Cnf :: Conflict f -> ES3 f xs ys zs -> ES3 f us ts ss
   End3 :: ES3 f '[] '[] '[]
 
+-- Represents what kind of conflict has been detected.
 data Conflict f where
   InsIns :: f xs a -> f ys b -> Conflict f
   UpdDel :: f xs a -> f ys b -> Conflict f
   DelUpd :: f xs a -> f ys b -> Conflict f
   UpdUpd :: f xs a -> f ys b -> Conflict f
 
-aligned :: Family f => f xs a -> f ys b -> (xs :~: ys , a :~: b)
-aligned a b =
-  case a =?= b of
-    Just (Refl, Refl) -> (Refl, Refl)
-    _ -> error $ "Scripts not aligned: " ++ string a ++ " <-> " ++ string b
+-- Problem:
+-- Given an ES3 script how do we patch it back and obtain the
+-- merged version (in case there are no conflicts
+patch3 :: (Family f, Metric f) => ES3 f xs ys ys -> DList f xs -> DList f ys
+patch3 = undefined
 
+-- Merges two ES scripts in an ES3 script.
 diff3 :: (Family f, Metric f) => ES f xs ys -> ES f xs zs -> ES3 f xs ys zs
 diff3 (Upd o x xs) (Upd o' y ys) = 
   case aligned o o' of
     (Refl, Refl) -> 
-      case x =?= y of 
-        Just (Refl, Refl) -> Upd3 o x (diff3 xs ys)
-        _ -> Cnf (UpdUpd x y) (diff3 xs ys)
+      case (o =?= x, o' =?= y, x =?= y) of
+          --(Just (Refl, Refl), _, _) -> error "Not Conflict" -- Upd3 o y (diff3 xs ys)
+          --(_, Just (Refl, Refl), _) -> error "Not Conflict" -- Upd3 o x (diff3 xs ys)
+          (_, _, Just (Refl, Refl)) -> Upd3 o x (diff3 xs ys)
+          (_, _, _                ) -> Cnf (UpdUpd x y) (diff3 xs ys)
 diff3 (Upd o x xs) (Del o' ys) =
   case aligned o o' of
     (Refl, Refl) -> 
@@ -243,6 +264,16 @@ diff3 (Ins x xs) a = Ins1 x (diff3 xs a)
 diff3 a (Ins y ys) = Ins2 y (diff3 a ys)
 diff3 End End = End3
 
+-- Checks whether the two witnesses are the same,
+-- and fails if this is not the case.
+aligned :: Family f => f xs a -> f ys b -> (xs :~: ys , a :~: b)
+aligned a b =
+  case a =?= b of
+    Just (Refl, Refl) -> (Refl, Refl)
+    _ -> error $ "Scripts not aligned: " ++ string a ++ " <-> " ++ string b
+
+--------------------------------------------------------------------------------
+-- TODO: remove
 conflict :: Family f => f xs a -> f ys b -> t
 conflict x y = error $ "Value conflict: " ++ string x ++ " " ++ string y
 
@@ -252,6 +283,7 @@ removedAndUpdated o x = error msg
         removed = "removed " ++ string o
         updated = "updated to " ++ string x
 ----------------------------------------------------------------------------------
+
 class Family f where
   -- TODO better name
   decEq :: f xs a -> f ys b -> Maybe (a :~: b)
