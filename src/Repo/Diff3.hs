@@ -198,7 +198,14 @@ data ES3 f xs ys ws where
   Del3 :: f xs a -> ES3 f (xs :++: ys) zs ws -> ES3 f (a ': ys) zs ws
   Upd3 :: f xs a -> f ys a -> ES3 f (xs :++: zs) (ys :++: ws) (ys :++: us) 
        -> ES3 f (a ': zs) (a ': ws) (a ': us)
+  Cnf :: Conflict f -> ES3 f xs ys zs -> ES3 f us ts ss
   End3 :: ES3 f '[] '[] '[]
+
+data Conflict f where
+  InsIns :: f xs a -> f ys b -> Conflict f
+  UpdDel :: f xs a -> f ys b -> Conflict f
+  DelUpd :: f xs a -> f ys b -> Conflict f
+  UpdUpd :: f xs a -> f ys b -> Conflict f
 
 aligned :: Family f => f xs a -> f ys b -> (xs :~: ys , a :~: b)
 aligned a b =
@@ -206,35 +213,32 @@ aligned a b =
     Just (Refl, Refl) -> (Refl, Refl)
     _ -> error $ "Scripts not aligned: " ++ string a ++ " <-> " ++ string b
 
--- TODO refactoring : There is an overlap between distance and =?=.
--- Define data-type that encompass both
-
 diff3 :: (Family f, Metric f) => ES f xs ys -> ES f xs zs -> ES3 f xs ys zs
 diff3 (Upd o x xs) (Upd o' y ys) = 
   case aligned o o' of
     (Refl, Refl) -> 
       case x =?= y of 
         Just (Refl, Refl) -> Upd3 o x (diff3 xs ys)
-        _ -> conflict x y
+        _ -> Cnf (UpdUpd x y) (diff3 xs ys)
 diff3 (Upd o x xs) (Del o' ys) =
   case aligned o o' of
     (Refl, Refl) -> 
       case o =?= x of
         Just (Refl, Refl) -> Del2 o (diff3 xs ys)
-        _ -> removedAndUpdated o x
+        _ -> Cnf (UpdDel x o) (diff3 xs ys)
 diff3 (Del o xs) (Upd o' y ys) =
   case aligned o o' of
     (Refl, Refl) -> 
       case o' =?= y of
         Just (Refl, Refl) -> Del1 o (diff3 xs ys)
-        _ -> removedAndUpdated o y
+        _ -> Cnf (DelUpd o y) (diff3 xs ys)
 diff3 (Del x xs) (Del y ys) =
   case aligned x y of
     (Refl, Refl) -> Del3 x (diff3 xs ys)
 diff3 (Ins x xs) (Ins y ys) = 
   case x =?= y of
     Just (Refl, Refl) -> Ins3 x (diff3 xs ys)
-    _ -> conflict x y
+    _ -> Cnf (InsIns x y) (diff3 xs ys)
 diff3 (Ins x xs) a = Ins1 x (diff3 xs a) 
 diff3 a (Ins y ys) = Ins2 y (diff3 a ys)
 diff3 End End = End3
@@ -282,4 +286,10 @@ instance Family f => Show (ES3 f xs ys zs) where
   show (Del2 x xs) = "Del2 " ++ string x ++ " $ " ++ show xs
   show (Del3 x xs) = "Del3 " ++ string x ++ " $ " ++ show xs
   show (Upd3 x y xs) = "Upd3 " ++ string x ++ " " ++ string y ++ " $ " ++ show xs
+  show (Cnf x xs) = "Cnf " ++ show x ++ " $ " ++ show xs
 
+instance Family f => Show (Conflict f) where
+  show (InsIns a b) = "InsIns " ++ string a ++ " " ++ string b
+  show (UpdDel a b) = "UpdDel " ++ string a ++ " " ++ string b
+  show (DelUpd a b) = "DelUpd " ++ string a ++ " " ++ string b
+  show (UpdUpd a b) = "UpdUpd " ++ string a ++ " " ++ string b
