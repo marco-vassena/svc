@@ -13,25 +13,20 @@ import Data.Type.Equality
 
 type Csv = [[Int]]
 
--- Without memoization these terms are too big
---c0, c1, c2 :: Csv
---c0 = [[1,2,3],
---      [4,5,6]]
---      [7,8,9]]
---
---c1 = map (0:) c0
---
---c2 = [[1,2,3],
---      [4,5,9]]
---      [7,8,15]]
-
 c0, c1, c2 :: Csv
-c0 = [[1],[2]]
-c1 = [[0,1],[0,2]]
-c2 = [[1],[3]]
+c0 = [[1,2,3],
+      [4,5,6],
+      [7,8,9]]
 
-d01 = diff (Proxy :: Proxy CsvF) (DCons c0 DNil) (DCons c1 DNil)
-d02 = diff (Proxy :: Proxy CsvF) (DCons c0 DNil) (DCons c2 DNil)
+c1 = map (0:) c0
+
+c2 = [[1,2,3],
+      [4,5,9],
+      [7,8,15]]
+
+d01, d02 :: ES CsvF '[Csv] '[Csv]
+d01 = gdiff c0 c1
+d02 = gdiff c0 c2
 
 --------------------------------------------------------------------------------
 data CsvF xs a where

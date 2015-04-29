@@ -37,7 +37,11 @@ data ES f xs ys where
   -- | Terminates the edit script
   End :: ES f '[] '[]
 
--- TODO probably we want to store the cost with the ETree
+gdiff :: (Family f, Metric f, a :<: f, b :<: f) => a -> b -> ES f '[ a ] '[ b ]
+gdiff x y = getDiff $ diffT Proxy (DCons x DNil) (DCons y DNil)
+
+--------------------------------------------------------------------------------
+-- TODO probably we want to store the cost with the edit script
 cost :: Metric f => ES f xs ys -> Int
 cost End = 0
 cost (Ins x xs) = 1 + cost xs
@@ -68,8 +72,6 @@ dappend (DCons x xs) ys = DCons x (dappend xs ys)
 class a :<: f where
   view :: Proxy f -> a -> View f a
 
--- TODO memoization
--- TODO better entry point
 diff :: (Family f, Metric f) => Proxy f -> DList f xs -> DList f ys -> ES f xs ys
 diff _ DNil DNil = End
 diff p (DCons x xs) DNil = 
@@ -87,7 +89,106 @@ diff p (DCons x xs) (DCons y ys) =
         Nothing -> i & d
         Just Refl -> i & d & u
           where u = Upd f g $ diff p (dappend fs xs) (dappend gs ys)
- 
+
+-------------------------------------------------------------------------------- 
+-- Memoization
+
+data EST f xs ys where
+  CC :: f xs a -> f ys b 
+     -> ES f (a ': zs) (b ': ws) 
+     -> EST f (a ': zs) (ys :++: ws)
+     -> EST f (xs :++: zs) (b ': ws)
+     -> EST f (xs :++: zs) (ys :++: ws)
+     -> EST f (a ': zs) (b ': ws)
+  CN :: f xs a -> ES f (a ': ys) '[] 
+     -> EST f (xs :++: ys) '[]
+     -> EST f (a ': ys) '[]
+  NC :: f xs b -> ES f '[] (b ': ys) 
+     -> EST f '[] (xs :++: ys) 
+     -> EST f '[] (b ': ys)
+  NN :: ES f '[] '[] -> EST f '[] '[]
+
+getDiff :: EST f xs ys -> ES f xs ys
+getDiff (CC _ _ e _ _ _) = e
+getDiff (CN _ e _) = e
+getDiff (NC _ e _) = e
+getDiff (NN e) = e
+
+-- Memoized version of diff
+diffT :: (Family f, Metric f) => Proxy f -> DList f xs -> DList f ys -> EST f xs ys
+diffT _ DNil DNil = NN End
+diffT p (DCons x xs) DNil = 
+  case view p x of
+    View f fs -> CN f (Del f (getDiff d)) d 
+        where d = diffT p (dappend fs xs) DNil
+diffT p DNil (DCons y ys) = 
+  case view p y of
+    View g gs -> NC g (Ins g (getDiff i)) i
+      where i = diffT p DNil (dappend gs ys)
+diffT p (DCons x xs) (DCons y ys) =
+  case (view p x, view p y) of
+    (View f fs, View g gs) -> 
+       let c = diffT p (dappend fs xs) (dappend gs ys)
+           i = extendI f xs c
+           d = extendD g ys c in 
+           CC f g (best f g i d c) i d c
+
+best :: (Metric f, Family f) => f as a -> f bs b
+     -> EST f (a ': xs) (bs :++: ys)
+     -> EST f (as :++: xs) (b ': ys)
+     -> EST f (as :++: xs) (bs :++: ys)
+     -> ES f (a ': xs) (b ': ys)
+best f g i d c = 
+  case decEq f g of
+    Just Refl -> ab & (Upd f g (getDiff c))
+    Nothing -> ab
+  where a = Del f $ getDiff d
+        b = Ins g $ getDiff i
+        ab = a & b
+
+extendI :: (Metric f, Family f) => f xs a -> DList f ys -> EST f (xs :++: ys) zs -> EST f (a ': ys) zs
+extendI f _ d@(NN e) = CN f (Del f e) d
+extendI f _ d@(CN _ e _) = CN f (Del f e) d
+extendI f _ d@(NC _ e _) = 
+  case extractI d of
+    IES g e c -> CC f g (best f g i d c) i d c
+      where i = extendI f undefined c
+extendI f _ d@(CC _ _ e _ _ _) = 
+  case extractI d of
+    IES g e c -> CC f g (best f g i d c) i d c
+      where i = extendI f undefined c
+
+extendD :: (Metric f, Family f) => f xs a -> DList f ys -> EST f zs (xs :++: ys) -> EST f zs (a ': ys)
+extendD f _ i@(NN e) = NC f (Ins f e) i
+extendD f _ i@(NC _ e _) = NC f (Ins f e) i 
+extendD f _ i@(CN _ e _) = 
+  case extractD i of
+    DES g e c -> CC g f (best g f i d c) i d c
+      where d = extendD f undefined c
+extendD f _ i@(CC _ _ e _ _ _) = 
+  case extractD i of
+    DES g e c -> CC g f (best g f i d c) i d c
+      where d = extendD f undefined c
+
+-- TODO better names
+data InsES f b xs ys where
+  IES :: f zs b -> ES f xs (b ': ys) -> EST f xs (zs :++: ys) -> InsES f b xs ys
+
+data DelES f a xs ys where
+  DES :: f zs a -> ES f (a ': xs) ys -> EST f (zs :++: xs) ys -> DelES f a xs ys
+
+extractI :: EST f xs (b ': ys) -> InsES f b xs ys
+extractI (NC f e i) = IES f e i
+extractI (CC f g e i _ _) = IES g e i
+
+extractD :: EST f (a ': xs) ys -> DelES f a xs ys
+extractD (CN g e i) = DES g e i
+extractD (CC f g e _ i _) = DES f e i
+
+--------------------------------------------------------------------------------
+-- Diff3 
+--------------------------------------------------------------------------------
+
 data ES3 f xs ys ws where
   Ins1 :: f xs a -> ES3 f ys (xs :++: zs) ws -> ES3 f ys (a ': zs) ws
   Ins2 :: f xs a -> ES3 f ys ws (xs :++: zs) -> ES3 f ys ws (a ': zs)
