@@ -84,8 +84,8 @@ instance Family ExprF where
   decEq If'' If'' = Just Refl
   decEq _ _ = Nothing
 
-  (=?=) (Int'' _) (Int'' _) = Just (Refl, Refl)
-  (=?=) (Bool'' _) (Bool'' _) = Just (Refl, Refl)
+  (=?=) (Int'' x) (Int'' y) = if x == y then Just (Refl, Refl) else Nothing
+  (=?=) (Bool'' x) (Bool'' y) = if x == y then Just (Refl, Refl) else Nothing
   (=?=) IVal'' IVal'' = Just (Refl, Refl)
   (=?=) BVal'' BVal'' = Just (Refl, Refl)
   (=?=) Times'' Times'' = Just (Refl, Refl)

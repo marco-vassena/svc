@@ -204,7 +204,7 @@ aligned :: Family f => f xs a -> f ys b -> (xs :~: ys , a :~: b)
 aligned a b =
   case a =?= b of
     Just (Refl, Refl) -> (Refl, Refl)
-    _ -> error $ "Script not aligned: " ++ string a ++ " <-> " ++ string b
+    _ -> error $ "Scripts not aligned: " ++ string a ++ " <-> " ++ string b
 
 -- TODO refactoring : There is an overlap between distance and =?=.
 -- Define data-type that encompass both

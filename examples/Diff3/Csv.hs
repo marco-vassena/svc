@@ -24,9 +24,14 @@ c2 = [[1,2,3],
       [4,5,9],
       [7,8,15]]
 
-d01, d02 :: ES CsvF '[Csv] '[Csv]
+c3 = [[1,2,6],
+      [4,5,18],
+      [7,8,30]]
+
+d01, d02, d03 :: ES CsvF '[Csv] '[Csv]
 d01 = gdiff c0 c1
 d02 = gdiff c0 c2
+d03 = gdiff c0 c3
 
 --------------------------------------------------------------------------------
 data CsvF xs a where
@@ -60,7 +65,7 @@ instance Family CsvF where
   string NilInt' = "[]"
   string ConsInt' = "(:)"
   
-  (Int' _) =?= (Int' _) = Just (Refl, Refl)
+  (Int' x) =?= (Int' y) = if (x == y) then Just (Refl, Refl) else Nothing
   NilRow'  =?= NilRow' = Just (Refl, Refl)
   ConsRow' =?= ConsRow' = Just (Refl, Refl)
   NilInt'  =?= NilInt' = Just (Refl, Refl)
