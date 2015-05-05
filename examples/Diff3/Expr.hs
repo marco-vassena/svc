@@ -21,13 +21,14 @@ e0 :: Expr
 e0 = Add (IVal 1) (IVal 2)
 
 e1 :: Expr
-e1 = Times e0 (IVal 3)
+e1 = Times (IVal 1) (IVal 3)
 
 e2 :: Expr
-e2 = If (BVal True) e0 e1
+e2 = If (IVal 1) (Add (IVal 2) (IVal 3)) (BVal False)
 
-d01 = diff (Proxy :: Proxy ExprF) (DCons e0 DNil) (DCons e1 DNil)
-d02 = diff (Proxy :: Proxy ExprF) (DCons e0 DNil) (DCons e2 DNil)
+d01, d02 :: ES ExprF '[Expr] '[Expr]
+d01 = gdiff e0 e1
+d02 = gdiff e0 e2 
 
 --------------------------------------------------------------------------------
 
