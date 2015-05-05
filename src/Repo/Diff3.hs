@@ -224,7 +224,7 @@ extractD (CC f g e _ i _) = DES f e i
 --------------------------------------------------------------------------------
 -- Diff3 
 --------------------------------------------------------------------------------
--- TODO move to split in different modules
+-- TODO move split in different modules
 
 -- An edit script @ES3 f xs ys zs@ represents is an edit scripts
 -- that represents changes from @xs@ to @ys@ and from @xs@ to @zs@.
@@ -253,38 +253,72 @@ patch3 :: (Family f, Metric f) => ES3 f xs ys -> DList f xs -> Either [Conflict 
 patch3 (Ins3 x e) hs = undefined
 patch3 End3 hs = undefined
 
+-- We can update a value, when the other is copied, 
+-- only if they have the same fields.
+agreeCpyUpd :: f xs a -> f ys a -> Maybe (xs :~: ys)
+agreeCpyUpd = undefined
+
+agreeDelCpy1 :: f xs a -> SList zs -> SList ys -> SList ws -> ES f (xs :++: ys) zs -> ES f (xs :++: ys) (xs :++: ws) -> Maybe ((a ': zs) :~: ws)
+agreeDelCpy1 = undefined
+
+sSplit :: SList xs -> SList (xs :++: ys) -> SList ys
+sSplit = undefined
+
+instance Reify2 (ES f) where
+  toSList2 = undefined
+
+agreeIns2 :: f xs a -> SList zs -> SList ws -> Maybe (a ': zs :~: ws)
+agreeIns2 = undefined
+
+getTail2 :: ES f xs (ys :++: zs) -> SList ys -> SList zs
+getTail2 = undefined
+
 -- Merges two ES scripts in an ES3 script.
---diff3 :: (Family f, Metric f) => ES f xs ys -> ES f xs zs -> ES3 f xs ys
---diff3 (Upd o x xs) (Upd o' y ys) = 
---  case aligned o o' of
---    (Refl, Refl) -> 
---      case (o =?= x, o' =?= y, x =?= y) of
---          --(Just (Refl, Refl), _, _) -> error "Not Conflict" -- Upd3 o y (diff3 xs ys)
---          --(_, Just (Refl, Refl), _) -> error "Not Conflict" -- Upd3 o x (diff3 xs ys)
---          (_, _, Just (Refl, Refl)) -> Upd3 o x (diff3 xs ys)
---          (_, _, _                ) -> Cnf (UpdUpd x y) (diff3 xs ys)
---diff3 (Upd o x xs) (Del o' ys) =
---  case aligned o o' of
---    (Refl, Refl) -> 
---      case o =?= x of
---        Just (Refl, Refl) -> Del2 o (diff3 xs ys)
---        _ -> Cnf (UpdDel x o) (diff3 xs ys)
---diff3 (Del o xs) (Upd o' y ys) =
---  case aligned o o' of
---    (Refl, Refl) -> 
---      case o' =?= y of
---        Just (Refl, Refl) -> Del1 o (diff3 xs ys)
---        _ -> Cnf (DelUpd o y) (diff3 xs ys)
---diff3 (Del x xs) (Del y ys) =
---  case aligned x y of
---    (Refl, Refl) -> Del3 x (diff3 xs ys)
---diff3 (Ins x xs) (Ins y ys) = 
---  case x =?= y of
---    Just (Refl, Refl) -> Ins3 x (diff3 xs ys)
---    _ -> Cnf (InsIns x y) (diff3 xs ys)
---diff3 (Ins x xs) a = Ins1 x (diff3 xs a) 
---diff3 a (Ins y ys) = Ins2 y (diff3 a ys)
---diff3 End End = End3
+diff3 :: (Family f, Metric f) => ES f xs ys -> ES f xs zs -> ES3 f xs ys
+diff3 (Upd o x xs) (Upd o' y ys) = 
+  case aligned o o' of
+    (Refl, Refl) -> 
+      case (o =?= x, o' =?= y, x =?= y) of
+          (Just (Refl, Refl), _, _) -> 
+            case agreeCpyUpd x y of
+              Just Refl -> Upd3 o y (diff3 xs ys)
+              Nothing -> Cnf3 (UpdUpd x y) (diff3 xs ys)
+          (_, Just (Refl, Refl), _) -> Upd3 o x (diff3 xs ys)
+          (_, _, Just (Refl, Refl)) -> Upd3 o x (diff3 xs ys) -- False positive, the scripts agree
+          (_, _, _                ) -> Cnf3 (UpdUpd x y) (diff3 xs ys)
+diff3 (Upd o x xs) (Del o' ys) =
+  case aligned o o' of
+    (Refl, Refl) -> 
+      case o =?= x of
+        Just (Refl, Refl) -> Del3 o undefined -- (diff ys zs)
+--          let (xs', yws') = toSList2 xs
+--              ws' = sSplit undefined yws'
+--              (_, zs') = toSList2 ys in undefined
+--           case agreeDelCpy1 o undefined undefined undefined xs ys of
+--              Just Refl -> undefined -- Del3 o (diff3 ys xs)
+--              Nothing -> Cnf3 (DelUpd x o) (diff3 xs ys)
+        _ -> Cnf3 (UpdDel x o) (diff3 xs ys)
+diff3 (Del o xs) (Upd o' y ys) =
+  case aligned o o' of
+    (Refl, Refl) -> 
+      case o' =?= y of
+        Just (Refl, Refl) -> Del3 o (diff3 xs ys)
+        _ -> Cnf3 (DelUpd o y) (diff3 xs ys)
+diff3 (Del x xs) (Del y ys) =
+  case aligned x y of
+    (Refl, Refl) -> Del3 x (diff3 xs ys)
+diff3 (Ins x xs) (Ins y ys) = 
+  case x =?= y of
+    Just (Refl, Refl) -> Ins3 x (diff3 xs ys)
+    _ -> Cnf3 (InsIns x y) (diff3 xs ys)
+diff3 (Ins x xs) ys = Ins3 x (diff3 xs ys) 
+diff3 xs (Ins y ys) =
+  let (s1, s2) = toSList2 ys 
+      (s3, s4) = toSList2 xs in
+  case agreeIns2 y s4 (getTail2 ys) of
+    Just Refl -> Ins3 y (diff3 ys xs)
+    Nothing -> Cnf3 undefined (diff3 xs ys)
+diff3 End End = End3
 
 -- Checks whether the two witnesses are the same,
 -- and fails if this is not the case.
