@@ -30,6 +30,14 @@ d01, d02 :: ES ExprF '[Expr] '[Expr]
 d01 = gdiff e0 e1
 d02 = gdiff e0 e2 
 
+e1' :: Expr
+e1' = case patch Proxy d01 (DCons e0 DNil) of
+        DCons x DNil -> x
+
+e2PatchFail :: Expr
+e2PatchFail = case patch Proxy d02 (DCons e1 DNil) of
+                DCons x DNil -> x
+
 --------------------------------------------------------------------------------
 
 data ExprF xs a where
@@ -42,6 +50,15 @@ data ExprF xs a where
   Int''   :: Int -> ExprF '[] Int
 
 instance Family ExprF where
+  unbuild Add'' (Add e1 e2) = Just $ DCons e1 (DCons e2 DNil)
+  unbuild Times'' (Times e1 e2) = Just $ DCons e1 (DCons e2 DNil)
+  unbuild If'' (If e0 e1 e2) = Just $ DCons e0 (DCons e1 (DCons e2 DNil))
+  unbuild IVal'' (IVal i) = Just (DCons i DNil)
+  unbuild BVal'' (BVal b) = Just (DCons b DNil)
+  unbuild (Int'' i) _ = Just DNil
+  unbuild (Bool'' b) _ = Just DNil
+  unbuild _ _ = Nothing 
+
   build Add'' (DCons e1 (DCons e2 DNil)) = Add e1 e2
   build Times'' (DCons e1 (DCons e2 DNil)) = Times e1 e2
   build If'' (DCons e0 (DCons e1 (DCons e2 DNil))) = If e0 e1 e2 

@@ -28,11 +28,19 @@ c3 = [[1,2,6],
       [4,5,18],
       [7,8,30]]
 
+
 d01, d02, d03 :: ES CsvF '[Csv] '[Csv]
 d01 = gdiff c0 c1
 d02 = gdiff c0 c2
 d03 = gdiff c0 c3
 
+c1' :: Csv
+c1' = case patch Proxy d01 (DCons c0 DNil) of
+        DCons x DNil -> x
+        
+c2PatchFail :: Csv
+c2PatchFail = case patch Proxy d02 (DCons c1 DNil) of
+            DCons x DNil -> x
 --------------------------------------------------------------------------------
 data CsvF xs a where
   Int' :: Int -> CsvF '[] Int
@@ -42,6 +50,13 @@ data CsvF xs a where
   ConsInt' :: CsvF '[Int, [Int]] [Int]
 
 instance Family CsvF where
+  unbuild (Int' i) _ = Just DNil
+  unbuild NilRow' [] = Just DNil
+  unbuild NilInt' [] = Just DNil
+  unbuild ConsRow' (x:xs) = Just $ DCons x (DCons xs DNil)
+  unbuild ConsInt' (x:xs) = Just $ DCons x (DCons xs DNil)
+  unbuild _ _ = Nothing
+
   build (Int' i) _ = i
   build NilRow' _ = []
   build NilInt' _ = []
