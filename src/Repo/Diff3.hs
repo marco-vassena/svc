@@ -12,7 +12,7 @@
 module Repo.Diff3 where
 
 import Data.Proxy
-import Data.HList
+import Data.HList (Append)
 import Data.Type.Equality
 
 -- TODO use this in Data.HList instead of :++:
@@ -25,11 +25,11 @@ type (:++:) = Append
 -- by means of insert, delete and update.
 data ES f xs ys where
   -- | Inserts something new in the tree
-  Ins :: (a :<: f, KnownSList xs) => f xs a -> ES f ys (xs :++: zs) -> ES f ys (a ': zs)
+  Ins :: (a :<: f, KnownSList f xs) => f xs a -> ES f ys (xs :++: zs) -> ES f ys (a ': zs)
   -- | Removes something from the original tree
-  Del :: (a :<: f, KnownSList xs) => f xs a -> ES f (xs :++: ys) zs -> ES f (a ': ys) zs  
+  Del :: (a :<: f, KnownSList f xs) => f xs a -> ES f (xs :++: ys) zs -> ES f (a ': ys) zs  
   -- | Replaces something in the original tree
-  Upd :: (a :<: f, KnownSList xs, KnownSList ys) 
+  Upd :: (a :<: f, KnownSList f xs, KnownSList f ys) 
       => f xs a -> f ys a -> ES f (xs :++: zs) (ys :++: ws) -> ES f (a ': zs) (a ': ws)
   -- | Terminates the edit script
   End :: ES f '[] '[]
@@ -54,7 +54,7 @@ x & y = if cost x <= cost y then x else y
 -- witness @f xs a@ of its constructor, with a list 
 -- containing its fields.
 data View f a where
-  View :: KnownSList xs => f xs a -> DList f xs -> View f a
+  View :: KnownSList f xs => f xs a -> DList f xs -> View f a
 
 --------------------------------------------------------------------------------
 
@@ -65,6 +65,33 @@ data DList f xs where
 dappend :: DList f xs -> DList f ys -> DList f (xs :++: ys)
 dappend DNil ys = ys
 dappend (DCons x xs) ys = DCons x (dappend xs ys)
+
+data SList f xs where
+  SNil :: SList f '[]
+  SCons :: (a :<: f) => SList f xs -> SList f (a ': xs)
+
+class KnownSList f xs where
+  slist :: SList f xs
+
+instance KnownSList f '[] where
+  slist = SNil
+
+instance (x :<: f, KnownSList f xs) => KnownSList f (x ': xs) where
+  slist = SCons slist
+
+tyEq :: (Family f, x :<: f, y :<: f) => Proxy f -> x -> y -> Maybe (x :~: y)
+tyEq p x y = 
+  case (view p x, view p y) of
+    (View a _, View b _) -> decEq a b
+
+eq :: Family f => Proxy f -> DList f xs -> DList f ys -> Maybe (xs :~: ys)
+eq _ DNil DNil = Just Refl
+eq _ (DCons _ _) DNil = Nothing
+eq _ DNil (DCons _ _) = Nothing
+eq p (DCons x xs) (DCons y ys) = 
+  case (tyEq p x y, eq p xs ys) of
+    (Just Refl, Just Refl) -> Just Refl
+    _ -> Nothing
 
 --------------------------------------------------------------------------------
 
@@ -91,12 +118,12 @@ diff p (DCons x xs) (DCons y ys) =
         Just Refl -> i & d & u
           where u = Upd f g $ diff p (dappend fs xs) (dappend gs ys)
 
-dsplit :: SList xs -> DList f (xs :++: ys) -> (DList f xs, DList f ys)
+dsplit :: SList f xs -> DList f (xs :++: ys) -> (DList f xs, DList f ys)
 dsplit SNil ds = (DNil, ds)
 dsplit (SCons s) (DCons x ds) = (DCons x ds1, ds2)
   where (ds1, ds2) = dsplit s ds
 
-insert :: (Family f, a :<: f, KnownSList xs) => f xs a -> DList f (xs :++: ys) -> DList f (a ': ys)
+insert :: (Family f, a :<: f, KnownSList f xs) => f xs a -> DList f (xs :++: ys) -> DList f (a ': ys)
 insert f ds = DCons (build f ds1) ds2
   where (ds1, ds2) = dsplit slist ds
 
@@ -122,16 +149,16 @@ patch p End         = id
 
 -- Memoization table
 data EST f xs ys where
-  CC :: (a :<: f, b :<: f, KnownSList xs, KnownSList ys) => f xs a -> f ys b 
+  CC :: (a :<: f, b :<: f, KnownSList f xs, KnownSList f ys) => f xs a -> f ys b 
      -> ES f (a ': zs) (b ': ws) 
      -> EST f (a ': zs) (ys :++: ws)
      -> EST f (xs :++: zs) (b ': ws)
      -> EST f (xs :++: zs) (ys :++: ws)
      -> EST f (a ': zs) (b ': ws)
-  CN :: (a :<: f, KnownSList xs) => f xs a -> ES f (a ': ys) '[] 
+  CN :: (a :<: f, KnownSList f xs) => f xs a -> ES f (a ': ys) '[] 
      -> EST f (xs :++: ys) '[]
      -> EST f (a ': ys) '[]
-  NC :: (b :<: f, KnownSList xs) => f xs b -> ES f '[] (b ': ys) 
+  NC :: (b :<: f, KnownSList f xs) => f xs b -> ES f '[] (b ': ys) 
      -> EST f '[] (xs :++: ys) 
      -> EST f '[] (b ': ys)
   NN :: ES f '[] '[] -> EST f '[] '[]
@@ -162,7 +189,7 @@ diffT p (DCons x xs) (DCons y ys) =
            d = extendD g ys c in 
            CC f g (best f g i d c) i d c
 
-best :: (Metric f, Family f, a :<: f, b :<: f, KnownSList bs, KnownSList as)
+best :: (Metric f, Family f, a :<: f, b :<: f, KnownSList f bs, KnownSList f as)
      => f as a -> f bs b
      -> EST f (a ': xs) (bs :++: ys)
      -> EST f (as :++: xs) (b ': ys)
@@ -180,7 +207,7 @@ best f g i d c =
 -- Auxiliary functions and datatypes used in diffT.
 --------------------------------------------------------------------------------
 
-extendI :: (Metric f, Family f, a :<: f, KnownSList xs) 
+extendI :: (Metric f, Family f, a :<: f, KnownSList f xs) 
         => f xs a -> DList f ys -> EST f (xs :++: ys) zs -> EST f (a ': ys) zs
 extendI f _ d@(NN e) = CN f (Del f e) d
 extendI f _ d@(CN _ e _) = CN f (Del f e) d
@@ -193,7 +220,7 @@ extendI f _ d@(CC _ _ e _ _ _) =
     IES g e c -> CC f g (best f g i d c) i d c
       where i = extendI f undefined c
 
-extendD :: (Metric f, Family f, a :<: f, KnownSList xs) 
+extendD :: (Metric f, Family f, a :<: f, KnownSList f xs) 
         => f xs a -> DList f ys -> EST f zs (xs :++: ys) -> EST f zs (a ': ys)
 extendD f _ i@(NN e) = NC f (Ins f e) i
 extendD f _ i@(NC _ e _) = NC f (Ins f e) i 
@@ -208,10 +235,10 @@ extendD f _ i@(CC _ _ e _ _ _) =
 
 -- TODO better names
 data InsES f b xs ys where
-  IES :: KnownSList zs => f zs b -> ES f xs (b ': ys) -> EST f xs (zs :++: ys) -> InsES f b xs ys
+  IES :: KnownSList f zs => f zs b -> ES f xs (b ': ys) -> EST f xs (zs :++: ys) -> InsES f b xs ys
 
 data DelES f a xs ys where
-  DES :: KnownSList zs => f zs a -> ES f (a ': xs) ys -> EST f (zs :++: xs) ys -> DelES f a xs ys
+  DES :: KnownSList f zs => f zs a -> ES f (a ': xs) ys -> EST f (zs :++: xs) ys -> DelES f a xs ys
 
 extractI :: EST f xs (b ': ys) -> InsES f b xs ys
 extractI (NC f e i) = IES f e i
@@ -258,21 +285,6 @@ patch3 End3 hs = undefined
 agreeCpyUpd :: f xs a -> f ys a -> Maybe (xs :~: ys)
 agreeCpyUpd = undefined
 
-agreeDelCpy1 :: f xs a -> SList zs -> SList ys -> SList ws -> ES f (xs :++: ys) zs -> ES f (xs :++: ys) (xs :++: ws) -> Maybe ((a ': zs) :~: ws)
-agreeDelCpy1 = undefined
-
-sSplit :: SList xs -> SList (xs :++: ys) -> SList ys
-sSplit = undefined
-
-instance Reify2 (ES f) where
-  toSList2 = undefined
-
-agreeIns2 :: f xs a -> SList zs -> SList ws -> Maybe (a ': zs :~: ws)
-agreeIns2 = undefined
-
-getTail2 :: ES f xs (ys :++: zs) -> SList ys -> SList zs
-getTail2 = undefined
-
 -- Merges two ES scripts in an ES3 script.
 diff3 :: (Family f, Metric f) => ES f xs ys -> ES f xs zs -> ES3 f xs ys
 diff3 (Upd o x xs) (Upd o' y ys) = 
@@ -312,12 +324,7 @@ diff3 (Ins x xs) (Ins y ys) =
     Just (Refl, Refl) -> Ins3 x (diff3 xs ys)
     _ -> Cnf3 (InsIns x y) (diff3 xs ys)
 diff3 (Ins x xs) ys = Ins3 x (diff3 xs ys) 
-diff3 xs (Ins y ys) =
-  let (s1, s2) = toSList2 ys 
-      (s3, s4) = toSList2 xs in
-  case agreeIns2 y s4 (getTail2 ys) of
-    Just Refl -> Ins3 y (diff3 ys xs)
-    Nothing -> Cnf3 undefined (diff3 xs ys)
+diff3 xs (Ins y ys) = undefined
 diff3 End End = End3
 
 -- Checks whether the two witnesses are the same,
