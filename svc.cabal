@@ -32,7 +32,7 @@ library
   other-modules:      Format.Combinator.Base, Format.Combinator.Prim, 
 
                       -- Repository
-                      Repo.Path, Repo.Head, Repo.Diff3
+                      Repo.Path, Repo.Head, Repo.Diff, Repo.Diff3
 
   build-depends:      base >=4.7 && <4.8, mtl >=2.2, transformers >= 0.3, 
 
