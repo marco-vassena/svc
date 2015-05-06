@@ -20,11 +20,11 @@ import Repo.Diff
 -- that represents changes from @xs@ to @ys@ and from @xs@ to @zs@.
 data ES3 f xs ys where
   -- | Inserts something new in the tree
-  Ins3 :: f xs a -> ES3 f ys (xs :++: zs) -> ES3 f ys (a ': zs)
+  Ins3 :: (a :<: f, KnownSList f xs) => f xs a -> ES3 f ys (xs :++: zs) -> ES3 f ys (a ': zs)
   -- | Removes something from the original tree
-  Del3 :: f xs a -> ES3 f (xs :++: ys) zs -> ES3 f (a ': ys) zs  
+  Del3 :: (a :<: f, KnownSList f xs) => f xs a -> ES3 f (xs :++: ys) zs -> ES3 f (a ': ys) zs  
   -- | Replaces something in the original tree
-  Upd3 :: f xs a -> f ys a -> ES3 f (xs :++: zs) (ys :++: ws) -> ES3 f (a ': zs) (a ': ws)
+  Upd3 :: (a :<: f, KnownSList f xs, KnownSList f ys) => f xs a -> f ys a -> ES3 f (xs :++: zs) (ys :++: ws) -> ES3 f (a ': zs) (a ': ws)
   -- | A conflict between the two edit script
   Cnf3 :: Conflict f -> ES3 f xs ys -> ES3 f zs ws
   -- | Terminates the edit script
@@ -37,11 +37,22 @@ data Conflict f where
   DelUpd :: f xs a -> f ys b -> Conflict f
   UpdUpd :: f xs a -> f ys b -> Conflict f
 
--- Given an ES3 if no conflicts are present build the merged version, otherwise returns
--- a list of the conflicts found in the edit script.
-patch3 :: (Family f, Metric f) => ES3 f xs ys -> DList f xs -> Either [Conflict f] (DList f ys)
-patch3 (Ins3 x e) hs = undefined
-patch3 End3 hs = undefined
+-- Applies the edit script to the original object merging changes in different versions
+-- of the object. It fails if the script contains a conflict.
+patch3 :: (Family f, Metric f) => Proxy f -> ES3 f xs ys -> DList f xs -> DList f ys
+patch3 p (Upd3 x y e)  = insert y . patch3 p e . delete p x 
+patch3 p (Del3 x e)    =            patch3 p e . delete p x 
+patch3 p (Ins3 x e)    = insert x . patch3 p e
+patch3 p (Cnf3 c e)    = error $ "patch3: Conflict detected " ++ show c
+patch3 _ End3          = id 
+
+-- Collects the conflict that may be present in the edit script.
+getConflicts :: ES3 f xs ys -> [Conflict f]
+getConflicts (Upd3 _ _ e) = getConflicts e
+getConflicts (Ins3 _ e) = getConflicts e
+getConflicts (Del3 _ e) = getConflicts e
+getConflicts (Cnf3 c e) = c : getConflicts e
+getConflicts End3 = []
 
 -- We can update a value, when the other is copied, 
 -- only if they have the same fields.
