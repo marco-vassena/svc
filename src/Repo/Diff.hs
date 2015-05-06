@@ -24,12 +24,11 @@ type (:++:) = Append
 -- by means of insert, delete and update.
 data ES f xs ys where
   -- | Inserts something new in the tree
-  Ins :: (a :<: f, KnownSList xs) => f xs a -> ES f ys (xs :++: zs) -> ES f ys (a ': zs)
+  Ins :: (a :<: f) => f xs a -> ES f ys (xs :++: zs) -> ES f ys (a ': zs)
   -- | Removes something from the original tree
-  Del :: (a :<: f, KnownSList xs) => f xs a -> ES f (xs :++: ys) zs -> ES f (a ': ys) zs  
+  Del :: (a :<: f) => f xs a -> ES f (xs :++: ys) zs -> ES f (a ': ys) zs  
   -- | Replaces something in the original tree
-  Upd :: (a :<: f, KnownSList xs, KnownSList ys) 
-      => f xs a -> f ys a -> ES f (xs :++: zs) (ys :++: ws) -> ES f (a ': zs) (a ': ws)
+  Upd :: (a :<: f) => f xs a -> f ys a -> ES f (xs :++: zs) (ys :++: ws) -> ES f (a ': zs) (a ': ws)
   -- | Terminates the edit script
   End :: ES f '[] '[]
 
@@ -37,7 +36,7 @@ data ES f xs ys where
 -- witness @f xs a@ of its constructor, with a list 
 -- containing its fields.
 data View f a where
-  View :: KnownSList xs => f xs a -> DList f xs -> View f a
+  View :: f xs a -> DList f xs -> View f a
 
 --------------------------------------------------------------------------------
 -- TODO probably we want to store the cost with the edit script
@@ -72,7 +71,8 @@ dsplit (SCons s) (DCons x ds) = (DCons x ds1, ds2)
 gdiff :: (Family f, Metric f, a :<: f, b :<: f) => a -> b -> ES f '[ a ] '[ b ]
 gdiff x y = getDiff $ diffT Proxy (DCons x DNil) (DCons y DNil)
 
-diff :: (Family f, Metric f) => Proxy f -> DList f xs -> DList f ys -> ES f xs ys
+diff :: (Family f, Metric f) 
+     => Proxy f -> DList f xs -> DList f ys -> ES f xs ys
 diff _ DNil DNil = End
 diff p (DCons x xs) DNil = 
   case view p x of 
@@ -100,9 +100,9 @@ patch p (Del x e)   =            patch p e . delete p x
 patch p (Upd x y e) = insert y . patch p e . delete p x
 patch p End         = id
 
-insert :: (Family f, a :<: f, KnownSList xs) => f xs a -> DList f (xs :++: ys) -> DList f (a ': ys)
+insert :: (Family f, a :<: f) => f xs a -> DList f (xs :++: ys) -> DList f (a ': ys)
 insert f ds = DCons (build f ds1) ds2
-  where (ds1, ds2) = dsplit slist ds
+  where (ds1, ds2) = dsplit (reifyF f) ds
 
 stringOf :: (Family f, a :<: f) => Proxy f -> a -> String
 stringOf p a = case view p a of
@@ -120,16 +120,16 @@ delete p f (DCons x ys) =
 
 -- Memoization table
 data EST f xs ys where
-  CC :: (a :<: f, b :<: f, KnownSList xs, KnownSList ys) => f xs a -> f ys b 
+  CC :: (a :<: f, b :<: f) => f xs a -> f ys b 
      -> ES f (a ': zs) (b ': ws) 
      -> EST f (a ': zs) (ys :++: ws)
      -> EST f (xs :++: zs) (b ': ws)
      -> EST f (xs :++: zs) (ys :++: ws)
      -> EST f (a ': zs) (b ': ws)
-  CN :: (a :<: f, KnownSList xs) => f xs a -> ES f (a ': ys) '[] 
+  CN :: (a :<: f) => f xs a -> ES f (a ': ys) '[] 
      -> EST f (xs :++: ys) '[]
      -> EST f (a ': ys) '[]
-  NC :: (b :<: f, KnownSList xs) => f xs b -> ES f '[] (b ': ys) 
+  NC :: (b :<: f) => f xs b -> ES f '[] (b ': ys) 
      -> EST f '[] (xs :++: ys) 
      -> EST f '[] (b ': ys)
   NN :: ES f '[] '[] -> EST f '[] '[]
@@ -160,7 +160,7 @@ diffT p (DCons x xs) (DCons y ys) =
            d = extendD g ys c in 
            CC f g (best f g i d c) i d c
 
-best :: (Metric f, Family f, a :<: f, b :<: f, KnownSList bs, KnownSList as)
+best :: (Metric f, Family f, a :<: f, b :<: f)
      => f as a -> f bs b
      -> EST f (a ': xs) (bs :++: ys)
      -> EST f (as :++: xs) (b ': ys)
@@ -178,7 +178,7 @@ best f g i d c =
 -- Auxiliary functions and datatypes used in diffT.
 --------------------------------------------------------------------------------
 
-extendI :: (Metric f, Family f, a :<: f, KnownSList xs) 
+extendI :: (Metric f, Family f, a :<: f) 
         => f xs a -> DList f ys -> EST f (xs :++: ys) zs -> EST f (a ': ys) zs
 extendI f _ d@(NN e) = CN f (Del f e) d
 extendI f _ d@(CN _ e _) = CN f (Del f e) d
@@ -191,7 +191,7 @@ extendI f _ d@(CC _ _ e _ _ _) =
     IES g e c -> CC f g (best f g i d c) i d c
       where i = extendI f undefined c
 
-extendD :: (Metric f, Family f, a :<: f, KnownSList xs) 
+extendD :: (Metric f, Family f, a :<: f) 
         => f xs a -> DList f ys -> EST f zs (xs :++: ys) -> EST f zs (a ': ys)
 extendD f _ i@(NN e) = NC f (Ins f e) i
 extendD f _ i@(NC _ e _) = NC f (Ins f e) i 
@@ -206,10 +206,10 @@ extendD f _ i@(CC _ _ e _ _ _) =
 
 -- TODO better names
 data InsES f b xs ys where
-  IES :: KnownSList zs => f zs b -> ES f xs (b ': ys) -> EST f xs (zs :++: ys) -> InsES f b xs ys
+  IES :: f zs b -> ES f xs (b ': ys) -> EST f xs (zs :++: ys) -> InsES f b xs ys
 
 data DelES f a xs ys where
-  DES :: KnownSList zs => f zs a -> ES f (a ': xs) ys -> EST f (zs :++: xs) ys -> DelES f a xs ys
+  DES :: f zs a -> ES f (a ': xs) ys -> EST f (zs :++: xs) ys -> DelES f a xs ys
 
 extractI :: EST f xs (b ': ys) -> InsES f b xs ys
 extractI (NC f e i) = IES f e i
@@ -236,8 +236,7 @@ class Family f where
   build :: f xs a -> DList f xs -> a
   unbuild :: f xs a -> a -> Maybe (DList f xs)
   
-  reifyF :: KnownSList xs => f xs a -> SList xs
-  reifyF _ = slist
+  reifyF :: f xs a -> SList xs
 
 class Metric f where
   -- Laws:

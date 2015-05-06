@@ -20,11 +20,11 @@ import Repo.Diff
 -- that represents changes from @xs@ to @ys@ and from @xs@ to @zs@.
 data ES3 f xs ys where
   -- | Inserts something new in the tree
-  Ins3 :: (a :<: f, KnownSList xs) => f xs a -> ES3 f ys (xs :++: zs) -> ES3 f ys (a ': zs)
+  Ins3 :: (a :<: f) => f xs a -> ES3 f ys (xs :++: zs) -> ES3 f ys (a ': zs)
   -- | Removes something from the original tree
-  Del3 :: (a :<: f, KnownSList xs) => f xs a -> ES3 f (xs :++: ys) zs -> ES3 f (a ': ys) zs  
+  Del3 :: (a :<: f) => f xs a -> ES3 f (xs :++: ys) zs -> ES3 f (a ': ys) zs  
   -- | Replaces something in the original tree
-  Upd3 :: (a :<: f, KnownSList xs, KnownSList ys) => f xs a -> f ys a -> ES3 f (xs :++: zs) (ys :++: ws) -> ES3 f (a ': zs) (a ': ws)
+  Upd3 :: (a :<: f) => f xs a -> f ys a -> ES3 f (xs :++: zs) (ys :++: ws) -> ES3 f (a ': zs) (a ': ws)
   -- | A conflict between the two edit script
   Cnf3 :: Conflict f -> ES3 f xs ys -> ES3 f zs ws
   -- | Terminates the edit script
@@ -36,6 +36,11 @@ data Conflict f where
   UpdDel :: f xs a -> f ys b -> Conflict f
   DelUpd :: f xs a -> f ys b -> Conflict f
   UpdUpd :: f xs a -> f ys b -> Conflict f
+
+  -- Type-related conflicts
+  BadIns :: f xs a -> Conflict f
+  CpyDel :: f xs a -> Conflict f
+  CpyUpd :: f xs a -> f ys a -> Conflict f
 
 -- Applies the edit script to the original object merging changes in different versions
 -- of the object. It fails if the script contains a conflict.
@@ -56,8 +61,15 @@ getConflicts End3 = []
 
 -- We can update a value, when the other is copied, 
 -- only if they have the same fields.
-agreeCpyUpd :: f xs a -> f ys a -> Maybe (xs :~: ys)
-agreeCpyUpd = undefined
+agreeCpyUpd :: Family f => f xs a -> FList f xs -> f ys b -> FList f ys -> Maybe (xs :~: ys)
+agreeCpyUpd _ a _ b = eq a b
+
+agreeCpyDel2 :: Family f => FList f xs -> f xs a -> Maybe (xs :~: '[ a ])
+agreeCpyDel2 fs x = eq fs (FCons x FNil)
+
+ftake :: SList xs -> SList ys -> FList f (xs :++: ys) -> FList f xs
+ftake SNil _ _ = FNil
+ftake (SCons s1) s2 (FCons x xs) = FCons x (ftake s1 s2 xs)
 
 -- Merges two ES scripts in an ES3 script.
 diff3 :: (Family f, Metric f) => ES f xs ys -> ES f xs zs -> ES3 f xs ys
@@ -66,23 +78,24 @@ diff3 (Upd o x xs) (Upd o' y ys) =
     (Refl, Refl) -> 
       case (o =?= x, o' =?= y, x =?= y) of
           (Just (Refl, Refl), _, _) -> 
-            case agreeCpyUpd x y of
+            let fxs = undefined -- ftake (reifyF x) undefined (collect2 xs)
+                fys = undefined in -- ftake (reifyF y) undefined (collect2 ys) in
+            case agreeCpyUpd x fxs y fys of
               Just Refl -> Upd3 o y (diff3 xs ys)
-              Nothing -> Cnf3 (UpdUpd x y) (diff3 xs ys)
+              Nothing -> Cnf3 (CpyUpd x y) (diff3 xs ys)
           (_, Just (Refl, Refl), _) -> Upd3 o x (diff3 xs ys)
           (_, _, Just (Refl, Refl)) -> Upd3 o x (diff3 xs ys) -- False positive, the scripts agree
           (_, _, _                ) -> Cnf3 (UpdUpd x y) (diff3 xs ys)
-diff3 (Upd o x xs) (Del o' ys) =
+diff3 a@(Upd o x xs) (Del o' ys) =
   case aligned o o' of
     (Refl, Refl) -> 
       case o =?= x of
-        Just (Refl, Refl) -> Del3 o undefined -- (diff ys zs)
---          let (xs', yws') = toSList2 xs
---              ws' = sSplit undefined yws'
---              (_, zs') = toSList2 ys in undefined
---           case agreeDelCpy1 o undefined undefined undefined xs ys of
---              Just Refl -> undefined -- Del3 o (diff3 ys xs)
---              Nothing -> Cnf3 (DelUpd x o) (diff3 xs ys)
+        Just (Refl, Refl) -> 
+          let fa = collect2 a
+              fb = collect2 ys in
+            case eq fa fb of
+              Just Refl -> Del3 o (diff3 ys xs)
+              Nothing -> Cnf3 (CpyDel o) (diff3 xs ys)  -- TODO here we could also try Del3 o (diff3 xs ys)
         _ -> Cnf3 (UpdDel x o) (diff3 xs ys)
 diff3 (Del o xs) (Upd o' y ys) =
   case aligned o o' of
@@ -98,7 +111,12 @@ diff3 (Ins x xs) (Ins y ys) =
     Just (Refl, Refl) -> Ins3 x (diff3 xs ys)
     _ -> Cnf3 (InsIns x y) (diff3 xs ys)
 diff3 (Ins x xs) ys = Ins3 x (diff3 xs ys) 
-diff3 xs (Ins y ys) = undefined -- Ins3 y (diff3 ys xs)
+diff3 e1 e2@(Ins y ys) = 
+  let f2 = collect2 e2
+      f1 = collect2 e1 in
+  case eq f1 f2 of
+    Just Refl -> Ins3 y (diff3 ys e1)
+    Nothing   -> Cnf3 (BadIns y) (diff3 e1 ys)
 diff3 End End = End3
 
 -- Checks whether the two witnesses are the same,
@@ -113,12 +131,12 @@ aligned a b =
 -- Auxiliary functions and data-types used in the diff3 algorithm
 --------------------------------------------------------------------------------
 
-eq :: Family f => Proxy f -> FList f xs -> FList f ys -> Maybe (xs :~: ys)
-eq _ FNil FNil = Just Refl
-eq _ (FCons _ _) FNil = Nothing
-eq _ FNil (FCons _ _) = Nothing
-eq p (FCons x xs) (FCons y ys) = 
-  case (decEq x y, eq p xs ys) of
+eq :: Family f => FList f xs -> FList f ys -> Maybe (xs :~: ys)
+eq FNil FNil = Just Refl
+eq (FCons _ _) FNil = Nothing
+eq FNil (FCons _ _) = Nothing
+eq (FCons x xs) (FCons y ys) = 
+  case (decEq x y, eq xs ys) of
     (Just Refl, Just Refl) -> Just Refl
     _ -> Nothing
 
