@@ -12,7 +12,7 @@
 module Repo.Diff3 where
 
 import Data.Proxy
-import Data.HList (Append)
+import Data.HList
 import Data.Type.Equality
 import Repo.Diff
 
@@ -20,11 +20,11 @@ import Repo.Diff
 -- that represents changes from @xs@ to @ys@ and from @xs@ to @zs@.
 data ES3 f xs ys where
   -- | Inserts something new in the tree
-  Ins3 :: (a :<: f, KnownSList f xs) => f xs a -> ES3 f ys (xs :++: zs) -> ES3 f ys (a ': zs)
+  Ins3 :: (a :<: f, KnownSList xs) => f xs a -> ES3 f ys (xs :++: zs) -> ES3 f ys (a ': zs)
   -- | Removes something from the original tree
-  Del3 :: (a :<: f, KnownSList f xs) => f xs a -> ES3 f (xs :++: ys) zs -> ES3 f (a ': ys) zs  
+  Del3 :: (a :<: f, KnownSList xs) => f xs a -> ES3 f (xs :++: ys) zs -> ES3 f (a ': ys) zs  
   -- | Replaces something in the original tree
-  Upd3 :: (a :<: f, KnownSList f xs, KnownSList f ys) => f xs a -> f ys a -> ES3 f (xs :++: zs) (ys :++: ws) -> ES3 f (a ': zs) (a ': ws)
+  Upd3 :: (a :<: f, KnownSList xs, KnownSList ys) => f xs a -> f ys a -> ES3 f (xs :++: zs) (ys :++: ws) -> ES3 f (a ': zs) (a ': ws)
   -- | A conflict between the two edit script
   Cnf3 :: Conflict f -> ES3 f xs ys -> ES3 f zs ws
   -- | Terminates the edit script
@@ -98,7 +98,7 @@ diff3 (Ins x xs) (Ins y ys) =
     Just (Refl, Refl) -> Ins3 x (diff3 xs ys)
     _ -> Cnf3 (InsIns x y) (diff3 xs ys)
 diff3 (Ins x xs) ys = Ins3 x (diff3 xs ys) 
-diff3 xs (Ins y ys) = undefined
+diff3 xs (Ins y ys) = undefined -- Ins3 y (diff3 ys xs)
 diff3 End End = End3
 
 -- Checks whether the two witnesses are the same,
@@ -108,6 +108,43 @@ aligned a b =
   case a =?= b of
     Just (Refl, Refl) -> (Refl, Refl)
     _ -> error $ "Scripts not aligned: " ++ string a ++ " <-> " ++ string b
+
+--------------------------------------------------------------------------------
+-- Auxiliary functions and data-types used in the diff3 algorithm
+--------------------------------------------------------------------------------
+
+eq :: Family f => Proxy f -> FList f xs -> FList f ys -> Maybe (xs :~: ys)
+eq _ FNil FNil = Just Refl
+eq _ (FCons _ _) FNil = Nothing
+eq _ FNil (FCons _ _) = Nothing
+eq p (FCons x xs) (FCons y ys) = 
+  case (decEq x y, eq p xs ys) of
+    (Just Refl, Just Refl) -> Just Refl
+    _ -> Nothing
+
+data FList f xs where
+  FNil :: FList f '[]
+  FCons :: f as a -> FList f xs -> FList f (a ': xs)
+
+fdrop :: SList xs -> FList f (xs :++: ys) -> FList f ys
+fdrop SNil fs = fs
+fdrop (SCons s) (FCons _ fs) = fdrop s fs
+
+collect1 :: Family f => ES f xs ys -> FList f xs
+collect1 End = FNil
+collect1 (Ins x e) = collect1 e
+collect1 (Del x e) = FCons x fs
+  where fs = fdrop (reifyF x) (collect1 e)
+collect1 (Upd x y e) = FCons x fs
+  where fs = fdrop (reifyF x) (collect1 e)
+
+collect2 :: Family f => ES f xs ys -> FList f ys
+collect2 End = FNil
+collect2 (Ins x e) = FCons x fs
+  where fs = fdrop (reifyF x) (collect2 e)
+collect2 (Del x e) = collect2 e
+collect2 (Upd x y e) = FCons y fs
+  where fs = fdrop (reifyF y) (collect2 e)
 
 --------------------------------------------------------------------------------
 instance Family f => Show (ES3 f xs ys) where
