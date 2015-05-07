@@ -59,30 +59,35 @@ getConflicts (Del3 _ e) = getConflicts e
 getConflicts (Cnf3 c e) = c : getConflicts e
 getConflicts End3 = []
 
--- We can update a value, when the other is copied, 
--- only if they have the same fields.
-agreeCpyUpd :: Family f => f xs a -> FList f xs -> f ys b -> FList f ys -> Maybe (xs :~: ys)
-agreeCpyUpd _ a _ b = eq a b
+instance Reify (FList f) where
+  toSList FNil = SNil
+  toSList (FCons _ fs) = SCons (toSList fs)
 
-agreeCpyDel2 :: Family f => FList f xs -> f xs a -> Maybe (xs :~: '[ a ])
-agreeCpyDel2 fs x = eq fs (FCons x FNil)
+fTake :: SList xs -> g ys -> FList f (xs :++: ys) -> FList f xs
+fTake SNil _ _ = FNil
+fTake (SCons s1) s2 (FCons x xs) = FCons x (fTake s1 s2 xs)
 
-ftake :: SList xs -> SList ys -> FList f (xs :++: ys) -> FList f xs
-ftake SNil _ _ = FNil
-ftake (SCons s1) s2 (FCons x xs) = FCons x (ftake s1 s2 xs)
+fTail :: FList f (a ': xs) -> FList f xs
+fTail (FCons _ xs) = xs
 
+-- TODO refactoring
 -- Merges two ES scripts in an ES3 script.
 diff3 :: (Family f, Metric f) => ES f xs ys -> ES f xs zs -> ES3 f xs ys
-diff3 (Upd o x xs) (Upd o' y ys) = 
+diff3 a@(Upd o x xs) b@(Upd o' y ys) = 
   case aligned o o' of
     (Refl, Refl) -> 
       case (o =?= x, o' =?= y, x =?= y) of
           (Just (Refl, Refl), _, _) -> 
-            let fxs = undefined -- ftake (reifyF x) undefined (collect2 xs)
-                fys = undefined in -- ftake (reifyF y) undefined (collect2 ys) in
-            case agreeCpyUpd x fxs y fys of
-              Just Refl -> Upd3 o y (diff3 xs ys)
-              Nothing -> Cnf3 (CpyUpd x y) (diff3 xs ys)
+              case (collect2 a, collect2 b) of
+                (FCons _ fxs, FCons _ fys) -> 
+                  case eq fxs fys of
+                    Just Refl -> Upd3 o y (diff3 ys xs)  -- Swap
+                    Nothing -> 
+                      let fas = fTake (reifyF x) fxs (collect2 xs)
+                          fbs = fTake (reifyF y) fys (collect2 ys) in
+                        case eq fas fbs of
+                          Just Refl -> Upd3 o y (diff3 xs ys)  -- No Swap
+                          Nothing -> Cnf3 (CpyUpd x y) (diff3 xs ys)
           (_, Just (Refl, Refl), _) -> Upd3 o x (diff3 xs ys)
           (_, _, Just (Refl, Refl)) -> Upd3 o x (diff3 xs ys) -- False positive, the scripts agree
           (_, _, _                ) -> Cnf3 (UpdUpd x y) (diff3 xs ys)
@@ -94,8 +99,12 @@ diff3 a@(Upd o x xs) (Del o' ys) =
           let fa = collect2 a
               fb = collect2 ys in
             case eq fa fb of
-              Just Refl -> Del3 o (diff3 ys xs)
-              Nothing -> Cnf3 (CpyDel o) (diff3 xs ys)  -- TODO here we could also try Del3 o (diff3 xs ys)
+              Just Refl -> Del3 o (diff3 ys xs)  -- Swap
+              Nothing -> 
+                let fxs = fTake (reifyF x) (fTail fa) (collect2 xs) in 
+                  case eq fxs (FCons x FNil) of
+                    Just Refl -> Del3 o (diff3 xs ys) -- No Swap
+                    Nothing -> Cnf3 (CpyDel o) (diff3 xs ys)
         _ -> Cnf3 (UpdDel x o) (diff3 xs ys)
 diff3 (Del o xs) (Upd o' y ys) =
   case aligned o o' of
