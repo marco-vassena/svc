@@ -7,6 +7,8 @@
 
 module Csv where
 
+import Data.HList
+import Repo.Diff
 import Repo.Diff3
 import Data.Proxy
 import Data.Type.Equality
@@ -34,6 +36,16 @@ d01 = gdiff c0 c1
 d02 = gdiff c0 c2
 d03 = gdiff c0 c3
 
+d012 :: ES3 CsvF '[Csv] '[Csv]
+d012 = diff3 d01 d02
+
+c4 :: Csv
+c4 = case patch3 Proxy d012 (DCons c0 DNil) of
+        (DCons x DNil) -> x
+
+d013 :: ES3 CsvF '[Csv] '[Csv]
+d013 = diff3 d02 d03
+
 c1' :: Csv
 c1' = case patch Proxy d01 (DCons c0 DNil) of
         DCons x DNil -> x
@@ -41,6 +53,7 @@ c1' = case patch Proxy d01 (DCons c0 DNil) of
 c2PatchFail :: Csv
 c2PatchFail = case patch Proxy d02 (DCons c1 DNil) of
             DCons x DNil -> x
+
 --------------------------------------------------------------------------------
 data CsvF xs a where
   Int' :: Int -> CsvF '[] Int
@@ -87,6 +100,11 @@ instance Family CsvF where
   ConsInt' =?= ConsInt' = Just (Refl, Refl)
   _ =?= _ = Nothing
 
+  reifyF (Int' _) = slist
+  reifyF NilRow' = slist
+  reifyF NilInt' = slist
+  reifyF ConsRow' = slist
+  reifyF ConsInt' = slist
 instance Metric CsvF where
   distance (Int' x) (Int' y) = if x == y then 0 else 1
   distance NilRow'  NilRow' = 0

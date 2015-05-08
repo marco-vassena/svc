@@ -71,6 +71,7 @@ fTail :: FList f (a ': xs) -> FList f xs
 fTail (FCons _ xs) = xs
 
 -- TODO refactoring
+-- TODO swap error messages
 -- Merges two ES scripts in an ES3 script.
 diff3 :: (Family f, Metric f) => ES f xs ys -> ES f xs zs -> ES3 f xs ys
 diff3 a@(Upd o x xs) b@(Upd o' y ys) = 
@@ -186,3 +187,6 @@ instance Family f => Show (Conflict f) where
   show (UpdDel a b) = "UpdDel " ++ string a ++ " " ++ string b
   show (DelUpd a b) = "DelUpd " ++ string a ++ " " ++ string b
   show (UpdUpd a b) = "UpdUpd " ++ string a ++ " " ++ string b
+  show (BadIns a)   = "BadIns " ++ string a
+  show (CpyDel a)   = "CpyDel " ++ string a
+  show (CpyUpd a b)   = "CpyUpd " ++ string a ++ " " ++ string b

@@ -7,7 +7,8 @@ module Expr where
 
 import Data.HList
 import Data.Proxy -- TODO remove
-import Repo.Diff3 hiding (Add)
+import Repo.Diff
+import Repo.Diff3
 import Data.Type.Equality hiding (build)
 
 data Expr = Add Expr Expr
@@ -29,6 +30,18 @@ e2 = If (IVal 1) (Add (IVal 2) (IVal 3)) (BVal False)
 d01, d02 :: ES ExprF '[Expr] '[Expr]
 d01 = gdiff e0 e1
 d02 = gdiff e0 e2 
+
+-- In this example the first UpdUpd conflict triggers sevevral BadIns conflicts.
+-- Basically after the first conflict the scripts get likely misaligned (typewise)
+-- causing several conflicts on Ins. On the other hand the Del/Upd outcome are
+-- always accurate.
+d012 :: ES3 ExprF '[Expr] '[Expr]
+d012 = diff3 d01 d02
+
+-- In this example, since diff3 is asymmetric and all the Ins comes from d02,
+-- the BadIns conflicts are not triggered. 
+d021 :: ES3 ExprF '[Expr] '[Expr]
+d021 = diff3 d02 d01
 
 e1' :: Expr
 e1' = case patch Proxy d01 (DCons e0 DNil) of
@@ -111,6 +124,13 @@ instance Family ExprF where
   (=?=) If'' If'' = Just (Refl, Refl)
   (=?=) _    _    = Nothing
 
+  reifyF (Int'' _) = slist
+  reifyF (Bool'' _) = slist
+  reifyF IVal'' = slist
+  reifyF BVal'' = slist
+  reifyF Times'' = slist
+  reifyF Add'' = slist
+  reifyF If'' = slist
 
 instance Expr :<: ExprF where
   view _ (Add e1 e2) = View Add'' $ DCons e1 $ DCons e2 DNil
