@@ -27,9 +27,32 @@ e1 = Times (IVal 1) (IVal 3)
 e2 :: Expr
 e2 = If (IVal 1) (Add (IVal 2) (IVal 3)) (BVal False)
 
-d01, d02 :: ES ExprF '[Expr] '[Expr]
+e3 :: Expr
+e3 = Add (IVal 1) (IVal 2)
+
+e4 = If (IVal 1) (IVal 2) (IVal 3)
+--------------------------------------------------------------------------------
+-- Diff
+--------------------------------------------------------------------------------
+
+d01, d02, d03 :: ES ExprF '[Expr] '[Expr]
 d01 = gdiff e0 e1
 d02 = gdiff e0 e2 
+d03 = gdiff e0 e3
+d23 = gdiff e2 e3
+d24 = gdiff e2 e4
+
+e1' :: Expr
+e1' = case patch Proxy d01 (DCons e0 DNil) of
+        DCons x DNil -> x
+
+e2PatchFail :: Expr
+e2PatchFail = case patch Proxy d02 (DCons e1 DNil) of
+                DCons x DNil -> x
+
+--------------------------------------------------------------------------------
+-- Diff3
+--------------------------------------------------------------------------------
 
 -- In this example the first UpdUpd conflict triggers sevevral BadIns conflicts.
 -- Basically after the first conflict the scripts get likely misaligned (typewise)
@@ -43,13 +66,20 @@ d012 = diff3 d01 d02
 d021 :: ES3 ExprF '[Expr] '[Expr]
 d021 = diff3 d02 d01
 
-e1' :: Expr
-e1' = case patch Proxy d01 (DCons e0 DNil) of
+d023 :: ES3 ExprF '[Expr] '[Expr]
+d023 = diff3 d02 d03
+
+e023 :: Expr
+e023 = case patch3 Proxy d023 (DCons e0 DNil) of
         DCons x DNil -> x
 
-e2PatchFail :: Expr
-e2PatchFail = case patch Proxy d02 (DCons e1 DNil) of
-                DCons x DNil -> x
+-- Need to study this more.
+d234 :: ES3 ExprF '[Expr] '[Expr]
+d234 = diff3 d23 d24
+
+e234 :: Expr 
+e234 = case patch3 Proxy d234 (DCons e2 DNil) of
+        DCons x DNil -> x
 
 --------------------------------------------------------------------------------
 

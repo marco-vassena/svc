@@ -16,6 +16,12 @@ import Data.HList
 import Data.Type.Equality
 import Repo.Diff
 
+-- Debugging
+import Debug.Trace
+import Data.List (intercalate)
+
+debug = trace
+
 -- An edit script @ES3 f xs ys zs@ represents is an edit scripts
 -- that represents changes from @xs@ to @ys@ and from @xs@ to @zs@.
 data ES3 f xs ys where
@@ -38,8 +44,17 @@ data Conflict f where
   UpdUpd :: f xs a -> f ys b -> Conflict f
 
   -- Type-related conflicts
+
+  -- An Ins cannot be accepted because the resulting types don't match
   BadIns :: f xs a -> Conflict f
+
+  -- We should Delete but the remaining script types don't match up.
+  -- That is either xs differs from '[ a ] (no swap), or the script from Del is
+  -- different from the script left from Cpy (swap)
   CpyDel :: f xs a -> Conflict f
+
+  -- We should Update but xs differs from ys, therefore the Upd is not type-safe
+  -- (It always works as expected for basic values because xs = ys = [])
   CpyUpd :: f xs a -> f ys a -> Conflict f
 
 -- Applies the edit script to the original object merging changes in different versions
@@ -126,7 +141,7 @@ diff3 e1 e2@(Ins y ys) =
       f1 = collect2 e1 in
   case eq f1 f2 of
     Just Refl -> Ins3 y (diff3 ys e1)
-    Nothing   -> Cnf3 (BadIns y) (diff3 e1 ys)
+    Nothing   -> Cnf3 (BadIns y) $ debug ("(" ++ tys f1 ++ " =/= " ++ tys f2 ++ ")") (diff3 e1 ys)
 diff3 End End = End3
 
 -- Checks whether the two witnesses are the same,
@@ -136,6 +151,13 @@ aligned a b =
   case a =?= b of
     Just (Refl, Refl) -> (Refl, Refl)
     _ -> error $ "Scripts not aligned: " ++ string a ++ " <-> " ++ string b
+
+-- Debugging
+tys :: Family f => FList f xs -> String
+tys fs = "[" ++ intercalate "," (go fs) ++ "]"
+  where go :: Family f => FList f xs -> [String]
+        go FNil = []
+        go (FCons x xs) = string x : go xs
 
 --------------------------------------------------------------------------------
 -- Auxiliary functions and data-types used in the diff3 algorithm

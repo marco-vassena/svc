@@ -13,9 +13,31 @@ import Repo.Diff3
 import Data.Proxy
 import Data.Type.Equality
 
-type Csv = [[Int]]
+type Row = [Int]
 
-c0, c1, c2 :: Csv
+r0, r1, r2 :: Row
+r0 = [1,2,3,4,5,6]
+r1 = [1,4,5,2,3,6]
+r2 = [1,2,4,5,3,6]
+
+r01, r02 :: ES CsvF '[Row] '[Row]
+r01 = gdiff r0 r1
+r02 = gdiff r0 r2
+
+-- Same UpdUpd conflicts detected (but slightly different from GNU diff3).
+-- The reason is that since we are dealing with arbitary tree, (rather than plain lists as
+-- text files are), we match nodes with nodes (embedding), rather than trying to squeeze and
+-- shuffle subtrees around.
+-- [1,4, 4 <-> 5, 2 <-> 5, 3, 6]
+r012, r021 :: ES3 CsvF '[Row] '[Row]
+r012 = diff3 r01 r02
+r021 = diff3 r02 r01
+
+--------------------------------------------------------------------------------
+
+type Csv = [Row]
+
+c0, c1, c2, c3, c4 :: Csv
 c0 = [[1,2,3],
       [4,5,6],
       [7,8,9]]
@@ -30,22 +52,16 @@ c3 = [[1,2,6],
       [4,5,18],
       [7,8,30]]
 
+c4 = [[1,0,0,2,3],
+      [4,9,9,5,6],
+      [7,3,3,8,9]]
 
 d01, d02, d03 :: ES CsvF '[Csv] '[Csv]
 d01 = gdiff c0 c1
 d02 = gdiff c0 c2
 d03 = gdiff c0 c3
 
-d012 :: ES3 CsvF '[Csv] '[Csv]
-d012 = diff3 d01 d02
-
-c4 :: Csv
-c4 = case patch3 Proxy d012 (DCons c0 DNil) of
-        (DCons x DNil) -> x
-
-d013 :: ES3 CsvF '[Csv] '[Csv]
-d013 = diff3 d02 d03
-
+-- Patching
 c1' :: Csv
 c1' = case patch Proxy d01 (DCons c0 DNil) of
         DCons x DNil -> x
@@ -53,6 +69,37 @@ c1' = case patch Proxy d01 (DCons c0 DNil) of
 c2PatchFail :: Csv
 c2PatchFail = case patch Proxy d02 (DCons c1 DNil) of
             DCons x DNil -> x
+
+--------------------------------------------------------------------------------
+-- Diff3 
+
+-- Changes merged with no conflicts
+d012 :: ES3 CsvF '[Csv] '[Csv]
+d012 = diff3 d01 d02
+
+c012 :: Csv
+c012 = case patch3 Proxy d012 (DCons c0 DNil) of
+        (DCons x DNil) -> x
+
+d021 :: ES3 CsvF '[Csv] '[Csv]
+d021 = diff3 d02 d01
+
+c021 :: Csv
+c021 = case patch3 Proxy d021 (DCons c0 DNil) of
+        (DCons x DNil) -> x
+
+-- Example with UpdUpd conflicts
+d013 :: ES3 CsvF '[Csv] '[Csv]
+d013 = diff3 d02 d03
+
+d034 :: ES3 CsvF '[Csv] '[Csv]
+d034 = diff3 d03 d04
+  where d03 = gdiff c0 c3
+        d04 = gdiff c0 c4
+
+c034 :: Csv
+c034 = case patch3 Proxy d034 (DCons c0 DNil) of
+          DCons x DNil -> x
 
 --------------------------------------------------------------------------------
 data CsvF xs a where
