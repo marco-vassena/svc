@@ -9,6 +9,7 @@ import Data.HList
 import Data.Proxy -- TODO remove
 import Repo.Diff
 import Repo.Diff3
+import qualified Repo.Diff3UnTy as U
 import Data.Type.Equality hiding (build)
 
 data Expr = Add Expr Expr

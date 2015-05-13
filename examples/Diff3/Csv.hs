@@ -10,6 +10,7 @@ module Csv where
 import Data.HList
 import Repo.Diff
 import Repo.Diff3
+import qualified Repo.Diff3UnTy as U
 import Data.Proxy
 import Data.Type.Equality
 
@@ -76,6 +77,12 @@ c2PatchFail = case patch Proxy d02 (DCons c1 DNil) of
 -- Changes merged with no conflicts
 d012 :: ES3 CsvF '[Csv] '[Csv]
 d012 = diff3 d01 d02
+
+d012' :: U.ES3 CsvF
+d012' = U.diff3 d01 d02
+
+c012' :: (U.DTree CsvF Csv, U.ES3 CsvF)
+c012' = U.toDTree ConsRow' d012'
 
 c012 :: Csv
 c012 = case patch3 Proxy d012 (DCons c0 DNil) of
@@ -170,3 +177,12 @@ instance [Int] :<: CsvF where
 
 instance Int :<: CsvF where
   view _ i = View (Int' i) DNil
+
+--------------------------------------------------------------------------------
+-- Used for Untyped diff3
+instance U.ToFList CsvF where
+  toFList (Int' _) = FNil
+  toFList NilRow' = FNil
+  toFList NilInt' = FNil
+  toFList ConsInt' = FCons (Int' 0) $ FCons ConsInt' FNil
+  toFList ConsRow' = FCons ConsInt' $ FCons ConsRow' FNil

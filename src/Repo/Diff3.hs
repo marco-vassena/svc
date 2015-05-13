@@ -174,7 +174,7 @@ eq (FCons x xs) (FCons y ys) =
 
 data FList f xs where
   FNil :: FList f '[]
-  FCons :: f as a -> FList f xs -> FList f (a ': xs)
+  FCons :: (a :<: f) => f as a -> FList f xs -> FList f (a ': xs)
 
 fdrop :: SList xs -> FList f (xs :++: ys) -> FList f ys
 fdrop SNil fs = fs
