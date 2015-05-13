@@ -62,6 +62,11 @@ e2PatchFail = case patch Proxy d02 (DCons e1 DNil) of
 d012 :: ES3 ExprF '[Expr] '[Expr]
 d012 = diff3 d01 d02
 
+-- Alternative version with the untyped diff3
+d012' :: U.ES3 ExprF
+d012' = U.diff3 d01 d02
+e012' = U.toDTree Add'' d012'
+
 -- In this example, since diff3 is asymmetric and all the Ins comes from d02,
 -- the BadIns conflicts are not triggered. 
 d021 :: ES3 ExprF '[Expr] '[Expr]
@@ -186,3 +191,11 @@ instance Metric ExprF where
   distance IVal'' IVal'' = 0
   distance _ _ = 1 -- Here we could defined more fine-grained distances
 
+instance U.ToFList ExprF where
+  toFList (Int'' _) = FNil
+  toFList (Bool'' _) = FNil
+  toFList If'' = FCons Add'' $ FCons Add'' $ FCons Add'' $ FNil
+  toFList Add'' = FCons Add'' $ FCons Add'' $ FNil 
+  toFList Times'' = FCons Add'' $ FCons Add'' $ FNil
+  toFList BVal'' = FCons (Bool'' False) FNil
+  toFList IVal'' = FCons (Int'' 0) FNil
