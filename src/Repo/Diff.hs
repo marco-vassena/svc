@@ -230,7 +230,7 @@ class Family f where
   decEq :: f xs a -> f ys b -> Maybe (a :~: b)
   
   -- Succeds only if the singleton types represents exactly the same constructor
-  (=?=) :: Family f => f xs a -> f ys b -> Maybe ( a :~: b , xs :~: ys )
+  (=?=) :: Family f => f xs a -> f ys b -> Maybe ( a :~: b , xs :~: ys ) -- TODO: Remove Family f 
 
   string :: f xs a -> String
   build :: f xs a -> DList f xs -> a

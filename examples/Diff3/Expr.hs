@@ -67,6 +67,9 @@ d012' :: U.ES3 ExprF
 d012' = U.diff3 d01 d02
 e012' = U.toDTree Add'' d012'
 
+d021' = U.diff3 d02 d01
+e021' = U.toDTree Add'' d021'
+
 -- In this example, since diff3 is asymmetric and all the Ins comes from d02,
 -- the BadIns conflicts are not triggered. 
 d021 :: ES3 ExprF '[Expr] '[Expr]
@@ -79,7 +82,6 @@ e023 :: Expr
 e023 = case patch3 Proxy d023 (DCons e0 DNil) of
         DCons x DNil -> x
 
--- Need to study this more.
 d234 :: ES3 ExprF '[Expr] '[Expr]
 d234 = diff3 d23 d24
 
@@ -142,6 +144,7 @@ instance Family ExprF where
   decEq Times'' Add'' = Just Refl
   decEq Times'' If'' = Just Refl
   decEq Add'' IVal'' = Just Refl
+  decEq Add'' BVal'' = Just Refl
   decEq Add'' Add'' = Just Refl
   decEq Add'' Times'' = Just Refl
   decEq Add'' If'' = Just Refl
