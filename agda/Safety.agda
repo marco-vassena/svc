@@ -19,6 +19,8 @@ open import Relation.Binary.PropositionalEquality hiding ([_])
 -- Safety properties
 --------------------------------------------------------------------------------
 
+-- TODO noErase and noMadeUp are more about ES than diff3
+
 -- Source View present in edit script
 data _∈ˢ_ : ∀ {xs ys as a} -> View as a -> ES xs ys -> Set₁ where
   source-∈ : ∀ {as bs cs ds xs ys} {c : Edit as bs cs ds} {i : input c} {e : ES xs ys}
@@ -105,8 +107,6 @@ noMadeUpₒ (target-∈ x) q = noMadeUpAuxₒ refl x q
 --------------------------------------------------------------------------------
 
 -- Similar statements are made on edits operation for diff3.
--- This is a stronger statement than noMadeUp.
-
 noBackOutChanges₁ : ∀ {xs ys zs ws as bs cs ds} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} {d : Edit as bs cs ds} 
                      {{c : change d}} -> d ∈ₑ e₁ -> (e : Diff₃ e₁ e₂ e₃) -> d ∈ₑ e₃
 noBackOutChanges₁ (here (Ins x)) (InsIns .x q) = here (Ins x)
@@ -180,7 +180,7 @@ noEditMadeUp (there End p) d = noEditMadeUp p d
 
 -- xs ⊆ ys , zs is the proof that xs is a list composed from elements of ys and zs
 data _⊆_,_ : List Set -> List Set -> List Set -> Set where
-  [] : [] ⊆ [] , []
+  stop : [] ⊆ [] , []
   cons₁ : ∀ {y xs ys zs} -> xs ⊆ ys , zs -> y ∷ xs ⊆ y ∷ ys , zs
   cons₂ : ∀ {z xs ys zs} -> xs ⊆ ys , zs -> z ∷ xs ⊆ ys , z ∷ zs
   cons₁₂ : ∀ {x xs ys zs} -> xs ⊆ ys , zs -> x ∷ xs ⊆ x ∷ ys , x ∷ zs
@@ -199,55 +199,36 @@ typesOf++ (Node {a = ty} x xs ∷ a) b rewrite
    sym (typesOf++ a b)  
   | ++-assoc (typesOf xs) (typesOf a) (typesOf b) = cong (_∷_ ty) refl
 
-typesOf-dsplit : ∀ {{ws us}} {xs ys zs as bs} {e₀₁ : ES xs ys} {e₀₂ : ES xs zs} -> (p : e₀₁ ~ e₀₂) -> 
-        let e₀₁₂ = diff3 e₀₁ e₀₂ p in (q : e₀₁₂ ↓ (ws ++ us)) ->        
-        let ds = ⟦ toES p q ⟧ in typesOf ds ⊆ as , bs -> 
-        let ds₁ , ds₂ = dsplit ds in typesOf ds₁ ++ typesOf ds₂ ⊆ as , bs 
-typesOf-dsplit p q r rewrite  
-    typesOf++ (proj₁ (dsplit ⟦ toES p q ⟧)) (proj₂ (dsplit ⟦ toES p q ⟧)) 
-  | dsplit-lemma ⟦ toES p q ⟧ = r
+typesOf⟦_⟧ : ∀ {{ys zs}} {xs} (e : ES xs (ys ++ zs)) ->
+              let ds₁ , ds₂ = dsplit ⟦ e ⟧ in typesOf ds₁ ++ typesOf ds₂ ≡ typesOf ⟦ e ⟧
+typesOf⟦ e ⟧ rewrite
+  typesOf++ (proj₁ (dsplit ⟦ e ⟧)) (proj₂ (dsplit ⟦ e ⟧)) 
+  | dsplit-lemma ⟦ e ⟧ = refl
 
-mixOf : ∀ {xs ys zs ws} {t₀ : DList xs} {t₁ : DList ys} {t₂ : DList zs} {e₀₁ : ES xs ys} {e₀₂ : ES xs zs} 
-        -> (p : e₀₁ ~ e₀₂) ->
-        let e₀₁₂ = diff3 e₀₁ e₀₂ p in (q : e₀₁₂ ↓ ws) ->        
-        let t₁₂ = ⟦ toES p q ⟧ in Diff t₀ t₁ e₀₁ -> Diff t₀ t₂ e₀₂ -> typesOf t₁₂ ⊆ typesOf t₁ , typesOf t₂
-mixOf End End End End = []
-mixOf (DelDel x p) (Del .x q) (Del .x c) (Del .x d) = mixOf p q c d
-mixOf (UpdUpd x y z p) q (Upd .x .y c) (Upd .x .z d) with y =?= z
-mixOf (UpdUpd {bs = bs} x y .y p) (Upd {zs = zs} .x .y q) (Upd {ts₃ = ts₃} {ts₄ = ts₄} .x .y c) (Upd {ts₃ = ts₃'} {ts₄ = ts₄'} .x .y d)
-  | yes refl rewrite
-    typesOf++ ts₃ ts₄ 
-  | typesOf++ ts₃' ts₄' = cons₁₂ (typesOf-dsplit p q (mixOf p q c d))
+typesOf-dsplit : ∀ {{ys zs}} {xs as bs} {e : ES xs (ys ++ zs)} ->
+                 let ds₁ , ds₂ = dsplit ⟦ e ⟧ in typesOf ⟦ e ⟧ ⊆ as , bs -> typesOf ds₁ ++ typesOf ds₂ ⊆ as , bs 
+typesOf-dsplit {e = e} q rewrite
+  typesOf⟦ e ⟧ = q
 
-mixOf (UpdUpd x y z p) () (Upd .x .y c) (Upd .x .z d) | no ¬p
-
-mixOf (CpyCpy {as = as} x p) (Cpy {ys = ys} .x q) (Cpy {ts₃ = ts₃} {ts₄ = ts₄} .x c) (Cpy {ts₃ = ts₃'} {ts₄ = ts₄'} .x d) rewrite 
-  typesOf++ ts₃ ts₄ | typesOf++ ts₃' ts₄' = cons₁₂ (typesOf-dsplit p q (mixOf p q c d))
-
-mixOf (CpyDel x p) (Del .x q) (Cpy {ts₃ = ts₃} {ts₄ = ts₄} .x c) (Del .x d) 
-  rewrite typesOf++ ts₃ ts₄ = drop₁ (mixOf p q c d)
-mixOf (DelCpy x p) (Del .x q) (Del .x c) (Cpy {ts₃ = ts₃} {ts₄ = ts₄} .x d) 
-  rewrite typesOf++ ts₃ ts₄ = drop₂ (mixOf p q c d)
-
-mixOf (CpyUpd {bs = bs} x y p) (Upd {zs = zs} .x .y q) (Cpy {ts₃ = ts₃} {ts₄ = ts₄} .x c) (Upd {ts₃ = ts₃'} {ts₄ = ts₄'} .x .y d)   
-  rewrite  typesOf++ ts₃ ts₄ 
-         | typesOf++ ts₃' ts₄' = cons₁₂ (typesOf-dsplit p q (mixOf p q c d))
-
-mixOf (UpdCpy {bs = bs} x y p) (Upd {zs = zs} .x .y q) (Upd {ts₃ = ts₃} {ts₄ = ts₄} .x .y c) (Cpy {ts₃ = ts₃'} {ts₄ = ts₄'} .x d) 
-  rewrite  typesOf++ ts₃ ts₄ 
-         | typesOf++ ts₃' ts₄' = cons₁₂ (typesOf-dsplit p q (mixOf p q c d))
-
-mixOf (DelUpd x y p) () c d
-mixOf (UpdDel x y p) () c d
-mixOf (InsIns {a = a} {b = b} x y p) q (Ins .x c) (Ins .y d) with eq? a b
-mixOf (InsIns x y p) q (Ins .x c) (Ins .y d) | yes refl with x =?= y
-mixOf (InsIns {as = as} x .x p) (Ins {ys = ys} .x q) (Ins {ts₂ = ts₂} {ts₃ = ts₃} .x c) (Ins {ts₂ = ts₂'} {ts₃ = ts₃'} .x d) 
-  | yes refl | yes refl rewrite
-    typesOf++ ts₂ ts₃ | typesOf++ ts₂' ts₃' = cons₁₂ (typesOf-dsplit p q (mixOf p q c d))
-
-mixOf (InsIns x y p) () (Ins .x c) (Ins .y d) | yes refl | no ¬p
-mixOf (InsIns x y p) () (Ins .x c) (Ins .y d) | no ¬p
-mixOf (Ins₁ {as = as} x p) (Ins {ys = ys} .x q) (Ins {ts₂ = ts₂} {ts₃ = ts₃} .x c) d 
-  rewrite typesOf++ ts₂ ts₃ = cons₁ (typesOf-dsplit p q (mixOf p q c d))
-mixOf (Ins₂ {as = as} x p) (Ins {ys = ys} .x q) c (Ins {ts₂ = ts₂} {ts₃ = ts₃} .x d) 
-  rewrite typesOf++ ts₂ ts₃ = cons₂ (typesOf-dsplit p q (mixOf p q c d))
+mixOf : ∀ {xs ys zs ws} {e₀₁ : ES xs ys} {e₀₂ : ES xs zs} {e₀₁₂ : ES xs ws}
+           -> Diff₃ e₀₁ e₀₂ e₀₁₂ -> typesOf ⟦ e₀₁₂ ⟧ ⊆ typesOf ⟦ e₀₁ ⟧ , typesOf ⟦ e₀₂ ⟧
+mixOf End = stop
+mixOf (InsIns {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} x d) rewrite
+  typesOf⟦ e₁ ⟧ | typesOf⟦ e₂ ⟧ | typesOf⟦ e₃ ⟧ = cons₁₂ (mixOf d)
+mixOf (Ins₁ {e₁ = e₁} {e₃ = e₃} x d) rewrite
+  typesOf⟦ e₁ ⟧ | typesOf⟦ e₃ ⟧ = cons₁ (mixOf d)
+mixOf (Ins₂ {e₂ = e₂} {e₃ = e₃} x d) rewrite
+  typesOf⟦ e₂ ⟧ | typesOf⟦ e₃ ⟧ = cons₂ (mixOf d)
+mixOf (DelDel x d) = mixOf d
+mixOf (DelCpy {e₂ = e₂} x d) rewrite
+  typesOf⟦ e₂ ⟧ = drop₂ (mixOf d)
+mixOf (CpyDel {e₁ = e₁} x d) rewrite
+  typesOf⟦ e₁ ⟧ = drop₁ (mixOf d)
+mixOf (CpyCpy {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} x d) rewrite
+  typesOf⟦ e₁ ⟧ | typesOf⟦ e₂ ⟧ | typesOf⟦ e₃ ⟧ = cons₁₂ (mixOf d)
+mixOf (CpyUpd {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} x y d) rewrite
+  typesOf⟦ e₁ ⟧ | typesOf⟦ e₂ ⟧ | typesOf⟦ e₃ ⟧ = cons₁₂ (mixOf d)
+mixOf (UpdCpy {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} x y d) rewrite
+  typesOf⟦ e₁ ⟧ | typesOf⟦ e₂ ⟧ | typesOf⟦ e₃ ⟧ = cons₁₂ (mixOf d)
+mixOf (UpdUpd {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} x y d) rewrite
+  typesOf⟦ e₁ ⟧ | typesOf⟦ e₂ ⟧ | typesOf⟦ e₃ ⟧ = cons₁₂ (mixOf d)
