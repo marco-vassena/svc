@@ -19,12 +19,17 @@ data _⋍_ : ∀ {xs ys a} -> View xs a -> View ys a -> Set where
 postulate eq? : (a b : Set) -> Dec (a ≡ b)
 postulate _=?=_ : ∀ {a xs ys} -> (x : View xs a) (y : View ys a) -> Dec (x ⋍ y)
 
--- TODO Use this instead of eq? and =?= 
+--------------------------------------------------------------------------------
+-- Even though it would be more convenient to work using a single 
+-- comparison function rather than eq? followed by =?=, it turns out
+-- that this produces ill-typed with clause with, preventing any proof. 
 
 -- data _≅_ : ∀ {xs ys a b} -> View xs a -> View ys b -> Set where
 --   refl : ∀ {xs a} {x : View xs a} -> x ≅ x
 
 -- postulate _≟_ : ∀ {a b xs ys} -> (x : View xs a) (y : View ys b) -> Dec (x ≅ y)
+
+--------------------------------------------------------------------------------
 
 open import Data.Nat
 

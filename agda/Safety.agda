@@ -107,70 +107,40 @@ noMadeUpₒ (target-∈ x) q = noMadeUpAuxₒ refl x q
 -- Similar statements are made on edits operation for diff3.
 -- This is a stronger statement than noMadeUp.
 
-noBackOutChanges₁ : ∀ {xs ys zs ws as bs cs ds} {e₁ : ES xs ys} {e₂ : ES xs zs} {d : Edit as bs cs ds} 
-                     {{c : change d}} -> d ∈ₑ e₁ -> (p : e₁ ~ e₂) ->
-                     let e₁₂ = diff3 e₁ e₂ p in (q : e₁₂ ↓ ws) -> d ∈ₑ (toES p q)
-noBackOutChanges₁ (here (Ins x)) (InsIns {a = a} {b = b} .x y p) q with eq? a b
-noBackOutChanges₁ (here (Ins x)) (InsIns .x y p) q | yes refl with x =?= y
-noBackOutChanges₁ (here (Ins x)) (InsIns .x .x p) (Ins .x q) | yes refl | yes refl = here (Ins x)
-noBackOutChanges₁ (here (Ins x)) (InsIns .x y p) () | yes refl | no ¬p
-noBackOutChanges₁ (here (Ins x)) (InsIns .x y p) () | no ¬p
-noBackOutChanges₁ (here (Ins x)) (Ins₁ .x p) (Ins .x q) = here (Ins x)
-noBackOutChanges₁ (here (Ins x)) (Ins₂ y p) (Ins .y q) = there (Ins y) (noBackOutChanges₁ (here (Ins x)) p q)
-noBackOutChanges₁ (here (Del x)) (DelDel .x p) (Del .x q) = here (Del x)
-noBackOutChanges₁ (here (Del x)) (DelCpy .x p) (Del .x q) = here (Del x)
-noBackOutChanges₁ (here (Del x)) (DelUpd .x y p) ()
-noBackOutChanges₁ (here (Del x)) (Ins₂ y p) (Ins .y q) = there (Ins y) (noBackOutChanges₁ (here (Del x)) p q)
-noBackOutChanges₁ {{()}} (here (Cpy x)) p q
-noBackOutChanges₁ (here (Upd x y)) (UpdUpd .x .y z p) q with y =?= z
-noBackOutChanges₁ (here (Upd x y)) (UpdUpd .x .y .y p) (Upd .x .y q) | yes refl = here (Upd x y)
-noBackOutChanges₁ (here (Upd x y)) (UpdUpd .x .y z p) () | no ¬p
-noBackOutChanges₁ (here (Upd x y)) (UpdCpy .x .y p) (Upd .x .y q) = here (Upd x y)
-noBackOutChanges₁ (here (Upd x y)) (UpdDel .x .y p) ()
-noBackOutChanges₁ (here (Upd x y)) (Ins₂ z p) (Ins .z q) = there (Ins z) (noBackOutChanges₁ (here (Upd x y)) p q)
-noBackOutChanges₁ {{()}} (here End) p q
-noBackOutChanges₁ (there (Ins x) r) (InsIns {a = a} {b = b} .x y p) q with eq? a b
-noBackOutChanges₁ (there (Ins x) r) (InsIns .x y p) q | yes refl with x =?= y
-noBackOutChanges₁ (there (Ins x) r) (InsIns .x .x p) (Ins .x q) | yes refl | yes refl = there (Ins x) (noBackOutChanges₁ r p q)
-noBackOutChanges₁ (there (Ins x) r) (InsIns .x y p₁) () | yes refl | no ¬p
-noBackOutChanges₁ (there (Ins x) r) (InsIns .x y p) () | no ¬p
-noBackOutChanges₁ (there (Ins x) r) (Ins₁ .x p) (Ins .x q) = there (Ins x) (noBackOutChanges₁ r p q)
-noBackOutChanges₁ (there (Ins x) r) (Ins₂ y p) (Ins .y q) = there (Ins y) (noBackOutChanges₁ (there (Ins x) r) p q)
-noBackOutChanges₁ (there (Del x) r) (DelDel .x p) (Del .x q) = there (Del x) (noBackOutChanges₁ r p q)
-noBackOutChanges₁ (there (Del x) r) (DelCpy .x p) (Del .x q) = there (Del x) (noBackOutChanges₁ r p q)
-noBackOutChanges₁ (there (Del x) r) (DelUpd .x y p) ()
-noBackOutChanges₁ (there (Del x) r) (Ins₂ y p) (Ins .y q) = there (Ins y) (noBackOutChanges₁ (there (Del x) r) p q)
-noBackOutChanges₁ (there (Cpy x) r) (CpyCpy .x p) (Cpy .x q) = there (Cpy x) (noBackOutChanges₁ r p q)
-noBackOutChanges₁ (there (Cpy x) r) (CpyDel .x p) (Del .x q) = there (Del x) (noBackOutChanges₁ r p q)
-noBackOutChanges₁ (there (Cpy x) r) (CpyUpd .x y p) (Upd .x .y q) = there (Upd x y) (noBackOutChanges₁ r p q)
-noBackOutChanges₁ (there (Cpy x) r) (Ins₂ y p) (Ins .y q) = there (Ins y) (noBackOutChanges₁ (there (Cpy x) r) p q)
-noBackOutChanges₁ (there (Upd x y) r) (UpdUpd .x .y z p) q with y =?= z
-noBackOutChanges₁ (there (Upd x y) r) (UpdUpd .x .y .y p) (Upd .x .y q) | yes refl = there (Upd x y) (noBackOutChanges₁ r p q)
-noBackOutChanges₁ (there (Upd x y) r) (UpdUpd .x .y z p) () | no ¬p
-noBackOutChanges₁ (there (Upd x y) r) (UpdCpy .x .y p) (Upd .x .y q) = there (Upd x y) (noBackOutChanges₁ r p q)
-noBackOutChanges₁ (there (Upd x y) r) (UpdDel .x .y p) ()
-noBackOutChanges₁ (there (Upd x y) r) (Ins₂ z p) (Ins .z q) = there (Ins z) (noBackOutChanges₁ (there (Upd x y) r) p q)
-noBackOutChanges₁ (there End r) p q = noBackOutChanges₁ r p q
+noBackOutChanges₁ : ∀ {xs ys zs ws as bs cs ds} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} {d : Edit as bs cs ds} 
+                     {{c : change d}} -> d ∈ₑ e₁ -> (e : Diff₃ e₁ e₂ e₃) -> d ∈ₑ e₃
+noBackOutChanges₁ (here (Ins x)) (InsIns .x q) = here (Ins x)
+noBackOutChanges₁ (here (Ins x)) (Ins₁ .x q) = here (Ins x)
+noBackOutChanges₁ (here (Ins x)) (Ins₂ y q) = there (Ins y) (noBackOutChanges₁ (here (Ins x)) q)
+noBackOutChanges₁ (here (Del x)) (Ins₂ y q) = there (Ins y) (noBackOutChanges₁ (here (Del x)) q)
+noBackOutChanges₁ (here (Del x)) (DelDel .x q) = here (Del x)
+noBackOutChanges₁ (here (Del x)) (DelCpy .x q) = here (Del x)
+noBackOutChanges₁ {{c = ()}} (here (Cpy x)) q
+noBackOutChanges₁ (here (Upd x y)) (Ins₂ z q) = there (Ins z) (noBackOutChanges₁ (here (Upd x y)) q)
+noBackOutChanges₁ (here (Upd x y)) (UpdCpy .x .y q) = here (Upd x y)
+noBackOutChanges₁ (here (Upd x y)) (UpdUpd .x .y q) = here (Upd x y)
+noBackOutChanges₁ {{c = ()}} (here End) q
+noBackOutChanges₁ (there (Ins x) p) (InsIns .x q) = there (Ins x) (noBackOutChanges₁ p q)
+noBackOutChanges₁ (there (Ins x) p) (Ins₁ .x q) = there (Ins x) (noBackOutChanges₁ p q)
+noBackOutChanges₁ (there (Ins x) p) (Ins₂ y q) = there (Ins y) (noBackOutChanges₁ (there (Ins x) p) q)
+noBackOutChanges₁ (there (Del x) p) (Ins₂ y q) = there (Ins y) (noBackOutChanges₁ (there (Del x) p) q)
+noBackOutChanges₁ (there (Del x) p) (DelDel .x q) = there (Del x) (noBackOutChanges₁ p q)
+noBackOutChanges₁ (there (Del x) p) (DelCpy .x q) = there (Del x) (noBackOutChanges₁ p q)
+noBackOutChanges₁ (there (Cpy x) p) (Ins₂ y q) = there (Ins y) (noBackOutChanges₁ (there (Cpy x) p) q)
+noBackOutChanges₁ (there (Cpy x) p) (CpyDel .x q) = there (Del x) (noBackOutChanges₁ p q)
+noBackOutChanges₁ (there (Cpy x) p) (CpyCpy .x q) = there (Cpy x) (noBackOutChanges₁ p q)
+noBackOutChanges₁ (there (Cpy x) p) (CpyUpd .x y q) = there (Upd x y) (noBackOutChanges₁ p q)
+noBackOutChanges₁ (there (Upd x y) p) (Ins₂ z q) = there (Ins z) (noBackOutChanges₁ (there (Upd x y) p) q)
+noBackOutChanges₁ (there (Upd x y) p) (UpdCpy .x .y q) = there (Upd x y) (noBackOutChanges₁ p q)
+noBackOutChanges₁ (there (Upd x y) p) (UpdUpd .x .y q) = there (Upd x y) (noBackOutChanges₁ p q)
+noBackOutChanges₁ (there End p) q = noBackOutChanges₁ p q
 
--- Troubles to define this. The issue is that the with
--- clause produces an ill-typed function ... but how do I fix it?
-postulate toES-sym : ∀ {xs ys zs ws} {e₀₁ : ES xs ys} {e₀₂ : ES xs zs} (p : e₀₁ ~ e₀₂) -> 
-           let e₀₁₂ = diff3 e₀₁ e₀₂ p in (q : e₀₁₂ ↓ ws) -> toES p q ≡ toES (~-sym p) (↓-sym p q)
--- toES-sym p q 
---  rewrite sym (diff3-sym p (diff3-wt p q)) = {!!}
-
---  with diff3 _ _ p | diff3-sym p (diff3-wt p q)
--- ... | e | a = {!!}
-
-noBackOutChanges₂ : ∀ {xs ys zs ws as bs cs ds} {e₁ : ES xs ys} {e₂ : ES xs zs} {d : Edit as bs cs ds} 
-                     {{c : change d}} -> d ∈ₑ e₂ -> (p : e₁ ~ e₂) ->
-                     let e₁₂ = diff3 e₁ e₂ p in (q : e₁₂ ↓ ws) -> d ∈ₑ (toES p q)
-noBackOutChanges₂ r p q 
-  rewrite toES-sym p q = noBackOutChanges₁ r (~-sym p) (↓-sym p q)
+noBackOutChanges₂ : ∀ {xs ys zs ws as bs cs ds} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} {d : Edit as bs cs ds} 
+                     {{c : change d}} -> d ∈ₑ e₂ -> (e : Diff₃ e₁ e₂ e₃) -> d ∈ₑ e₃
+noBackOutChanges₂ p q = noBackOutChanges₁ p (Diff₃-sym q)
 
 open import Data.Sum
 import Data.Sum as S
-
 
 -- The sum type ⊎ corresponds to disjunction in logic (∨).
 -- An edit can belong to both the script and in those cases I default to inj₁.

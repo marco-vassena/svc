@@ -277,6 +277,17 @@ diff3-sym (InsIns x y p) () | no ¬p
 diff3-sym (Ins₁ x p) (Ins .x q) = cong (Ins x) (diff3-sym p q)
 diff3-sym (Ins₂ x p) (Ins .x q) = cong (Ins x) (diff3-sym p q)
 
+-- Troubles to define this. The issue is that the with
+-- clause produces an ill-typed function ... but how do I fix it?
+-- postulate toES-sym : ∀ {xs ys zs ws} {e₀₁ : ES xs ys} {e₀₂ : ES xs zs} (p : e₀₁ ~ e₀₂) -> 
+--            let e₀₁₂ = diff3 e₀₁ e₀₂ p in (q : e₀₁₂ ↓ ws) -> toES p q ≡ toES (~-sym p) (↓-sym p q)
+-- toES-sym p q 
+--  rewrite sym (diff3-sym p (diff3-wt p q)) = {!!}
+
+--  with diff3 _ _ p | diff3-sym p (diff3-wt p q)
+-- ... | e | a = {!!}
+
+
 --------------------------------------------------------------------------------
 
 -- well-typedness is symmetric
@@ -365,3 +376,71 @@ diff₃-nec (Ins₂ x p) (Ins .x q) (Ins₂ .x d) = cong (Ins x) (diff₃-nec p 
 -- Therefore, being uniquely determined by Diff₃, we can prove facts about 
 -- diff3 using Diff₃, which is much convinient as it results in simpler
 -- and shorter proofs.
+
+diff3~ : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} 
+           -> Diff₃ e₁ e₂ e₃ -> e₁ ~ e₂
+diff3~ End = End
+diff3~ (InsIns x d) = InsIns x x (diff3~ d)
+diff3~ (Ins₁ x d) = Ins₁ x (diff3~ d)
+diff3~ (Ins₂ x d) = Ins₂ x (diff3~ d)
+diff3~ (DelDel x d) = DelDel x (diff3~ d)
+diff3~ (DelCpy x d) = DelCpy x (diff3~ d)
+diff3~ (CpyDel x d) = CpyDel x (diff3~ d)
+diff3~ (CpyCpy x d) = CpyCpy x (diff3~ d)
+diff3~ (CpyUpd x y d) = CpyUpd x y (diff3~ d)
+diff3~ (UpdCpy x y d) = UpdCpy x y (diff3~ d)
+diff3~ (UpdUpd x y d) = UpdUpd x y y (diff3~ d)
+
+diff3↓ : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} 
+           -> (d : Diff₃ e₁ e₂ e₃) -> diff3 e₁ e₂ (diff3~ d) ↓ ws
+diff3↓ End = End
+diff3↓ (InsIns {a = a} x d) with eq? a a
+diff3↓ (InsIns x d) | yes refl with x =?= x
+diff3↓ (InsIns x d) | yes refl | yes refl = Ins x (diff3↓ d)
+diff3↓ (InsIns x d) | yes refl | no ¬p = ⊥-elim (¬p refl)
+diff3↓ (InsIns x d) | no ¬p = ⊥-elim (¬p refl)
+diff3↓ (Ins₁ x d) = Ins x (diff3↓ d)
+diff3↓ (Ins₂ x d) = Ins x (diff3↓ d)
+diff3↓ (DelDel x d) = Del x (diff3↓ d)
+diff3↓ (DelCpy x d) = Del x (diff3↓ d)
+diff3↓ (CpyDel x d) = Del x (diff3↓ d)
+diff3↓ (CpyCpy x d) = Cpy x (diff3↓ d)
+diff3↓ (CpyUpd x y d) = Upd x y (diff3↓ d)
+diff3↓ (UpdCpy x y d) = Upd x y (diff3↓ d)
+diff3↓ (UpdUpd x y d) with y =?= y
+diff3↓ (UpdUpd x y d) | yes refl = Upd x y (diff3↓ d)
+diff3↓ (UpdUpd x y d) | no ¬p = ⊥-elim (¬p refl)
+
+-- I would like to prove symmetricity of Diff₃ reusing diff3-sym
+-- but at best I stumble upon ill-formed with clause
+-- diff3-sym' : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} 
+--              -> Diff₃ e₁ e₂ e₃ -> Diff₃ e₂ e₁ e₃
+-- diff3-sym' d  with diff3~ d | diff3↓ d
+-- ... | p | q with inspect (diff3 _ _) p | inspect (diff3 _ _) (~-sym p)
+-- diff3-sym' d | p | q | Reveal_is_.[ refl ] | Reveal_is_.[ refl ] with diff₃-suf p q | diff₃-suf (~-sym p) (↓-sym p q)
+-- ... | a | b with diff₃-nec p q a | diff₃-nec (~-sym p) (↓-sym p q) b
+-- diff3-sym' d | p | q | Reveal_is_.[ refl ] | Reveal_is_.[ refl ] | a | b | refl | refl 
+--   with diff₃-nec p q a | diff₃-nec (~-sym p) (↓-sym p q) b
+-- diff3-sym' d | p | q | Reveal_is_.[ refl ] | Reveal_is_.[ refl ] | a | b | refl | refl | refl | refl = {!!}
+
+-- diff3-sym' d | p | q | Reveal_is_.[ refl ] with inspect (toES p) q
+-- diff3-sym' d | p | q | Reveal_is_.[ refl ] | Reveal_is_.[ refl ] with diff₃-nec p q d
+-- ... | r = {!!}
+
+-- with toES (diff3~ d) (diff3↓ d) | diff₃-nec (diff3~ d) (diff3↓ d) d
+-- diff3-sym' d | e₃ | p with diff3-sym (diff3~ d) (diff3-wt (diff3~ d) (diff3↓ d)) 
+-- ... | a = {!!}
+
+Diff₃-sym : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} 
+            -> Diff₃ e₁ e₂ e₃ -> Diff₃ e₂ e₁ e₃
+Diff₃-sym End = End
+Diff₃-sym (InsIns x d) = InsIns x (Diff₃-sym d)
+Diff₃-sym (Ins₁ x d) = Ins₂ x (Diff₃-sym d)
+Diff₃-sym (Ins₂ x d) = Ins₁ x (Diff₃-sym d)
+Diff₃-sym (DelDel x d) = DelDel x (Diff₃-sym d)
+Diff₃-sym (DelCpy x d) = CpyDel x (Diff₃-sym d)
+Diff₃-sym (CpyDel x d) = DelCpy x (Diff₃-sym d)
+Diff₃-sym (CpyCpy x d) = CpyCpy x (Diff₃-sym d)
+Diff₃-sym (CpyUpd x y d) = UpdCpy x y (Diff₃-sym d)
+Diff₃-sym (UpdCpy x y d) = CpyUpd x y (Diff₃-sym d)
+Diff₃-sym (UpdUpd x y d) = UpdUpd x y (Diff₃-sym d)
