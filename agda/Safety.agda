@@ -19,162 +19,176 @@ open import Relation.Binary.PropositionalEquality hiding ([_])
 -- Safety properties
 --------------------------------------------------------------------------------
 
-data _∈₃_ : ∀ {xs a} -> View xs a -> ES₃ -> Set where
-  hereIns : ∀ {e xs a} (x : View xs a) -> x ∈₃ Ins x e
-  hereDel : ∀ {e xs a} (x : View xs a) -> x ∈₃ Del x e
-  hereUpd₁ : ∀ {e xs ys a} (x : View xs a) (y : View ys a) -> x ∈₃ Upd x y e
-  hereUpd₂ : ∀ {e xs ys a} (x : View xs a) (y : View ys a) -> y ∈₃ Upd x y e
-  hereCpy : ∀ {e xs a} (x : View xs a) -> x ∈₃ Cpy x e
-  thereIns : ∀ {e xs ys b a}{y : View ys b} (x : View xs a) -> y ∈₃ e -> y ∈₃ Ins x e
-  thereDel : ∀ {e xs ys a b} {y : View ys b} (x : View xs a) -> y ∈₃ e -> y ∈₃ Del x e
-  thereUpd : ∀ {e xs ys zs a b} {z : View zs b} (x : View xs a) (y : View ys a) -> z ∈₃ e -> z ∈₃ Upd x y e
-  thereCpy : ∀ {e xs ys b a} {y : View ys b} (x : View xs a) -> y ∈₃ e -> y ∈₃ Cpy x e
+-- Source View present in edit script
+data _∈ˢ_ : ∀ {xs ys as a} -> View as a -> ES xs ys -> Set₁ where
+  source-∈ : ∀ {as bs cs ds xs ys} {c : Edit as bs cs ds} {i : input c} {e : ES xs ys}
+           -> c ∈ₑ e -> ⌜ c ⌝ ∈ˢ e 
+
+-- Every term in the input tree is found as source in the edit script
+noErase : ∀ {xs ys as a} {α : View as a} {x : DList xs} {y : DList ys} {e : ES xs ys}
+            -> Diff x y e -> α ∈ x -> α ∈ˢ e
+noErase (Del α p) (∈-here .α) = source-∈ (here (Del α))
+noErase (Upd α y p) (∈-here .α) = source-∈ (here (Upd α y))
+noErase (Cpy α p) (∈-here .α) = source-∈ (here (Cpy α))
+noErase (Ins y p) (∈-here α) with noErase p (∈-here α)
+noErase (Ins y p₁) (∈-here ._) | source-∈ {i = i} x = source-∈ {i = i} (there (Ins y) x)
+noErase (Del y p) (∈-there q) with noErase p q
+noErase (Del y p) (∈-there q) | source-∈ {i = i} x = source-∈ {i = i} (there (Del y) x)
+noErase (Upd y z p) (∈-there q) with noErase p q
+noErase (Upd y z p) (∈-there q) | source-∈ {i = i} x = source-∈ {i = i} (there (Upd y z) x)
+noErase (Cpy y p) (∈-there q) with noErase p q
+noErase (Cpy y p) (∈-there q) | source-∈ {i = i} x = source-∈ {i = i} (there (Cpy y) x)
+noErase (Ins y p) (∈-there q) with noErase p (∈-there q)
+noErase (Ins y p) (∈-there q) | source-∈ {i = i} x = source-∈ {i = i} (there (Ins y) x)
+
+-- Target view present in edit script
+data _∈ₒ_ : ∀ {xs ys as a} -> View as a -> ES xs ys -> Set₁ where
+  target-∈ : ∀ {as bs cs ds xs ys} {c : Edit as bs cs ds} {o : output c} {e : ES xs ys}
+           -> c ∈ₑ e -> ⌞ c ⌟ ∈ₒ e 
+
+noEraseₒ : ∀ {xs ys as a} {α : View as a} {x : DList xs} {y : DList ys} {e : ES xs ys}
+            -> Diff x y e -> α ∈ y -> α ∈ₒ e
+noEraseₒ End ()
+noEraseₒ (Del x p) q with noEraseₒ p q
+noEraseₒ (Del x p) q | target-∈ {o = o} r = target-∈ {o = o} (there (Del x) r)
+noEraseₒ (Upd x α p) (∈-here .α) = target-∈ (here (Upd x α))
+noEraseₒ (Upd x y p) (∈-there q) with noEraseₒ p q
+noEraseₒ (Upd x y p) (∈-there q) | target-∈ {o = o} r = target-∈ {o = o} (there (Upd x y) r)
+noEraseₒ (Cpy α p) (∈-here .α) = target-∈ (here (Cpy α))
+noEraseₒ (Cpy x p) (∈-there q) with noEraseₒ p q
+noEraseₒ (Cpy x p) (∈-there q) | target-∈ {o = o} r = target-∈ {o = o} (there (Cpy x) r)
+noEraseₒ (Ins α p) (∈-here .α) = target-∈ (here (Ins α))
+noEraseₒ (Ins y p) (∈-there q) with noEraseₒ p q 
+noEraseₒ (Ins y p) (∈-there q) | target-∈ {o = o} r = target-∈ {o = o} (there (Ins y) r)
+
+-- data _∈₃_ : ∀ {xs a} -> View xs a -> ES₃ -> Set where
+--   hereIns : ∀ {e xs a} (x : View xs a) -> x ∈₃ Ins x e
+--   hereDel : ∀ {e xs a} (x : View xs a) -> x ∈₃ Del x e
+--   hereUpd₁ : ∀ {e xs ys a} (x : View xs a) (y : View ys a) -> x ∈₃ Upd x y e
+--   hereUpd₂ : ∀ {e xs ys a} (x : View xs a) (y : View ys a) -> y ∈₃ Upd x y e
+--   hereCpy : ∀ {e xs a} (x : View xs a) -> x ∈₃ Cpy x e
+--   thereIns : ∀ {e xs ys b a}{y : View ys b} (x : View xs a) -> y ∈₃ e -> y ∈₃ Ins x e
+--   thereDel : ∀ {e xs ys a b} {y : View ys b} (x : View xs a) -> y ∈₃ e -> y ∈₃ Del x e
+--   thereUpd : ∀ {e xs ys zs a b} {z : View zs b} (x : View xs a) (y : View ys a) -> z ∈₃ e -> z ∈₃ Upd x y e
+--   thereCpy : ∀ {e xs ys b a} {y : View ys b} (x : View xs a) -> y ∈₃ e -> y ∈₃ Cpy x e
 
 
-data _∈₂_ : ∀ {xs ys as a} -> View as a -> ES xs ys -> Set where
-  hereIns : ∀ {as xs ys a} {e : ES xs (as ++ ys)} -> (x : View as a) -> x ∈₂ Ins x e
-  hereCpy : ∀ {as xs ys a} {e : ES (as ++ xs) (as ++ ys)} -> (x : View as a) -> x ∈₂ Cpy x e
-  hereUpd₁ : ∀ {as bs xs ys a} {e : ES (as ++ xs) (bs ++ ys)} -> (x : View as a) (y : View bs a) -> x ∈₂ Upd x y e
-  hereUpd₂ : ∀ {as bs xs ys a} {e : ES (as ++ xs) (bs ++ ys)} -> (x : View as a) (y : View bs a) -> y ∈₂ Upd x y e
-  hereDel : ∀ {as xs ys a} {e : ES (as ++ xs) ys} -> (x : View as a) -> x ∈₂ Del x e
-  thereDel : ∀ {xs ys as bs a b} {e : ES (as ++ xs) ys} {x : View as a} {y : View bs b}
-             -> y ∈₂ e -> y ∈₂ Del x e 
-  thereIns : ∀ {xs ys as bs a b} {e : ES xs (as ++ ys)} {x : View as a} {y : View bs b}
-             -> y ∈₂ e -> y ∈₂ Ins x e 
-  thereCpy : ∀ {xs ys as bs a b} {e : ES (as ++ xs) (as ++ ys)} {x : View as a} {y : View bs b}
-             -> y ∈₂ e -> y ∈₂ Cpy x e 
-  thereUpd : ∀ {xs ys as bs cs a c} {e : ES (as ++ xs) (bs ++ ys)} {x : View as a} {y : View bs a} {z : View cs c}
-             -> z ∈₂ e -> z ∈₂ Upd x y e
+-- data _∈₂_ : ∀ {xs ys as a} -> View as a -> ES xs ys -> Set where
+--   hereIns : ∀ {as xs ys a} {e : ES xs (as ++ ys)} -> (x : View as a) -> x ∈₂ Ins x e
+--   hereCpy : ∀ {as xs ys a} {e : ES (as ++ xs) (as ++ ys)} -> (x : View as a) -> x ∈₂ Cpy x e
+--   hereUpd₁ : ∀ {as bs xs ys a} {e : ES (as ++ xs) (bs ++ ys)} -> (x : View as a) (y : View bs a) -> x ∈₂ Upd x y e
+--   hereUpd₂ : ∀ {as bs xs ys a} {e : ES (as ++ xs) (bs ++ ys)} -> (x : View as a) (y : View bs a) -> y ∈₂ Upd x y e
+--   hereDel : ∀ {as xs ys a} {e : ES (as ++ xs) ys} -> (x : View as a) -> x ∈₂ Del x e
+--   thereDel : ∀ {xs ys as bs a b} {e : ES (as ++ xs) ys} {x : View as a} {y : View bs b}
+--              -> y ∈₂ e -> y ∈₂ Del x e 
+--   thereIns : ∀ {xs ys as bs a b} {e : ES xs (as ++ ys)} {x : View as a} {y : View bs b}
+--              -> y ∈₂ e -> y ∈₂ Ins x e 
+--   thereCpy : ∀ {xs ys as bs a b} {e : ES (as ++ xs) (as ++ ys)} {x : View as a} {y : View bs b}
+--              -> y ∈₂ e -> y ∈₂ Cpy x e 
+--   thereUpd : ∀ {xs ys as bs cs a c} {e : ES (as ++ xs) (bs ++ ys)} {x : View as a} {y : View bs a} {z : View cs c}
+--              -> z ∈₂ e -> z ∈₂ Upd x y e
 
-open import Data.Sum
-import Data.Sum as S
+-- open import Data.Sum
+-- import Data.Sum as S
 
--- Data is not made up
+-- -- Data is not made up
 
-dataNotMadeUp : ∀ {xs ys zs ws a} {e₁ : ES xs ys} {e₂ : ES xs zs} {x : View ws a} (p : e₁ ~ e₂) ->
-                      let e₁₂ = diff3 e₁ e₂ p in x ∈₃ e₁₂ -> x ∈₂ e₁ ⊎ x ∈₂ e₂
-dataNotMadeUp End ()
-dataNotMadeUp (DelDel x p) (hereDel .x) = inj₁ (hereDel x)
-dataNotMadeUp (DelDel x p) (thereDel .x q) = S.map thereDel thereDel (dataNotMadeUp p q)
-dataNotMadeUp (UpdUpd x y z p) q with y =?= z
-dataNotMadeUp (UpdUpd x y .y p) (hereUpd₁ .x .y) | yes refl = inj₁ (hereUpd₁ x y)
-dataNotMadeUp (UpdUpd x y .y p) (hereUpd₂ .x .y) | yes refl = inj₁ (hereUpd₂ x y)
-dataNotMadeUp (UpdUpd x y .y p) (thereUpd .x .y q) | yes refl = S.map thereUpd thereUpd (dataNotMadeUp p q)
-dataNotMadeUp (UpdUpd x y z p) () | no ¬p
-dataNotMadeUp (CpyCpy x p) (hereCpy .x) = inj₁ (hereCpy x)
-dataNotMadeUp (CpyCpy x p) (thereCpy .x q) = S.map thereCpy thereCpy (dataNotMadeUp p q)
-dataNotMadeUp (CpyDel x p) (hereDel .x) = inj₂ (hereDel x)
-dataNotMadeUp (CpyDel x p) (thereDel .x q) = S.map thereCpy thereDel (dataNotMadeUp p q)
-dataNotMadeUp (DelCpy x p) (hereDel .x) = inj₁ (hereDel x)
-dataNotMadeUp (DelCpy x p) (thereDel .x q) = S.map thereDel thereCpy (dataNotMadeUp p q)
-dataNotMadeUp (CpyUpd x y p) (hereUpd₁ .x .y) = inj₂ (hereUpd₁ x y)
-dataNotMadeUp (CpyUpd x y p) (hereUpd₂ .x .y) = inj₂ (hereUpd₂ x y)
-dataNotMadeUp (CpyUpd x y p) (thereUpd .x .y q) = S.map thereCpy thereUpd (dataNotMadeUp p q)
-dataNotMadeUp (UpdCpy x y p) (hereUpd₁ .x .y) = inj₁ (hereUpd₁ x y)
-dataNotMadeUp (UpdCpy x y p) (hereUpd₂ .x .y) = inj₁ (hereUpd₂ x y)
-dataNotMadeUp (UpdCpy x y p) (thereUpd .x .y q) = S.map thereUpd thereCpy (dataNotMadeUp p q)
-dataNotMadeUp (DelUpd x₁ y p) ()
-dataNotMadeUp (UpdDel x₁ y p) ()
-dataNotMadeUp (InsIns {a = a} {b = b} x y p) q with eq? a b
-dataNotMadeUp (InsIns x y p) q | yes refl with x =?= y
-dataNotMadeUp (InsIns x .x p) (hereIns .x) | yes refl | yes refl = inj₁ (hereIns x)
-dataNotMadeUp (InsIns x .x p) (thereIns .x q) | yes refl | yes refl = S.map thereIns thereIns (dataNotMadeUp p q)
-dataNotMadeUp (InsIns x y p) () | yes refl | no ¬p
-dataNotMadeUp (InsIns x y p) () | no ¬pope
-dataNotMadeUp (Ins₁ x p) (hereIns .x) = inj₁ (hereIns x)
-dataNotMadeUp (Ins₁ x p) (thereIns .x q) = S.map thereIns id (dataNotMadeUp p q)
-dataNotMadeUp (Ins₂ x p) (hereIns .x) = inj₂ (hereIns x)
-dataNotMadeUp (Ins₂ x₁ p) (thereIns .x₁ q) = S.map id thereIns (dataNotMadeUp p q)
+-- dataNotMadeUp : ∀ {xs ys zs ws a} {e₁ : ES xs ys} {e₂ : ES xs zs} {x : View ws a} (p : e₁ ~ e₂) ->
+--                       let e₁₂ = diff3 e₁ e₂ p in x ∈₃ e₁₂ -> x ∈₂ e₁ ⊎ x ∈₂ e₂
+-- dataNotMadeUp End ()
+-- dataNotMadeUp (DelDel x p) (hereDel .x) = inj₁ (hereDel x)
+-- dataNotMadeUp (DelDel x p) (thereDel .x q) = S.map thereDel thereDel (dataNotMadeUp p q)
+-- dataNotMadeUp (UpdUpd x y z p) q with y =?= z
+-- dataNotMadeUp (UpdUpd x y .y p) (hereUpd₁ .x .y) | yes refl = inj₁ (hereUpd₁ x y)
+-- dataNotMadeUp (UpdUpd x y .y p) (hereUpd₂ .x .y) | yes refl = inj₁ (hereUpd₂ x y)
+-- dataNotMadeUp (UpdUpd x y .y p) (thereUpd .x .y q) | yes refl = S.map thereUpd thereUpd (dataNotMadeUp p q)
+-- dataNotMadeUp (UpdUpd x y z p) () | no ¬p
+-- dataNotMadeUp (CpyCpy x p) (hereCpy .x) = inj₁ (hereCpy x)
+-- dataNotMadeUp (CpyCpy x p) (thereCpy .x q) = S.map thereCpy thereCpy (dataNotMadeUp p q)
+-- dataNotMadeUp (CpyDel x p) (hereDel .x) = inj₂ (hereDel x)
+-- dataNotMadeUp (CpyDel x p) (thereDel .x q) = S.map thereCpy thereDel (dataNotMadeUp p q)
+-- dataNotMadeUp (DelCpy x p) (hereDel .x) = inj₁ (hereDel x)
+-- dataNotMadeUp (DelCpy x p) (thereDel .x q) = S.map thereDel thereCpy (dataNotMadeUp p q)
+-- dataNotMadeUp (CpyUpd x y p) (hereUpd₁ .x .y) = inj₂ (hereUpd₁ x y)
+-- dataNotMadeUp (CpyUpd x y p) (hereUpd₂ .x .y) = inj₂ (hereUpd₂ x y)
+-- dataNotMadeUp (CpyUpd x y p) (thereUpd .x .y q) = S.map thereCpy thereUpd (dataNotMadeUp p q)
+-- dataNotMadeUp (UpdCpy x y p) (hereUpd₁ .x .y) = inj₁ (hereUpd₁ x y)
+-- dataNotMadeUp (UpdCpy x y p) (hereUpd₂ .x .y) = inj₁ (hereUpd₂ x y)
+-- dataNotMadeUp (UpdCpy x y p) (thereUpd .x .y q) = S.map thereUpd thereCpy (dataNotMadeUp p q)
+-- dataNotMadeUp (DelUpd x₁ y p) ()
+-- dataNotMadeUp (UpdDel x₁ y p) ()
+-- dataNotMadeUp (InsIns {a = a} {b = b} x y p) q with eq? a b
+-- dataNotMadeUp (InsIns x y p) q | yes refl with x =?= y
+-- dataNotMadeUp (InsIns x .x p) (hereIns .x) | yes refl | yes refl = inj₁ (hereIns x)
+-- dataNotMadeUp (InsIns x .x p) (thereIns .x q) | yes refl | yes refl = S.map thereIns thereIns (dataNotMadeUp p q)
+-- dataNotMadeUp (InsIns x y p) () | yes refl | no ¬p
+-- dataNotMadeUp (InsIns x y p) () | no ¬pope
+-- dataNotMadeUp (Ins₁ x p) (hereIns .x) = inj₁ (hereIns x)
+-- dataNotMadeUp (Ins₁ x p) (thereIns .x q) = S.map thereIns id (dataNotMadeUp p q)
+-- dataNotMadeUp (Ins₂ x p) (hereIns .x) = inj₂ (hereIns x)
+-- dataNotMadeUp (Ins₂ x₁ p) (thereIns .x₁ q) = S.map id thereIns (dataNotMadeUp p q)
 
--- Change does not include Cpy.
--- Since this edit does not actually introduce any change, it might be backed out with an Upd or Del
-data Change : ∀ {xs ys zs a} -> View xs a -> ES ys zs -> Set where
-  hereIns : ∀ {as xs ys a} {e : ES xs (as ++ ys)} -> (x : View as a) -> Change x (Ins x e)
-  hereUpd : ∀ {as bs xs ys a} {e : ES (as ++ xs) (bs ++ ys)} -> (x : View as a) (y : View bs a) -> Change y (Upd x y e)
-  hereDel :  ∀ {as xs ys a} {e : ES (as ++ xs) ys} -> (x : View as a) -> Change x (Del x e)
-  thereDel : ∀ {xs ys as bs a b} {e : ES (as ++ xs) ys} {x : View as a} {y : View bs b}
-             -> Change y e -> Change y (Del x e) 
-  thereIns : ∀ {xs ys as bs a b} {e : ES xs (as ++ ys)} {x : View as a} {y : View bs b}
-             -> Change y e -> Change y (Ins x e) 
-  thereCpy : ∀ {xs ys as bs a b} {e : ES (as ++ xs) (as ++ ys)} {x : View as a} {y : View bs b}
-             -> Change y e -> Change y (Cpy x e) 
-  thereUpd : ∀ {xs ys as bs cs a c} {e : ES (as ++ xs) (bs ++ ys)} {x : View as a} {y : View bs a} {z : View cs c}
-             -> Change z e -> Change z (Upd x y e)
+-- -- Change does not include Cpy.
+-- -- Since this edit does not actually introduce any change, it might be backed out with an Upd or Del
+-- data Change : ∀ {xs ys zs a} -> View xs a -> ES ys zs -> Set where
+--   hereIns : ∀ {as xs ys a} {e : ES xs (as ++ ys)} -> (x : View as a) -> Change x (Ins x e)
+--   hereUpd : ∀ {as bs xs ys a} {e : ES (as ++ xs) (bs ++ ys)} -> (x : View as a) (y : View bs a) -> Change y (Upd x y e)
+--   hereDel :  ∀ {as xs ys a} {e : ES (as ++ xs) ys} -> (x : View as a) -> Change x (Del x e)
+--   thereDel : ∀ {xs ys as bs a b} {e : ES (as ++ xs) ys} {x : View as a} {y : View bs b}
+--              -> Change y e -> Change y (Del x e) 
+--   thereIns : ∀ {xs ys as bs a b} {e : ES xs (as ++ ys)} {x : View as a} {y : View bs b}
+--              -> Change y e -> Change y (Ins x e) 
+--   thereCpy : ∀ {xs ys as bs a b} {e : ES (as ++ xs) (as ++ ys)} {x : View as a} {y : View bs b}
+--              -> Change y e -> Change y (Cpy x e) 
+--   thereUpd : ∀ {xs ys as bs cs a c} {e : ES (as ++ xs) (bs ++ ys)} {x : View as a} {y : View bs a} {z : View cs c}
+--              -> Change z e -> Change z (Upd x y e)
 
--- TODO prove a stronger statement: the exact same change is performed
--- with this formulation Del x can be transformed in Cpy x
+-- -- TODO prove a stronger statement: the exact same change is performed
+-- -- with this formulation Del x can be transformed in Cpy x
 
--- If a change is present in one of the two scripts and no conflicts are detected,
--- than that change is present in the merged version.
-noBackOutChanges₁ : ∀ {a as xs ys zs} {x : View as a} {e₁ : ES xs ys} {e₂ : ES xs zs}
-                   -> (p : e₁ ~ e₂) -> let e₁₂ = diff3 e₁ e₂ p in 
-                      NoCnf e₁₂ -> Change x e₁ -> x ∈₃ e₁₂
-noBackOutChanges₁ End q ()
-noBackOutChanges₁ (DelDel x p) (Del .x q) (hereDel .x) = hereDel x
-noBackOutChanges₁ (DelDel x p) (Del .x q) (thereDel r) = thereDel x (noBackOutChanges₁ p q r)
-noBackOutChanges₁ (UpdUpd x y z p) q (hereUpd .x .y) with y =?= z
-noBackOutChanges₁ (UpdUpd x y .y p) (Upd .x .y q) (hereUpd .x .y) | yes refl = hereUpd₂ x y
-noBackOutChanges₁ (UpdUpd x y z p) () (hereUpd .x .y) | no ¬p
-noBackOutChanges₁ (UpdUpd x y z p) q (thereUpd r) with y =?= z
-noBackOutChanges₁ (UpdUpd x y .y p) (Upd .x .y q) (thereUpd r) | yes refl = thereUpd x y (noBackOutChanges₁ p q r)
-noBackOutChanges₁ (UpdUpd x y z p) () (thereUpd r) | no ¬p
-noBackOutChanges₁ (CpyCpy x p) (Cpy .x q) (thereCpy r) = thereCpy x (noBackOutChanges₁ p q r)
-noBackOutChanges₁ (CpyDel x p) (Del .x q) (thereCpy r) = thereDel x (noBackOutChanges₁ p q r)
-noBackOutChanges₁ (DelCpy x p) (Del .x q) (hereDel .x) = hereDel x
-noBackOutChanges₁ (DelCpy x p) (Del .x q) (thereDel r) = thereDel x (noBackOutChanges₁ p q r)
-noBackOutChanges₁ (CpyUpd x y p) (Upd .x .y q) (thereCpy r) = thereUpd x y (noBackOutChanges₁ p q r)
-noBackOutChanges₁ (UpdCpy x y p) (Upd .x .y q) (hereUpd .x .y) = hereUpd₂ x y
-noBackOutChanges₁ (UpdCpy x y p) (Upd .x .y q) (thereUpd r) = thereUpd x y (noBackOutChanges₁ p q r)
-noBackOutChanges₁ (DelUpd x y p) () r
-noBackOutChanges₁ (UpdDel x y p) () r
-noBackOutChanges₁ (InsIns {a = a} {b = b} x y p) q r with eq? a b
-noBackOutChanges₁ (InsIns x y p) q r | yes refl with x =?= y
-noBackOutChanges₁ (InsIns x .x p) (Ins .x q) (hereIns .x) | yes refl | yes refl = hereIns x
-noBackOutChanges₁ (InsIns x .x p) (Ins .x q) (thereIns r) | yes refl | yes refl = thereIns x (noBackOutChanges₁ p q r)
-noBackOutChanges₁ (InsIns x y p) () r | yes refl | no ¬p
-noBackOutChanges₁ (InsIns x₁ y p) () r | no ¬p
-noBackOutChanges₁ (Ins₁ x p) (Ins .x q) (hereIns .x) = hereIns x
-noBackOutChanges₁ (Ins₁ x p) (Ins .x q) (thereIns r) = thereIns x (noBackOutChanges₁ p q r)
-noBackOutChanges₁ (Ins₂ x p) (Ins .x q) r = thereIns x (noBackOutChanges₁ p q r)
+-- -- If a change is present in one of the two scripts and no conflicts are detected,
+-- -- than that change is present in the merged version.
+-- noBackOutChanges₁ : ∀ {a as xs ys zs} {x : View as a} {e₁ : ES xs ys} {e₂ : ES xs zs}
+--                    -> (p : e₁ ~ e₂) -> let e₁₂ = diff3 e₁ e₂ p in 
+--                       NoCnf e₁₂ -> Change x e₁ -> x ∈₃ e₁₂
+-- noBackOutChanges₁ End q ()
+-- noBackOutChanges₁ (DelDel x p) (Del .x q) (hereDel .x) = hereDel x
+-- noBackOutChanges₁ (DelDel x p) (Del .x q) (thereDel r) = thereDel x (noBackOutChanges₁ p q r)
+-- noBackOutChanges₁ (UpdUpd x y z p) q (hereUpd .x .y) with y =?= z
+-- noBackOutChanges₁ (UpdUpd x y .y p) (Upd .x .y q) (hereUpd .x .y) | yes refl = hereUpd₂ x y
+-- noBackOutChanges₁ (UpdUpd x y z p) () (hereUpd .x .y) | no ¬p
+-- noBackOutChanges₁ (UpdUpd x y z p) q (thereUpd r) with y =?= z
+-- noBackOutChanges₁ (UpdUpd x y .y p) (Upd .x .y q) (thereUpd r) | yes refl = thereUpd x y (noBackOutChanges₁ p q r)
+-- noBackOutChanges₁ (UpdUpd x y z p) () (thereUpd r) | no ¬p
+-- noBackOutChanges₁ (CpyCpy x p) (Cpy .x q) (thereCpy r) = thereCpy x (noBackOutChanges₁ p q r)
+-- noBackOutChanges₁ (CpyDel x p) (Del .x q) (thereCpy r) = thereDel x (noBackOutChanges₁ p q r)
+-- noBackOutChanges₁ (DelCpy x p) (Del .x q) (hereDel .x) = hereDel x
+-- noBackOutChanges₁ (DelCpy x p) (Del .x q) (thereDel r) = thereDel x (noBackOutChanges₁ p q r)
+-- noBackOutChanges₁ (CpyUpd x y p) (Upd .x .y q) (thereCpy r) = thereUpd x y (noBackOutChanges₁ p q r)
+-- noBackOutChanges₁ (UpdCpy x y p) (Upd .x .y q) (hereUpd .x .y) = hereUpd₂ x y
+-- noBackOutChanges₁ (UpdCpy x y p) (Upd .x .y q) (thereUpd r) = thereUpd x y (noBackOutChanges₁ p q r)
+-- noBackOutChanges₁ (DelUpd x y p) () r
+-- noBackOutChanges₁ (UpdDel x y p) () r
+-- noBackOutChanges₁ (InsIns {a = a} {b = b} x y p) q r with eq? a b
+-- noBackOutChanges₁ (InsIns x y p) q r | yes refl with x =?= y
+-- noBackOutChanges₁ (InsIns x .x p) (Ins .x q) (hereIns .x) | yes refl | yes refl = hereIns x
+-- noBackOutChanges₁ (InsIns x .x p) (Ins .x q) (thereIns r) | yes refl | yes refl = thereIns x (noBackOutChanges₁ p q r)
+-- noBackOutChanges₁ (InsIns x y p) () r | yes refl | no ¬p
+-- noBackOutChanges₁ (InsIns x₁ y p) () r | no ¬p
+-- noBackOutChanges₁ (Ins₁ x p) (Ins .x q) (hereIns .x) = hereIns x
+-- noBackOutChanges₁ (Ins₁ x p) (Ins .x q) (thereIns r) = thereIns x (noBackOutChanges₁ p q r)
+--noBackOutChanges₁ (Ins₂ x p) (Ins .x q) r = thereIns x (noBackOutChanges₁ p q r)
 
-diff3-sym : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} -> (p : e₁ ~ e₂) -> 
-             let e₁₂ = diff3 e₁ e₂ p in NoCnf e₁₂ -> e₁₂ ≡ diff3 e₂ e₁ (~-sym p)
-diff3-sym End End = refl
-diff3-sym (DelDel x p) (Del .x q) = cong (Del x) (diff3-sym p q)
-diff3-sym (UpdUpd x y z p) q with y =?= z
-diff3-sym (UpdUpd x y .y p) q | yes refl with y =?= y
-diff3-sym (UpdUpd x y .y p) (Upd .x .y q) | yes refl | yes refl = cong (Upd x y) (diff3-sym p q)
-diff3-sym (UpdUpd x y .y p) q | yes refl | no ¬p = ⊥-elim (¬p refl)
-diff3-sym (UpdUpd x y z p) () | no ¬p
-diff3-sym (CpyCpy x p) (Cpy .x q) = cong (Cpy x) (diff3-sym p q)
-diff3-sym (CpyDel x p) (Del .x q) = cong (Del x) (diff3-sym p q)
-diff3-sym (DelCpy x p) (Del .x q) = cong (Del x) (diff3-sym p q)
-diff3-sym (CpyUpd x y p) (Upd .x .y q) = cong (Upd x y) (diff3-sym p q)
-diff3-sym (UpdCpy x y p) (Upd .x .y q) = cong (Upd x y) (diff3-sym p q)
-diff3-sym (DelUpd x y p) ()
-diff3-sym (UpdDel x y p) ()
-diff3-sym (InsIns {a = a} {b = b} x y p) q with eq? a b
-diff3-sym (InsIns x y p) q | yes refl with x =?= y
-diff3-sym (InsIns {a = a} x .x p) q | yes refl | yes refl with eq? a a
-diff3-sym (InsIns x .x p) q | yes refl | yes refl | yes refl with x =?= x
-diff3-sym (InsIns x .x p) (Ins .x q) | yes refl | yes refl | yes refl | yes refl = cong (Ins x) (diff3-sym p q)
-diff3-sym (InsIns x .x p) q | yes refl | yes refl | yes refl | no ¬p = ⊥-elim (¬p refl)
-diff3-sym (InsIns x .x p) q | yes refl | yes refl | no ¬p = ⊥-elim (¬p refl)
-diff3-sym (InsIns x y p) () | yes refl | no ¬p
-diff3-sym (InsIns x y p) () | no ¬p
-diff3-sym (Ins₁ x p) (Ins .x q) = cong (Ins x) (diff3-sym p q)
-diff3-sym (Ins₂ x p) (Ins .x q) = cong (Ins x) (diff3-sym p q)
+-- noConf-sym : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} -> (p : e₁ ~ e₂) -> NoCnf (diff3 _ _ p) 
+--              -> NoCnf (diff3 _ _ (~-sym p))
+-- noConf-sym p q with diff3 _ _ (~-sym p) | diff3-sym p q
+-- noConf-sym p q | ._ | refl = q
 
-noConf-sym : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} -> (p : e₁ ~ e₂) -> NoCnf (diff3 _ _ p) 
-             -> NoCnf (diff3 _ _ (~-sym p))
-noConf-sym p q with diff3 _ _ (~-sym p) | diff3-sym p q
-noConf-sym p q | ._ | refl = q
-
-noBackOutChanges₂ : ∀ {a as xs ys zs} {x : View as a} {e₁ : ES xs ys} {e₂ : ES xs zs}
-                   -> (p : e₁ ~ e₂) -> let e₁₂ = diff3 e₁ e₂ p in 
-                      NoCnf e₁₂ -> Change x e₂ -> x ∈₃ e₁₂
-noBackOutChanges₂ p q r with noBackOutChanges₁ (~-sym p) (noConf-sym p q) r
-noBackOutChanges₂ p q r | a rewrite diff3-sym p q = a
+-- noBackOutChanges₂ : ∀ {a as xs ys zs} {x : View as a} {e₁ : ES xs ys} {e₂ : ES xs zs}
+--                    -> (p : e₁ ~ e₂) -> let e₁₂ = diff3 e₁ e₂ p in 
+--                       NoCnf e₁₂ -> Change x e₂ -> x ∈₃ e₁₂
+-- noBackOutChanges₂ p q r with noBackOutChanges₁ (~-sym p) (noConf-sym p q) r
+-- noBackOutChanges₂ p q r | a rewrite diff3-sym p q = a
 
 --------------------------------------------------------------------------------
 

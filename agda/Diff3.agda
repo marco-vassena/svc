@@ -180,23 +180,6 @@ mergeNec (Ins₂ x p) (Ins .x q) = Ins₂ x (mergeNec p q)
 
 --------------------------------------------------------------------------------
 
--- diff3 is reflexive. Any edit script run against itself succeeds
-diff3-refl : ∀ {xs ys} (e : ES xs ys) -> diff3 e e (~-refl e) ↓ ys
-diff3-refl (Ins {a = a} x e) with eq? a a
-diff3-refl (Ins x e) | yes refl with x =?= x
-diff3-refl (Ins x e) | yes refl | yes refl = Ins x (diff3-refl e)
-diff3-refl (Ins x e) | yes refl | no ¬p = ⊥-elim (¬p refl)
-diff3-refl (Ins x e) | no ¬p = ⊥-elim (¬p refl)
-diff3-refl (Del x e) = Del x (diff3-refl e)
-diff3-refl (Cpy x e) = Cpy x (diff3-refl e)
-diff3-refl (Upd x y e) with y =?= y
-diff3-refl (Upd x y e) | yes refl = Upd x y (diff3-refl e)
-diff3-refl (Upd x y e) | no ¬p = ⊥-elim (¬p refl)
-diff3-refl End = End
-
-
---------------------------------------------------------------------------------
-
 data NoCnf : ES₃ -> Set₁ where
   End : NoCnf End
   Ins : ∀ {e xs a} (x : View xs a) -> NoCnf e -> NoCnf (Ins x e)
@@ -249,3 +232,49 @@ toES (InsIns x y p) () | yes refl | no ¬p
 toES (InsIns x y p) () | no ¬p
 toES (Ins₁ x p) (Ins .x q) = Ins x (toES p q)
 toES (Ins₂ x p) (Ins .x q) = Ins x (toES p q)
+
+--------------------------------------------------------------------------------
+
+-- diff3 is reflexive. Any edit script run against itself succeeds
+diff3-refl : ∀ {xs ys} (e : ES xs ys) -> diff3 e e (~-refl e) ↓ ys
+diff3-refl (Ins {a = a} x e) with eq? a a
+diff3-refl (Ins x e) | yes refl with x =?= x
+diff3-refl (Ins x e) | yes refl | yes refl = Ins x (diff3-refl e)
+diff3-refl (Ins x e) | yes refl | no ¬p = ⊥-elim (¬p refl)
+diff3-refl (Ins x e) | no ¬p = ⊥-elim (¬p refl)
+diff3-refl (Del x e) = Del x (diff3-refl e)
+diff3-refl (Cpy x e) = Cpy x (diff3-refl e)
+diff3-refl (Upd x y e) with y =?= y
+diff3-refl (Upd x y e) | yes refl = Upd x y (diff3-refl e)
+diff3-refl (Upd x y e) | no ¬p = ⊥-elim (¬p refl)
+diff3-refl End = End
+
+diff3-sym : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} -> (p : e₁ ~ e₂) -> 
+             let e₁₂ = diff3 e₁ e₂ p in NoCnf e₁₂ -> e₁₂ ≡ diff3 e₂ e₁ (~-sym p)
+diff3-sym End End = refl
+diff3-sym (DelDel x p) (Del .x q) = cong (Del x) (diff3-sym p q)
+diff3-sym (UpdUpd x y z p) q with y =?= z
+diff3-sym (UpdUpd x y .y p) q | yes refl with y =?= y
+diff3-sym (UpdUpd x y .y p) (Upd .x .y q) | yes refl | yes refl = cong (Upd x y) (diff3-sym p q)
+diff3-sym (UpdUpd x y .y p) q | yes refl | no ¬p = ⊥-elim (¬p refl)
+diff3-sym (UpdUpd x y z p) () | no ¬p
+diff3-sym (CpyCpy x p) (Cpy .x q) = cong (Cpy x) (diff3-sym p q)
+diff3-sym (CpyDel x p) (Del .x q) = cong (Del x) (diff3-sym p q)
+diff3-sym (DelCpy x p) (Del .x q) = cong (Del x) (diff3-sym p q)
+diff3-sym (CpyUpd x y p) (Upd .x .y q) = cong (Upd x y) (diff3-sym p q)
+diff3-sym (UpdCpy x y p) (Upd .x .y q) = cong (Upd x y) (diff3-sym p q)
+diff3-sym (DelUpd x y p) ()
+diff3-sym (UpdDel x y p) ()
+diff3-sym (InsIns {a = a} {b = b} x y p) q with eq? a b
+diff3-sym (InsIns x y p) q | yes refl with x =?= y
+diff3-sym (InsIns {a = a} x .x p) q | yes refl | yes refl with eq? a a
+diff3-sym (InsIns x .x p) q | yes refl | yes refl | yes refl with x =?= x
+diff3-sym (InsIns x .x p) (Ins .x q) | yes refl | yes refl | yes refl | yes refl = cong (Ins x) (diff3-sym p q)
+diff3-sym (InsIns x .x p) q | yes refl | yes refl | yes refl | no ¬p = ⊥-elim (¬p refl)
+diff3-sym (InsIns x .x p) q | yes refl | yes refl | no ¬p = ⊥-elim (¬p refl)
+diff3-sym (InsIns x y p) () | yes refl | no ¬p
+diff3-sym (InsIns x y p) () | no ¬p
+diff3-sym (Ins₁ x p) (Ins .x q) = cong (Ins x) (diff3-sym p q)
+diff3-sym (Ins₂ x p) (Ins .x q) = cong (Ins x) (diff3-sym p q)
+
+--------------------------------------------------------------------------------

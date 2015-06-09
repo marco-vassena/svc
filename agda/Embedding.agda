@@ -7,65 +7,6 @@ open import Data.List
 open import Data.Product
 open import Relation.Binary.PropositionalEquality hiding ([_])
 
-data Edit : List Set -> List Set -> List Set -> List Set -> Set₁ where
-  Ins : ∀ {as a} -> View as a -> Edit [] as [] [ a ]
-  Del : ∀ {as a} -> View as a -> Edit as [] [ a ] []
-  Cpy : ∀ {as a} -> View as a -> Edit as as [ a ] [ a ]
-  Upd : ∀ {xs ys a} -> View xs a -> View ys a -> Edit xs ys [ a ] [ a ]
-  End : Edit [] [] [] []
-
--- Adds an edit in a well-typed script.
--- Well-typedness of ES is preserved
-add : ∀ {as bs cs ds xs ys} -> Edit as bs cs ds -> ES (as ++ xs) (bs ++ ys) -> ES (cs ++ xs) (ds ++ ys) 
-add (Ins x) es = Ins x es
-add (Del x) es = Del x es
-add (Cpy x) es = Cpy x es
-add (Upd x y) es = Upd x y es
-add End es = es
-
-data _∈ₑ_ : ∀ {as bs cs ds xs ys} -> Edit as bs cs ds -> ES xs ys -> Set₁ where
-  here : ∀ {as bs cs ds xs ys} {e : ES (as ++ xs) (bs ++ ys)} -> (c : Edit as bs cs ds) -> c ∈ₑ add c e
-  there : ∀ {as bs cs ds es fs gs hs xs ys} {c : Edit as bs cs ds} {e : ES (es ++ xs) (fs ++ ys)} (d : Edit es fs gs hs)
-          -> c ∈ₑ e -> c ∈ₑ add d e
-
-data _⊢ₑ_⊏_ : ∀ {xs ys as bs cs ds es fs gs hs} -> ES xs ys -> Edit as bs cs ds -> Edit es fs gs hs -> Set₁ where
-  here : ∀ {as bs cs ds es fs gs hs xs ys} {d : Edit es fs gs hs} {e : ES (as ++ xs) (bs ++ ys)} 
-         -> (c : Edit as bs cs ds) -> (o : d ∈ₑ e) -> add c e ⊢ₑ c ⊏ d 
-  there : ∀ {as bs cs ds es fs gs hs is ls ms ns xs ys} {d : Edit es fs gs hs} {c : Edit as bs cs ds} {e : ES (is ++ xs) (ls ++ ys)}
-          (a : Edit is ls ms ns) -> (o : e ⊢ₑ c ⊏ d) -> add a e ⊢ₑ c ⊏ d 
-
-open import Data.Empty
-open import Data.Unit
-
--- output : ∀ {as bs cs ds} -> Edit as bs cs ds -> Set
--- output (Ins x) = ⊤
--- output (Del x) = ⊥
--- output (Cpy x) = ⊤
--- output (Upd x x₁) = ⊤
--- output End = ⊥
-
--- outputArgs : ∀ {as bs cs ds} -> (e : Edit as bs cs ds) -> output e -> List Set
--- outputArgs {bs = bs} (Ins x) tt = bs
--- outputArgs (Del x) ()
--- outputArgs {as = as} (Cpy x) tt = as
--- outputArgs {bs = bs} (Upd x y) tt = bs
--- outputArgs End ()
-
--- outputTy : ∀ {as bs cs ds} -> (e : Edit as bs cs ds) -> output e -> Set
--- outputTy (Ins {a = a} x) tt = a
--- outputTy (Del x) ()
--- outputTy (Cpy {a = a} x) tt = a
--- outputTy (Upd {a = a} x y) tt = a
--- outputTy End ()
-
--- -- Returns the output View object
--- ⌞_⌟ : ∀ {as bs cs ds} (e : Edit as bs cs ds) -> {{p : output e}} -> View (outputArgs e p) (outputTy e p)
--- ⌞ Ins x ⌟ = x
--- ⌞_⌟ (Del x) {{()}}
--- ⌞ Cpy x ⌟ = x
--- ⌞ Upd x y ⌟ = y
--- ⌞_⌟ End {{()}}
-
 -- ∈-dsplit : ∀ {as bs cs ds'} {{ys zs}} {ds : DList (ys ++ zs)} (d : Edit as bs cs ds') {{ p : output d }} ->  
 --            let ds₁ , ds₂ = dsplit ds in ⌞ d ⌟ ∈ ds -> ⌞ d ⌟ ∈ ds₁ +++ ds₂
 -- ∈-dsplit {ds = ds} _ q
@@ -101,14 +42,6 @@ open import Data.Unit
 -- preserves-⊏ {d = d} c (there {e = e} (Cpy x) p) = there (⟦⟧-lemma c d e (preserves-⊏ c p))
 -- preserves-⊏ {d = d} c (there {e = e} (Upd x y) p) = there (⟦⟧-lemma c d e (preserves-⊏ c p))
 -- preserves-⊏ c (there End p) = preserves-⊏ c p
-
--- The edit performs a change?
-change : ∀ {as bs cs ds} -> Edit as bs cs ds -> Set
-change (Ins x) = ⊤
-change (Del x) = ⊤
-change (Cpy x) = ⊥
-change (Upd x y) = ⊤
-change End = ⊥
 
 open import Relation.Nullary
 open import Diff3
@@ -207,173 +140,108 @@ toES∈ₑ (there End r) p q = toES∈ₑ r p q
 -- diff3-⊏ c d (there (Upd x y) r) (Ins₂ z p) (Ins .z q) = there (Ins z) (diff3-⊏ c d (there (Upd x y) r) p q)
 -- diff3-⊏ c d (there End r) p q = diff3-⊏ c d r p q
 
---------------------------------------------------------------------------------
--- diff3 preserves ordering
+data _⊢ₑ_~>_  {xs ys} (e : ES xs ys) : ∀ {as bs a} -> View as a -> View bs a -> Set₁ where
+  Cpy : ∀ {as a} (α : View as a) -> Cpy α ∈ₑ e -> e ⊢ₑ α ~> α
+  Upd : ∀ {as bs a} (α : View as a) (β : View bs a) -> Upd α β ∈ₑ e -> e ⊢ₑ α ~> β 
 
--- Diff a b e links the edit script e and the source and target objects a b.
--- It is used instead of diff a b because the diff algorithm requires several unimportant steps
--- that makes the proof overly complicated.
+infixr 3 _⊢ₑ_~>_
 
--- diff3⊏ : ∀ {xs ys zs ws as bs a b} {α : View as a} {β : View bs b} {t₀ : DList xs} {t₁ : DList ys} {t₂ : DList zs}
---            {e₀₁ : ES xs ys} {e₀₂ : ES xs zs} -> (p : e₀₁ ~ e₀₂) -> Diff t₀ t₁ e₀₁ -> Diff t₀ t₂ e₀₂ ->
---            let e₀₁₂ = diff3 e₀₁ e₀₂ p in (q : e₀₁₂ ↓ ws) ->
---            let t₀₁₂ = ⟦ e₀₁₂ ⟧ q in t₀ ⊢ α ⊏ β -> α ∈ t₀₁₂ -> β ∈ t₀₁₂ -> t₀₁₂ ⊢ α ⊏ β
--- diff3⊏ End c d q () n m
+open import Data.Sum
 
--- -- Here I should have only there, n and m are not () because it's possible that another α is present in t₀₁₂
--- -- -> relate t₀ ⊢ α ⊏ β -> α ∈ t₀₁₂ -> β ∈ t₀₁₂ via their edit scripts
--- diff3⊏ (DelDel α p) (Del .α c) (Del .α d) (Del .α q) (here .α x) n m = {!!}
--- diff3⊏ (DelDel x p) (Del {ts₁ = ts₁} .x c) (Del .x d) (Del .x q) (there r) n m = diff3⊏ p c d q (there⊏+++ ts₁ r) n m
--- diff3⊏ (UpdUpd x y z p) c d q r n m = {!!}
--- diff3⊏ (CpyCpy {as = as} x p) (Cpy .x c) (Cpy .x d) (Cpy {ys = ys} .x q) r n m with dsplit {as} {ys} (⟦ diff3 _ _ p ⟧ q)
--- diff3⊏ (CpyCpy β p) (Cpy .β c) (Cpy .β d) (Cpy .β q) (here .β t) (∈-here .β) (∈-here .β) | ds₁ , ds₂ = {!!} -- n ≠ m
--- diff3⊏ (CpyCpy x p) (Cpy .x c) (Cpy .x d) (Cpy .x q) (here .x t) (∈-here .x) (∈-there m) | ds₁ , ds₂ = here x m
--- diff3⊏ (CpyCpy x p) (Cpy .x c) (Cpy .x d) (Cpy .x q) (here .x t) (∈-there n) (∈-here .x) | ds₁ , ds₂ = here x n
--- diff3⊏ (CpyCpy x p) (Cpy .x c) (Cpy .x d) (Cpy .x q) (here .x t) (∈-there n) (∈-there m) | ds₁ , ds₂ = here x m
--- diff3⊏ (CpyCpy β p) (Cpy .β c) (Cpy .β d) (Cpy .β q) (there r) (∈-here .β) (∈-here .β) | ds₁ , ds₂ = {!!} -- n ≠ m
--- diff3⊏ (CpyCpy x p) (Cpy .x c) (Cpy .x d) (Cpy .x q) (there r) (∈-here .x) (∈-there m) | ds₁ , ds₂ = here x m
--- diff3⊏ (CpyCpy x p) (Cpy {ts₁ = ts₁} .x c) (Cpy .x d) (Cpy .x q) (there r) (∈-there n) (∈-here .x) | ds₁ , ds₂ 
---   = {!!} -- there (diff3⊏ p c d {!q!} (there⊏+++ ts₁ r) {!n!} {!m!})
--- diff3⊏ (CpyCpy x p) (Cpy {ts₁ = ts₁} .x c) (Cpy .x d) (Cpy .x q) (there r) (∈-there n) (∈-there m) | ds₁ , ds₂ 
---   = there (diff3⊏ p c d {!q!} (there⊏+++ ts₁ r) {!n!} {!m!})
--- diff3⊏ (CpyDel x p) c d q r n m = {!!}
--- diff3⊏ (DelCpy x p) c d q r n m = {!!}
--- diff3⊏ (CpyUpd x y p) c d q r n m = {!!}
--- diff3⊏ (UpdCpy x y p) c d q r n m = {!!}
--- diff3⊏ (DelUpd x y p) c d q r n m = {!!}
--- diff3⊏ (UpdDel x y p) c d q r n m = {!!}
--- diff3⊏ (InsIns x y p) c d q r n m = {!!}
--- diff3⊏ (Ins₁ {as = as} x p) (Ins .x c) d (Ins {ys = ys} .x q) r n m with dsplit {as} {ys} (⟦ diff3 _ _ p ⟧ q)
--- diff3⊏ (Ins₁ x p) (Ins .x c) d (Ins .x q) (here α t) n m | ds₁ , ds₂ = {!!}
--- diff3⊏ (Ins₁ x p) (Ins .x c₁) d (Ins .x q) (there r) n m | ds₁ , ds₂ = {!!}
--- diff3⊏ (Ins₂ x p) c d q r n m = {!!}
+-- merge : ∀ {as bs cs a xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} {α  : View as a} {β : View bs a} {γ : View cs a} ->
+--           e₁ ⊢ₑ α ~> β -> e₂ ⊢ₑ α ~> γ -> (p : e₁ ~ e₂) ->
+--           let e₁₂ = diff3 e₁ e₂ p in (q : e₁₂ ↓ ws) -> ( toES p q ⊢ₑ α ~> β) ⊎ (toES p q ⊢ₑ α ~> γ)
+-- merge (Cpy γ x) (Cpy .γ x₁) p q = {!!}
+-- merge (Cpy α x) (Upd .α γ x₁) p q = {!!}
+-- merge (Upd γ β x) (Cpy .γ x₁) p q = {!!}
+-- merge (Upd α β x) (Upd .α γ x₁) p q = {!!}
 
--- -- diff3⊏ End End End End () n m
--- -- -- Here I have to relate "same" nodes
--- -- -- For instance here α meant by t₀ is deleted but still another α is present in t₀₁₂ (produced later in the edit script) 
--- -- diff3⊏ (DelDel α p) (Del .α c) (Del .α d) (Del .α q) (here₁ .α x) n m = {!!}
--- -- diff3⊏ (DelDel α p) (Del {ts₁ = ts₁} .α c) (Del .α d) (Del .α q) (here₂ .α x) n m = {!!}
--- -- diff3⊏ (DelDel x p) (Del {ts₁ = ts₁} .x c) (Del .x d) (Del .x q) (there r) n m = diff3⊏ p c d q (there⊏+++ ts₁ r) n m
--- -- diff3⊏ (UpdUpd x y z p) c d q r n m = {!!}
--- -- diff3⊏ (CpyCpy {as = as} α p) (Cpy .α c) (Cpy .α d) (Cpy {ys = ys} .α q) (here₁ .α x) n m with dsplit {as} {ys} (⟦ diff3 _ _ p ⟧ q)
--- -- diff3⊏ (CpyCpy α p) (Cpy .α c) (Cpy .α d) (Cpy .α q) (here₁ .α x) (∈-here .α) (∈-here .α) | ds₁ , ds₂ = {!here₁!}
--- -- diff3⊏ (CpyCpy α p) (Cpy .α c) (Cpy .α d) (Cpy .α q) (here₁ .α x) (∈-this n) (∈-here .α) | ds₁ , ds₂ = here₁ α n
--- -- diff3⊏ (CpyCpy α p) (Cpy .α c) (Cpy .α d) (Cpy .α q) (here₁ .α x) (∈-there n) (∈-here .α) | ds₁ , ds₂ = here₂ α n -- n ‌≠ m
--- -- diff3⊏ (CpyCpy α p) (Cpy .α c) (Cpy .α d) (Cpy .α q) (here₁ .α x) n (∈-this m) | ds₁ , ds₂ = here₁ α m
--- -- diff3⊏ (CpyCpy α p) (Cpy .α c) (Cpy .α d) (Cpy .α q) (here₁ .α x) n (∈-there m) | ds₁ , ds₂ = here₂ α m
--- -- diff3⊏ (CpyCpy {as = as} α p) (Cpy .α c) (Cpy .α d) (Cpy {ys = ys} .α q) (here₂ .α x) n m with dsplit {as} {ys} (⟦ diff3 _ _ p ⟧ q)
--- -- diff3⊏ (CpyCpy β p) (Cpy .β c) (Cpy .β d) (Cpy .β q) (here₂ .β x) (∈-here .β) (∈-here .β) | ds₁ , ds₂ = {!!} -- n ‌≠ m
--- -- diff3⊏ (CpyCpy α p) (Cpy .α c) (Cpy .α d) (Cpy .α q) (here₂ .α x) (∈-here .α) (∈-this m) | ds₁ , ds₂ = here₁ α m
--- -- diff3⊏ (CpyCpy α p) (Cpy .α c) (Cpy .α d) (Cpy .α q) (here₂ .α x) (∈-here .α) (∈-there m) | ds₁ , ds₂ = here₂ α m
--- -- diff3⊏ (CpyCpy α p) (Cpy .α c) (Cpy .α d) (Cpy .α q) (here₂ .α x) (∈-this n) (∈-here .α) | ds₁ , ds₂ = here₁ α n
--- -- diff3⊏ (CpyCpy α p) (Cpy .α c) (Cpy .α d) (Cpy .α q) (here₂ .α x) (∈-this n) (∈-this m) | ds₁ , ds₂ = here₁ α m
--- -- diff3⊏ (CpyCpy α p) (Cpy .α c) (Cpy .α d) (Cpy .α q) (here₂ .α x) (∈-this n) (∈-there m) | ds₁ , ds₂ = here₂ α m
--- -- diff3⊏ (CpyCpy α p) (Cpy .α c) (Cpy .α d) (Cpy .α q) (here₂ .α x) (∈-there n) (∈-here .α) | ds₁ , ds₂ = here₂ α n
--- -- diff3⊏ (CpyCpy α p) (Cpy .α c) (Cpy .α d) (Cpy .α q) (here₂ .α x) (∈-there n) (∈-this m) | ds₁ , ds₂ = here₁ α m
--- -- diff3⊏ (CpyCpy α p) (Cpy .α c) (Cpy .α d) (Cpy .α q) (here₂ .α x) (∈-there n) (∈-there m) | ds₁ , ds₂ = here₂ α m
--- -- diff3⊏ (CpyCpy {as = as} x p) (Cpy .x c) (Cpy .x d) (Cpy {ys = ys} .x q) (there r) n m with dsplit {as} {ys} (⟦ diff3 _ _ p ⟧ q)
--- -- diff3⊏ (CpyCpy β p) (Cpy .β c) (Cpy .β d) (Cpy .β q) (there r) (∈-here .β) (∈-here .β) | ds₁ , ds₂ = {!!} -- n ≠ m
--- -- diff3⊏ (CpyCpy x p) (Cpy .x c) (Cpy .x d) (Cpy .x q) (there r) (∈-here .x) (∈-this m) | ds₁ , ds₂ = here₁ x m
--- -- diff3⊏ (CpyCpy x p) (Cpy .x c) (Cpy .x d) (Cpy .x q) (there r) (∈-here .x) (∈-there m) | ds₁ , ds₂ = here₂ x m
--- -- diff3⊏ (CpyCpy x p) (Cpy .x c) (Cpy .x d) (Cpy .x q) (there r) (∈-this n) (∈-here .x) | ds₁ , ds₂ = {!!} -- ???
--- -- diff3⊏ (CpyCpy x p) (Cpy .x c) (Cpy .x d) (Cpy .x q) (there r) (∈-this n) (∈-this m) | ds₁ , ds₂ = {!!}
--- -- diff3⊏ (CpyCpy x p) (Cpy .x c) (Cpy .x d) (Cpy .x q) (there r) (∈-this n) (∈-there m) | ds₁ , ds₂ = {!!}
--- -- diff3⊏ (CpyCpy x p) (Cpy .x c) (Cpy .x d) (Cpy .x q) (there r) (∈-there n) m | ds₁ , ds₂ = {!!}
--- -- -- with diff3⊏ p c d q {!r!} {!n!} {!m!} 
--- -- -- ... | a = {!!}
--- -- diff3⊏ (CpyDel x p) c d q r n m = {!!}
--- -- diff3⊏ (DelCpy x p) c d q r n m = {!!}
--- -- diff3⊏ (CpyUpd x y p) c d q r n m = {!!}
--- -- diff3⊏ (UpdCpy x y p) c d q r n m = {!!}
--- -- diff3⊏ (DelUpd x y p) c d q r n m = {!!}
--- -- diff3⊏ (UpdDel x y p) c d q r n m = {!!}
--- -- diff3⊏ (InsIns x y p) c d q r n m = {!!}
--- -- diff3⊏ (Ins₁ x p) c d q r n m = {!!}
--- -- diff3⊏ (Ins₂ x p) c d q r n m = {!!}
+diff3-⊏ : ∀ {as bs cs ds es fs gs hs xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs}
+            (c : Edit as bs cs ds) (d : Edit es fs gs hs) -> {{w : change c}} {{z : change d}} 
+              -> e₁ ⊢ₑ c ⊏ d -> (p : e₁ ~ e₂) ->
+              let e₁₂ = diff3 e₁ e₂ p in (q : e₁₂ ↓ ws) -> toES p q ⊢ₑ c ⊏ d
+diff3-⊏ = {!!}
 
--- --------------------------------------------------------------------------------
+open import Safety
 
--- lemma⊏' : ∀ {as a bs b cs c ys} {α : View as a} {β : View bs b} {x : View cs c} {ts₁ : DList cs} {ts₂ : DList ys} 
---           -> Node x ts₁ ⊢ᵗ α ⊏' β -> ts₁ +++ ts₂ ⊢ α ⊏ β
--- lemma⊏' (here α x) = {!x!}
--- lemma⊏' (Node p) = {!there←!}
+data _⊢ˢ_⊏_ : ∀ {xs ys as bs a b} -> ES xs ys -> View as a -> View bs b -> Set₁ where
+  source-⊏ : ∀ {as bs cs ds es fs gs hs xs ys} {e : ES xs ys}
+           {c : Edit as bs cs ds} {d : Edit es fs gs hs} {i₁ : input c} {i₂ : input d} -> e ⊢ₑ c ⊏ d 
+           -> e ⊢ˢ ⌜ c ⌝ ⊏ ⌜ d ⌝
 
--- -- diff3⊏' : ∀ {xs ys zs ws as bs a b} {α : View as a} {β : View bs b} {t₀ : DList xs} {t₁ : DList ys} {t₂ : DList zs}
--- --            {e₀₁ : ES xs ys} {e₀₂ : ES xs zs} -> (p : e₀₁ ~ e₀₂) -> Diff t₀ t₁ e₀₁ -> Diff t₀ t₂ e₀₂ ->
--- --            let e₀₁₂ = diff3 e₀₁ e₀₂ p in (q : e₀₁₂ ↓ ws) ->
--- --            let t₀₁₂ = ⟦ e₀₁₂ ⟧ q in t₀ ⊢ α ⊏' β -> α ∈ t₀₁₂ -> β ∈ t₀₁₂ -> t₀₁₂ ⊢ α ⊏' β
--- -- diff3⊏' End End End End () n m
--- -- diff3⊏' (DelDel x p) (Del .x c) (Del .x d) (Del .x q) (this α t) n m = diff3⊏' p c d q {!t!} n m
--- -- diff3⊏' (DelDel x p) (Del {ts₁ = ts₁} .x c) (Del .x d) (Del .x q) (there r) n m = diff3⊏' p c d q (there⊏'+++ ts₁ r) n m
--- -- diff3⊏' (UpdUpd x y z p) c d q r n m = {!!}
--- -- diff3⊏' (CpyCpy {as = as} x p) (Cpy .x c) (Cpy .x d) (Cpy {ys = ys} .x q) r n m with dsplit {as} {ys} (⟦ diff3 _ _ p ⟧ q)
--- -- diff3⊏' (CpyCpy β p) (Cpy .β c) (Cpy .β d) (Cpy .β q) (this .β t) (∈-here .β) (∈-here .β) | ds₁ , ds₂ = {!!} -- n ≠ m
--- -- diff3⊏' (CpyCpy x p) (Cpy .x c) (Cpy .x d) (Cpy .x q) (this .x t) (∈-here .x) (∈-this m) | ds₁ , ds₂ = this x (here x m)
--- -- diff3⊏' (CpyCpy x p) (Cpy .x c) (Cpy .x d) (Cpy .x q) (this .x t) (∈-here .x) (∈-there m) | ds₁ , ds₂ = there {!!}
--- -- diff3⊏' (CpyCpy x p) (Cpy .x c) (Cpy .x d) (Cpy .x q) (this α t) (∈-this n) m | ds₁ , ds₂ = {!!}
--- -- diff3⊏' (CpyCpy x p) (Cpy .x c) (Cpy .x d) (Cpy .x q) (this α t) (∈-there n) m | ds₁ , ds₂ = {!!}
--- -- diff3⊏' (CpyCpy x p) (Cpy .x c) (Cpy .x d) (Cpy .x q) (there r) n m | ds₁ , ds₂ = {!!}
--- -- diff3⊏' (CpyDel x p) c d q r n m = {!!}
--- -- diff3⊏' (DelCpy x p) c d q r n m = {!!}
--- -- diff3⊏' (CpyUpd x y p) c d q r n m = {!!}
--- -- diff3⊏' (UpdCpy x y p) c d q r n m = {!!}
--- -- diff3⊏' (DelUpd x y p) c d q r n m = {!!}
--- -- diff3⊏' (UpdDel x y p) c d q r n m = {!!}
--- -- diff3⊏' (InsIns x y p) c d q r n m = {!!}
--- -- diff3⊏' (Ins₁ x p) c d q r n m = {!!}
--- -- diff3⊏' (Ins₂ x p) c d q r n m = {!!}
+diff⊏ : ∀ {xs ys as bs a b} {α : View as a} {β : View bs b} {x : DList xs} {y : DList ys} {e : ES xs ys} 
+        -> x ⊢ α ⊏ β -> Diff x y e -> e ⊢ˢ α ⊏ β
+diff⊏ (here α x) (Del .α q) with noErase q x
+diff⊏ (here α x) (Del .α q) | source-∈ {i = i} p = source-⊏ {i₂ = i} (here (Del α) p)
+diff⊏ (here α x) (Upd .α y q) with noErase q x
+diff⊏ (here α x) (Upd .α y q) | source-∈ {i = i} p = source-⊏ {i₂ = i} (here (Upd α y) p)
+diff⊏ (here α x) (Cpy .α q) with noErase q x
+diff⊏ (here α x) (Cpy .α q) | source-∈ {i = i} p = source-⊏ {i₂ = i} (here (Cpy α) p)
+diff⊏ (here α x) (Ins y q) with diff⊏ (here α x) q
+diff⊏ (here ._ x) (Ins y q) | source-⊏ {i₁ = i₁} {i₂ = i₂} p = source-⊏ {i₁ = i₁} {i₂ = i₂} (there (Ins y) p)
+diff⊏ (there p) (Del z q) with diff⊏ p q
+diff⊏ (there p) (Del z q) | source-⊏ {i₁ = i₁} {i₂ = i₂} x = source-⊏ {i₁ = i₁} {i₂ = i₂} (there (Del z) x)
+diff⊏ (there p) (Upd z y q) with diff⊏ p q
+diff⊏ (there p) (Upd z y q) | source-⊏ {i₁ = i₁} {i₂ = i₂} x = source-⊏ {i₁ = i₁} {i₂ = i₂} (there (Upd z y) x)
+diff⊏ (there p) (Cpy z q) with diff⊏ p q
+diff⊏ (there p) (Cpy z q) | source-⊏ {i₁ = i₁} {i₂ = i₂} x = source-⊏ {i₁ = i₁} {i₂ = i₂} (there (Cpy z) x)
+diff⊏ (there p) (Ins y q) with diff⊏ (there p) q
+diff⊏ (there p) (Ins y q) | source-⊏ {i₁ = i₁} {i₂ = i₂} x = source-⊏ {i₁ = i₁} {i₂ = i₂} (there (Ins y) x)
 
--- --------------------------------------------------------------------------------
+open import Level
+open import Function
 
--- -- What is produced by an edit script
--- data Output : ∀ {xs a} -> View xs a -> ES₃ -> Set where
---   hereIns : ∀ {as e a} (x : View as a) -> Output x (Ins x e)
---   hereCpy : ∀ {as e a} (x : View as a) -> Output x (Cpy x e)
---   hereUpd : ∀ {as e a bs} (x : View as a) (y : View bs a) -> Output x (Upd x y e)
---   Ins : ∀ {as e bs b a} {y : View bs b} (x : View as a) -> Output y e -> Output y (Ins x e)
---   Del : ∀ {as e bs b a} {y : View bs b} (x : View as a) -> Output y e -> Output y (Del x e)
---   Cpy : ∀ {as e bs b a} {y : View bs b} (x : View as a) -> Output y e -> Output y (Cpy x e)
---   Upd : ∀ {as e a bs cs c} {z : View cs c} (x : View as a) (y : View bs a) -> Output z e -> Output z (Upd x y e)
 
--- -- This is in general not true -> counterexample.
--- -- A child might end up being a sibling of his parent in the merged version
--- -- diff3≺ : ∀ {xs ys zs ws as bs a b} {α : View as a} {β : View bs b} {t₀ : DList xs} {t₁ : DList ys} {t₂ : DList zs}
--- --            {e₀₁ : ES xs ys} {e₀₂ : ES xs zs} -> (p : e₀₁ ~ e₀₂) -> Diff t₀ t₁ e₀₁ -> Diff t₀ t₂ e₀₂ ->
--- --            let e₀₁₂ = diff3 e₀₁ e₀₂ p in (q : e₀₁₂ ↓ ws) ->
--- --            let t₀₁₂ = ⟦ e₀₁₂ ⟧ q in t₀ ⊢ α ≺ β -> α ∈ t₀₁₂ -> β ∈ t₀₁₂ -> t₀₁₂ ⊢ α ≺ β
--- -- diff3≺ End c d q () m n
--- -- -- I need to relate t₀ and t₀₁₂ somehow, in particular I need to rule out this case in which
--- -- -- α ∈ t₀₁₂ is here : since α is deleted why should we find it in t₀₁₂ ? -> Maybe we should invert
--- -- -- the order of the arguments: first pattern match on ∈ and then on ⊢.
--- -- diff3≺ (DelDel α p) (Del .α c) (Del .α d) (Del .α q) (here .α x) m n = diff3≺ p c d q {!!} m n
--- -- diff3≺ (DelDel α p) (Del {ts₁ = ts₁} .α c) (Del .α d) (Del .α q) (there r) m n = diff3≺ p c d q (there+++ ts₁ r) m n
--- -- diff3≺ (UpdUpd x y z p) c d q r m n = {!!}
--- -- diff3≺ (CpyCpy {as = as} α p) (Cpy .α c) (Cpy .α d) (Cpy {ys = ys} .α q) (here .α x) m n 
--- --   with dsplit {as} {ys} (⟦ diff3 _ _ p ⟧ q)
--- -- -- X can be discharged assuming α ≠ β
--- -- diff3≺ (CpyCpy β p) (Cpy .β c) (Cpy .β d) (Cpy .β q) (here .β x) (∈-here .β) (∈-here .β) | ds₁ , ds₂ = {!!} -- X
--- -- diff3≺ (CpyCpy α p) (Cpy .α c) (Cpy .α d) (Cpy .α q) (here .α x) (∈-here .α) (∈-this n) | ds₁ , ds₂ = here α n
--- -- diff3≺ (CpyCpy α p) (Cpy .α c) (Cpy .α d) (Cpy .α q) (here .α x) (∈-here .α) (∈-there n) | ds₁ , ds₂ = {!there!} -- ???
--- -- diff3≺ (CpyCpy α p) (Cpy .α c) (Cpy .α d) (Cpy .α q) (here .α x) (∈-this m) (∈-here .α) | ds₁ , ds₂ = {!!} -- X
--- -- diff3≺ (CpyCpy α p) (Cpy .α c) (Cpy .α d) (Cpy .α q) (here .α x) (∈-this m) (∈-this n) | ds₁ , ds₂ = here α n 
--- -- diff3≺ (CpyCpy α p) (Cpy .α c) (Cpy .α d) (Cpy .α q) (here .α x) (∈-this m) (∈-there n) | ds₁ , ds₂ = {!!} -- ???
--- -- diff3≺ (CpyCpy α p) (Cpy .α c) (Cpy .α d) (Cpy .α q) (here .α x) (∈-there m) (∈-here .α) | ds₁ , ds₂ = {!!} -- X
--- -- diff3≺ (CpyCpy α p) (Cpy .α c) (Cpy .α d) (Cpy .α q) (here .α x) (∈-there m) (∈-this n) | ds₁ , ds₂ = here α n
--- -- diff3≺ (CpyCpy α p) (Cpy .α c) (Cpy .α d) (Cpy .α q) (here .α x) (∈-there m) (∈-there n) | ds₁ , ds₂ = here α {!!} -- ???
--- -- diff3≺ (CpyCpy {as = as} x p) (Cpy .x c) (Cpy .x d) (Cpy {ys = ys} .x q) (there r) m n with dsplit {as} {ys} (⟦ diff3 _ _ p ⟧ q )
--- -- -- Something is wrong with my definition: m should be only there or this, so that a recursive call can be made
--- -- -- -> relation between t₀ and t₀₁₂ missing ? 
--- -- diff3≺ (CpyCpy x p) (Cpy .x c) (Cpy .x d) (Cpy .x q) (there r) (∈-here .x) n | ds₁ , ds₂ = {!!} 
--- -- diff3≺ (CpyCpy x p) (Cpy .x c) (Cpy .x d) (Cpy .x q) (there r) (∈-this m) n | ds₁ , ds₂ = {!!}
--- -- diff3≺ (CpyCpy x p) (Cpy .x c) (Cpy .x d) (Cpy .x q) (there r) (∈-there m) (∈-here .x) | ds₁ , ds₂ = {!!}
--- -- diff3≺ (CpyCpy x p) (Cpy .x c) (Cpy .x d) (Cpy .x q) (there r) (∈-there m) (∈-this n) | ds₁ , ds₂ = {!!}
--- -- diff3≺ (CpyCpy x p) (Cpy .x c) (Cpy .x d) (Cpy .x q) (there r) (∈-there m) (∈-there n) | ds₁ , ds₂ = there {!!} -- (diff3≺ p c d {!q!} {!r!} m n)
--- -- diff3≺ (CpyDel x p) c d q r m n = {!!}
--- -- diff3≺ (DelCpy x p) c d q r m n = {!!}
--- -- diff3≺ (CpyUpd x y p) c d q r m n = {!!}
--- -- diff3≺ (UpdCpy x y p) c d q r m n = {!!}
--- -- diff3≺ (DelUpd x y p) c d q r m n = {!!}
--- -- diff3≺ (UpdDel x y p) c d q r m n = {!!}
--- -- diff3≺ (InsIns x y p) c d q r m n = {!!}
--- -- diff3≺ (Ins₁ x p) c d q r m n = {!!}
--- -- diff3≺ (Ins₂ x p) c d q r m n = {!!}
+-- Final lemma
+preserve⊏ : ∀ {xs ys zs ws as bs a b} {t₀ : DList xs} {t₁ : DList ys} {t₂ : DList zs} {e₀₁ : ES xs ys} {e₀₂ : ES xs zs} 
+              {α : View as a} {β : View bs b}
+              -> Diff t₀ t₁ e₀₁ -> Diff t₀ t₂ e₀₂ -> (p : e₀₁ ~ e₀₂) ->
+              let e₃ = diff3 e₀₁ e₀₂ p in (q : e₃ ↓ ws) ->
+              let e₀₁₂ = toES p q in t₀ ⊢ α ⊏ β -> (⟦ e₀₁₂ ⟧ ⊢ α ⊏ β) -- ⊎ (Del α ∈ₑ e₀₁₂) ⊎ (Del β ∈ₑ e₀₁₂)
+preserve⊏ c d p q r with diff⊏ r c 
+preserve⊏ c d p q r | source-⊏ {c = c'} {d = d'} x with diff3-⊏ {!c'!} {!d'!} {!x!} {!p!} {!q!}
+... | y = {!!}
+
+-- preserve⊏ (Del x c) (Del .x d) (DelDel .x p) (Del .x q) (here .x y) = inj₂ (here (Del x))
+-- preserve⊏ c d (UpdUpd x y z p) q (here α x₁) = {!!}
+-- preserve⊏ c d (CpyCpy x p) q (here α x₁) = {!!}
+-- preserve⊏ c d (CpyDel x p) q (here α x₁) = {!!}
+-- preserve⊏ c d (DelCpy x p) q (here α x₁) = {!!}
+-- preserve⊏ c d (CpyUpd x y p) q (here α x₁) = {!!}
+-- preserve⊏ c d (UpdCpy x y p) q (here α x₁) = {!!}
+-- preserve⊏ c d (DelUpd x y p) q (here α x₁) = {!!}
+-- preserve⊏ c d (UpdDel x y p) q (here α x₁) = {!!}
+-- preserve⊏ c d (InsIns x y p) q (here α x₁) = {!!}
+-- preserve⊏ c d (Ins₁ x p) q (here α x₁) = {!!}
+-- preserve⊏ c d (Ins₂ x p) q (here α x₁) = {!!}
+-- preserve⊏ c d p q (there r) = {!!}
+
+-- preserve⊏ End End End End ()
+-- preserve⊏ (Del α c) (Del .α d) (DelDel .α p) (Del .α q) (here .α x) = inj₂ (here (Del α))
+-- preserve⊏ (Del x c) (Del .x d) (DelDel .x p) (Del .x q) (there r) = map₃ id (there (Del x)) (there (Del x)) (preserve⊏ c d p q r)
+-- preserve⊏ (Upd α y c) (Upd .α z d) (UpdUpd .α .y .z p) q (here .α x) with y =?= z
+-- preserve⊏ (Upd α y c) (Upd .α .y d) (UpdUpd .α .y .y p) (Upd .α .y q) (here .α x) | yes refl = {!!}
+-- preserve⊏ (Upd α y c) (Upd .α z d) (UpdUpd .α .y .z p) q (here .α x) | no ¬p = {!!}
+-- preserve⊏ (Upd x y c) (Upd .x z d) (UpdUpd .x .y .z p) q (there r) = {!!}
+-- preserve⊏ c d (CpyCpy x p) q r = {!!}
+-- preserve⊏ c d (CpyDel x p) q r = {!!}
+-- preserve⊏ c d (DelCpy x p) q r = {!!}
+-- preserve⊏ c d (CpyUpd x y p) q r = {!!}
+-- preserve⊏ c d (UpdCpy x y p) q r = {!!}
+-- preserve⊏ c d (DelUpd x y p) q r = {!!}
+-- preserve⊏ c d (UpdDel x y p) q r = {!!}
+-- preserve⊏ c d (InsIns x y p) q r = {!!}
+-- preserve⊏ c d (Ins₁ x p) q r = {!!}
+-- preserve⊏ c d (Ins₂ x p) q r = {!!}
+
+-- -- I define my own some-type to avoid clutter
+-- data _⊎_⊎_ {a b c} (A : Set a) (B : Set b) (C : Set c) : Set (a ⊔ b ⊔ c) where
+--   inj₁ : (x : A) → A ⊎ B ⊎ C 
+--   inj₂ : (y : B) → A ⊎ B ⊎ C
+--   inj₃ : (z : C) → A ⊎ B ⊎ C
+  
+-- map₃ : ∀ {a b c d e f} {A : Set a} {B : Set b} {C : Set c} {D : Set d} {E : Set e} {F : Set f} →
+--       (A → D) → (B → E) → (C → F) → (A ⊎ B ⊎ C → D ⊎ E ⊎ F)
+-- map₃ f g h (inj₁ x) = inj₁ (f x)
+-- map₃ f g h (inj₂ y) = inj₂ (g y)
+-- map₃ f g h (inj₃ z) = inj₃ (h z)
