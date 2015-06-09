@@ -126,9 +126,9 @@ data _⇊_ : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES zs ws} -> e₁ ~ e�
            ->  (x : View xs a) (y : View ys a) -> p ⇊ (ys ++ ts) -> CpyUpd x y p ⇊ (a ∷ ts)
   UpdCpy : ∀ {xs ys zs us ws ts a} {e₁ : ES (xs ++ zs) (ys ++ us)} {e₂ : ES (xs ++ zs) (xs ++ ws)} {p : e₁ ~ e₂} 
            -> (x : View xs a) (y : View ys a) -> p ⇊ (ys ++ ts) -> UpdCpy x y p ⇊ (a ∷ ts)
-  Ins₁ : ∀ {xs ys zs us ws a} {e₁ : ES ys (xs ++ zs)} {e₂ : ES ys us} {p : e₁ ~ e₂} 
+  Ins₁ : ∀ {xs ys zs us ws a} {e₁ : ES ys (xs ++ zs)} {e₂ : ES ys us} {p : e₁ ~ e₂} {{i : ¬Ins e₂}}
          -> (x : View xs a) -> p ⇊ (xs ++ ws) -> Ins₁ x p ⇊ (a ∷ ws)
-  Ins₂ : ∀ {xs ys zs us ws a} {e₁ : ES ys us} {e₂ : ES ys (xs ++ zs)} {p : e₁ ~ e₂} 
+  Ins₂ : ∀ {xs ys zs us ws a} {e₁ : ES ys us} {e₂ : ES ys (xs ++ zs)} {p : e₁ ~ e₂} {{i : ¬Ins e₁}} 
          -> (x : View xs a) -> p ⇊ (xs ++ ws) -> Ins₂ x p ⇊ (a ∷ ws)
 
 open import Data.Empty
@@ -278,3 +278,90 @@ diff3-sym (Ins₁ x p) (Ins .x q) = cong (Ins x) (diff3-sym p q)
 diff3-sym (Ins₂ x p) (Ins .x q) = cong (Ins x) (diff3-sym p q)
 
 --------------------------------------------------------------------------------
+
+-- well-typedness is symmetric
+↓-sym : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} -> (p : e₁ ~ e₂) -> diff3 e₁ e₂ p ↓ ws -> diff3 e₂ e₁ (~-sym p) ↓ ws
+↓-sym p q rewrite sym (diff3-sym p (diff3-wt p q)) = q
+
+--------------------------------------------------------------------------------
+
+-- Refifies result of diff3
+data Diff₃ : ∀ {xs ys zs ws} -> ES xs ys -> ES xs zs -> ES xs ws -> Set where
+  End : Diff₃ End End End
+  InsIns : ∀ {xs ys zs ws as a} {e₁ : ES xs (as ++ ys)} {e₂ : ES xs (as ++ zs)} {e₃ : ES xs (as ++ ws)}
+           -> (x : View as a) -> Diff₃ e₁ e₂ e₃ -> Diff₃ (Ins x e₁) (Ins x e₂) (Ins x e₃)
+  Ins₁ : ∀ {xs ys zs ws as a} {e₁ : ES xs (as ++ ys)} {e₂ : ES xs zs} {e₃ : ES xs (as ++ ws)} {{i : ¬Ins e₂}}
+           -> (x : View as a) -> Diff₃ e₁ e₂ e₃ -> Diff₃ (Ins x e₁) e₂ (Ins x e₃)
+  Ins₂ : ∀ {xs ys zs ws as a} {e₁ : ES xs ys} {e₂ : ES xs (as ++ zs)} {e₃ : ES xs (as ++ ws)} {{i : ¬Ins e₁}} 
+           -> (x : View as a) -> Diff₃ e₁ e₂ e₃ -> Diff₃ e₁ (Ins x e₂) (Ins x e₃)
+  DelDel : ∀ {xs ys zs ws as a} {e₁ : ES (as ++ xs) ys} {e₂ : ES (as ++ xs) zs} {e₃ : ES (as ++ xs) ws}
+           -> (x : View as a) -> Diff₃ e₁ e₂ e₃ -> Diff₃ (Del x e₁) (Del x e₂) (Del x e₃)
+  DelCpy : ∀ {xs ys zs ws as a} (x : View as a) {e₁ : ES (as ++ xs) ys} {e₂ : ES (as ++ xs) (as ++ zs)} {e₃ : ES (as ++ xs) ws}
+           -> Diff₃ e₁ e₂ e₃ -> Diff₃ (Del x e₁) (Cpy x e₂) (Del x e₃)
+  CpyDel : ∀ {xs ys zs ws as a} {e₁ : ES (as ++ xs) (as ++ ys)} {e₂ : ES (as ++ xs) zs} {e₃ : ES (as ++ xs) ws}
+           ->  (x : View as a) -> Diff₃ e₁ e₂ e₃ -> Diff₃ (Cpy x e₁) (Del x e₂) (Del x e₃)
+  CpyCpy : ∀ {xs ys zs ws as a} {e₁ : ES (as ++ xs) (as ++ ys)} {e₂ : ES (as ++ xs) (as ++ zs)} {e₃ : ES (as ++ xs) (as ++ ws)}
+           -> (x : View as a) -> Diff₃ e₁ e₂ e₃ -> Diff₃ (Cpy x e₁) (Cpy x e₂) (Cpy x e₃)
+  CpyUpd : ∀ {xs ys zs ws as bs a} {e₁ : ES (as ++ xs) (as ++ ys)} {e₂ : ES (as ++ xs) (bs ++ zs)} {e₃ : ES (as ++ xs) (bs ++ ws)} 
+           -> (x : View as a) (y : View bs a) -> Diff₃ e₁ e₂ e₃ -> Diff₃ (Cpy x e₁) (Upd x y e₂) (Upd x y e₃)
+  UpdCpy : ∀ {xs ys zs ws as bs a} {e₁ : ES (as ++ xs) (bs ++ ys)} {e₂ : ES (as ++ xs) (as ++ zs)} {e₃ : ES (as ++ xs) (bs ++ ws)} 
+           -> (x : View as a) (y : View bs a) -> Diff₃ e₁ e₂ e₃ -> Diff₃ (Upd x y e₁) (Cpy x e₂) (Upd x y e₃)
+  UpdUpd : ∀ {xs ys zs ws as bs a} {e₁ : ES (as ++ xs) (bs ++ ys)} {e₂ : ES (as ++ xs) (bs ++ zs)} {e₃ : ES (as ++ xs) (bs ++ ws)} 
+           -> (x : View as a) (y : View bs a) -> Diff₃ e₁ e₂ e₃ -> Diff₃ (Upd x y e₁) (Upd x y e₂) (Upd x y e₃)
+
+-- Shows that a well typed diff3 corresponds to Diff3
+diff₃-suf : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} -> (p : e₁ ~ e₂) ->
+        let e₁₂ = diff3 e₁ e₂ p in (q : e₁₂ ↓ ws) -> Diff₃ e₁ e₂ (toES p q)
+diff₃-suf End End = End
+diff₃-suf (DelDel x p) (Del .x q) = DelDel x (diff₃-suf p q)
+diff₃-suf (UpdUpd x y z p) q with y =?= z
+diff₃-suf (UpdUpd x y .y p) (Upd .x .y q) | yes refl = UpdUpd x y (diff₃-suf p q)
+diff₃-suf (UpdUpd x y z p) () | no ¬p
+diff₃-suf (CpyCpy x p) (Cpy .x q) = CpyCpy x (diff₃-suf p q)
+diff₃-suf (CpyDel x p) (Del .x q) = CpyDel x (diff₃-suf p q)
+diff₃-suf (DelCpy x p) (Del .x q) = DelCpy x (diff₃-suf p q)
+diff₃-suf (CpyUpd x y p) (Upd .x .y q) = CpyUpd x y (diff₃-suf p q)
+diff₃-suf (UpdCpy x y p) (Upd .x .y q) = UpdCpy x y (diff₃-suf p q)
+diff₃-suf (DelUpd x y p) ()
+diff₃-suf (UpdDel x y p) ()
+diff₃-suf (InsIns {a = a} {b = b} x y p) q with eq? a b
+diff₃-suf (InsIns x y p) q | yes refl with x =?= y
+diff₃-suf (InsIns x .x p) (Ins .x q) | yes refl | yes refl = InsIns x (diff₃-suf p q)
+diff₃-suf (InsIns x y p) () | yes refl | no ¬p
+diff₃-suf (InsIns x y p) () | no ¬p
+diff₃-suf (Ins₁ x p) (Ins .x q) = Ins₁ x (diff₃-suf p q)
+diff₃-suf (Ins₂ x p) (Ins .x q) = Ins₂ x (diff₃-suf p q)
+
+-- Show the inverse fact : 
+diff₃-nec : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} -> (p : e₁ ~ e₂) ->
+            let e₁₂ = diff3 e₁ e₂ p in (q : e₁₂ ↓ ws) -> Diff₃ e₁ e₂ e₃ -> e₃ ≡ toES p q
+diff₃-nec End End End = refl
+diff₃-nec (DelDel x p) (Del .x q) (DelDel .x d) = cong (Del x) (diff₃-nec p q d)
+diff₃-nec (UpdUpd x y z p) q d with y =?= z
+diff₃-nec (UpdUpd x y .y p) (Upd .x .y q) (UpdUpd .x .y d) | yes refl = cong (Upd x y) (diff₃-nec p q d)
+diff₃-nec (UpdUpd x y z p) () d | no ¬p
+diff₃-nec (CpyCpy x p) (Cpy .x q) (CpyCpy .x d) = cong (Cpy x) (diff₃-nec p q d)
+diff₃-nec (CpyDel x p) (Del .x q) (CpyDel .x d) = cong (Del x) (diff₃-nec p q d)
+diff₃-nec (DelCpy x p) (Del .x q) (DelCpy .x d) = cong (Del x) (diff₃-nec p q d)
+diff₃-nec (CpyUpd x y p) (Upd .x .y q) (CpyUpd .x .y d) = cong (Upd x y) (diff₃-nec p q d)
+diff₃-nec (UpdCpy x y p) (Upd .x .y q) (UpdCpy .x .y d) = cong (Upd x y) (diff₃-nec p q d)
+diff₃-nec (DelUpd x y p) () d
+diff₃-nec (UpdDel x y p) () d
+diff₃-nec (InsIns {a = a} {b = b} x y p) q d with eq? a b
+diff₃-nec (InsIns x y p) q d | yes refl with x =?= y
+diff₃-nec (InsIns x .x p) (Ins .x q) (InsIns .x d) | yes refl | yes refl = cong (Ins x) (diff₃-nec p q d)
+diff₃-nec (InsIns x .x p) (Ins .x q) (Ins₁ {{i = ()}} .x d) | yes refl | yes refl
+diff₃-nec (InsIns x .x p) (Ins .x q) (Ins₂ {{i = ()}} .x d) | yes refl | yes refl
+diff₃-nec (InsIns x y p) () d | yes refl | no ¬p
+diff₃-nec (InsIns x y p) () d | no ¬p
+diff₃-nec (Ins₁ {{i = ()}} x p) (Ins .x q) (InsIns .x d)
+diff₃-nec (Ins₁ x p) (Ins .x q) (Ins₁ .x d) = cong (Ins x) (diff₃-nec p q d)
+diff₃-nec (Ins₁ x p) (Ins .x q) (Ins₂ {{i = ()}} x₁ d)
+diff₃-nec (Ins₂ {{i = ()}} x p) (Ins .x q) (InsIns .x d)
+diff₃-nec (Ins₂ x p) (Ins .x q) (Ins₁ {{i = ()}} x₁ d)
+diff₃-nec (Ins₂ x p) (Ins .x q) (Ins₂ .x d) = cong (Ins x) (diff₃-nec p q d)
+
+-- Now scripts produced by diff3 are in a one-to-one relationship with the Diff₃ data-type.
+-- Therefore, being uniquely determined by Diff₃, we can prove facts about 
+-- diff3 using Diff₃, which is much convinient as it results in simpler
+-- and shorter proofs.

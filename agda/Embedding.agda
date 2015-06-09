@@ -171,11 +171,11 @@ data _⊢ˢ_⊏_ : ∀ {xs ys as bs a b} -> ES xs ys -> View as a -> View bs b -
 
 diff⊏ : ∀ {xs ys as bs a b} {α : View as a} {β : View bs b} {x : DList xs} {y : DList ys} {e : ES xs ys} 
         -> x ⊢ α ⊏ β -> Diff x y e -> e ⊢ˢ α ⊏ β
-diff⊏ (here α x) (Del .α q) with noErase q x
+diff⊏ (here α x) (Del .α q) with noEraseˢ q x
 diff⊏ (here α x) (Del .α q) | source-∈ {i = i} p = source-⊏ {i₂ = i} (here (Del α) p)
-diff⊏ (here α x) (Upd .α y q) with noErase q x
+diff⊏ (here α x) (Upd .α y q) with noEraseˢ q x
 diff⊏ (here α x) (Upd .α y q) | source-∈ {i = i} p = source-⊏ {i₂ = i} (here (Upd α y) p)
-diff⊏ (here α x) (Cpy .α q) with noErase q x
+diff⊏ (here α x) (Cpy .α q) with noEraseˢ q x
 diff⊏ (here α x) (Cpy .α q) | source-∈ {i = i} p = source-⊏ {i₂ = i} (here (Cpy α) p)
 diff⊏ (here α x) (Ins y q) with diff⊏ (here α x) q
 diff⊏ (here ._ x) (Ins y q) | source-⊏ {i₁ = i₁} {i₂ = i₂} p = source-⊏ {i₁ = i₁} {i₂ = i₂} (there (Ins y) p)

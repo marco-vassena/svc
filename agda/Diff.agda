@@ -59,22 +59,22 @@ output (Cpy x) = ⊤
 output (Upd x x₁) = ⊤
 output End = ⊥
 
-outputArgs : ∀ {as bs cs ds} -> (e : Edit as bs cs ds) -> output e -> List Set
-outputArgs {bs = bs} (Ins x) tt = bs
-outputArgs (Del x) ()
-outputArgs {as = as} (Cpy x) tt = as
-outputArgs {bs = bs} (Upd x y) tt = bs
-outputArgs End ()
+outputArgs : ∀ {as bs cs ds} -> (e : Edit as bs cs ds) -> {{p : output e}} -> List Set
+outputArgs {bs = bs} (Ins x) = bs
+outputArgs (Del x) {{()}}
+outputArgs {as = as} (Cpy x) = as
+outputArgs {bs = bs} (Upd x y) = bs
+outputArgs End {{()}}
 
-outputTy : ∀ {as bs cs ds} -> (e : Edit as bs cs ds) -> output e -> Set
-outputTy (Ins {a = a} x) tt = a
-outputTy (Del x) ()
-outputTy (Cpy {a = a} x) tt = a
-outputTy (Upd {a = a} x y) tt = a
-outputTy End ()
+outputTy : ∀ {as bs cs ds} -> (e : Edit as bs cs ds) -> {{o : output e}} -> Set
+outputTy (Ins {a = a} x) = a
+outputTy (Del x) {{()}}
+outputTy (Cpy {a = a} x) = a
+outputTy (Upd {a = a} x y) = a
+outputTy End {{()}}
 
 -- Returns the output View object
-⌞_⌟ : ∀ {as bs cs ds} (e : Edit as bs cs ds) -> {{p : output e}} -> View (outputArgs e p) (outputTy e p)
+⌞_⌟ : ∀ {as bs cs ds} (e : Edit as bs cs ds) -> {{p : output e}} -> View (outputArgs e) (outputTy e)
 ⌞ Ins x ⌟ = x
 ⌞_⌟ (Del x) {{()}}
 ⌞ Cpy x ⌟ = x
@@ -144,6 +144,13 @@ infixl 3 _⊢ₑ_⊏_
 
 --------------------------------------------------------------------------------
  
+¬Ins : ∀ {xs ys} -> ES xs ys -> Set
+¬Ins (Ins x e) = ⊥
+¬Ins (Del x e) = ⊤
+¬Ins (Cpy x e) = ⊤
+¬Ins (Upd x y e) = ⊤
+¬Ins End = ⊤
+
 -- e₁ ~ e₂ is the proof that e₁ and e₂ are aligned, meaning that they e₁ and e₂ refer to the same
 -- original tree. All the Del/Cpy constructors for each are appropriately paired.
 data _~_ : ∀ {xs ys zs ws} -> (e₁ : ES xs ys) (e₂ : ES zs ws) -> Set₁ where
@@ -168,8 +175,8 @@ data _~_ : ∀ {xs ys zs ws} -> (e₁ : ES xs ys) (e₂ : ES zs ws) -> Set₁ wh
            {e₁ : ES (as ++ xs) (bs ++ ys)} {e₂ : ES (as ++ xs) zs} -> e₁ ~ e₂ -> Upd x y e₁ ~ Del x e₂
   InsIns : ∀ {as bs xs ys zs a b} (x : View as a) (y : View bs b) 
            {e₁ : ES xs (as ++ ys)} {e₂ : ES xs (bs ++ zs)} -> e₁ ~ e₂ -> Ins x e₁ ~ Ins y e₂
-  Ins₁ : ∀ {as xs ys zs a} (x : View as a) {e₁ : ES xs (as ++ ys)} {e₂ : ES xs zs} -> e₁ ~ e₂ -> Ins x e₁ ~ e₂
-  Ins₂ : ∀ {as xs ys zs a} (x : View as a) {e₁ : ES xs ys} {e₂ : ES xs (as ++ zs)} -> e₁ ~ e₂ -> e₁ ~ Ins x e₂
+  Ins₁ : ∀ {as xs ys zs a} {e₁ : ES xs (as ++ ys)} {e₂ : ES xs zs} {{i : ¬Ins e₂}} (x : View as a) -> e₁ ~ e₂ -> Ins x e₁ ~ e₂
+  Ins₂ : ∀ {as xs ys zs a} {e₁ : ES xs ys} {e₂ : ES xs (as ++ zs)} {{i : ¬Ins e₁}} (x : View as a) -> e₁ ~ e₂ -> e₁ ~ Ins x e₂
 
 -- The ~ relation is symmetric
 ~-sym : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES zs ws} -> e₁ ~ e₂ -> e₂ ~ e₁
@@ -349,14 +356,14 @@ lemma-⨅ e₁ e₂ | no ¬p = inj₂ refl
 -- diff~ ._ ._ z | ._ | Cpy x b | c | d = {!!}
 -- diff~ x ._ z | ._ | Ins y b₁ | c | d = {!!}
 
-sdiff[] : ∀ {ys zs n m} -> (y : DList ys) (z : DList zs) (p : size y ≤ n) (q : size z ≤ m) -> sdiff [] y p ~ sdiff [] z q
-sdiff[] [] [] z≤n z≤n = End
-sdiff[] {n = n} [] (Node y ys ∷ ts) z≤n (s≤s q) 
-  rewrite sym (size-+++ ys ts) = Ins₂ y (sdiff[] {n = n} [] (ys +++ ts) z≤n q)
-sdiff[] {m = m} (Node x xs ∷ ts) [] (s≤s p) z≤n 
-  rewrite sym (size-+++ xs ts) = Ins₁ x (sdiff[] {m = m} (xs +++ ts) [] p z≤n)
-sdiff[] (Node x xs ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) (s≤s q) 
-  rewrite sym (size-+++ xs ts₁) | sym (size-+++ ys ts₂) = InsIns x y (sdiff[] (xs +++ ts₁) (ys +++ ts₂) p q)
+-- sdiff[] : ∀ {ys zs n m} -> (y : DList ys) (z : DList zs) (p : size y ≤ n) (q : size z ≤ m) -> sdiff [] y p ~ sdiff [] z q
+-- sdiff[] [] [] z≤n z≤n = End
+-- sdiff[] {n = n} [] (Node y ys ∷ ts) z≤n (s≤s q) 
+--   rewrite sym (size-+++ ys ts) = Ins₂ y (sdiff[] {n = n} [] (ys +++ ts) z≤n q)
+-- sdiff[] {m = m} (Node x xs ∷ ts) [] (s≤s p) z≤n 
+--   rewrite sym (size-+++ xs ts) = Ins₁ x (sdiff[] {m = m} (xs +++ ts) [] p z≤n)
+-- sdiff[] (Node x xs ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) (s≤s q) 
+--   rewrite sym (size-+++ xs ts₁) | sym (size-+++ ys ts₂) = InsIns x y (sdiff[] (xs +++ ts₁) (ys +++ ts₂) p q)
 
 lemma-⨅₃ : ∀ {xs ys} (e₁ : ES xs ys) (e₂ : ES xs ys) (e₃ : ES xs ys) -> 
            let e = e₁ ⨅ e₂ ⨅ e₃ in e ≡ e₁ ⊎ e ≡ e₂ ⊎ e ≡ e₃ 
