@@ -205,11 +205,6 @@ typesOf⟦ e ⟧ rewrite
   typesOf++ (proj₁ (dsplit ⟦ e ⟧)) (proj₂ (dsplit ⟦ e ⟧)) 
   | dsplit-lemma ⟦ e ⟧ = refl
 
-typesOf-dsplit : ∀ {{ys zs}} {xs as bs} {e : ES xs (ys ++ zs)} ->
-                 let ds₁ , ds₂ = dsplit ⟦ e ⟧ in typesOf ⟦ e ⟧ ⊆ as , bs -> typesOf ds₁ ++ typesOf ds₂ ⊆ as , bs 
-typesOf-dsplit {e = e} q rewrite
-  typesOf⟦ e ⟧ = q
-
 mixOf : ∀ {xs ys zs ws} {e₀₁ : ES xs ys} {e₀₂ : ES xs zs} {e₀₁₂ : ES xs ws}
            -> Diff₃ e₀₁ e₀₂ e₀₁₂ -> typesOf ⟦ e₀₁₂ ⟧ ⊆ typesOf ⟦ e₀₁ ⟧ , typesOf ⟦ e₀₂ ⟧
 mixOf End = stop

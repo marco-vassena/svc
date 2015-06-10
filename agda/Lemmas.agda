@@ -23,7 +23,7 @@ open import Relation.Binary.PropositionalEquality
 ≤-refl zero = z≤n
 ≤-refl (suc a) = s≤s (≤-refl a)
 
-≤-lemma : ∀ {n} -> (a b : ℕ) -> a + (suc b) ≤ n -> a + b ≤ n
+≤-lemma : ∀ {n} (a b : ℕ) -> a + (suc b) ≤ n -> a + b ≤ n
 ≤-lemma zero m (s≤s p) = ≤-step p
 ≤-lemma (suc a) b (s≤s p) = s≤s (≤-lemma a b p)
 
