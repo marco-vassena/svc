@@ -25,6 +25,7 @@ open import Relation.Binary.PropositionalEquality hiding ([_])
 data _∈ˢ_ : ∀ {xs ys as a} -> View as a -> ES xs ys -> Set₁ where
   source-∈ : ∀ {as bs cs ds xs ys} {c : Edit as bs cs ds} {i : input c} {e : ES xs ys}
            -> c ∈ₑ e -> ⌜ c ⌝ ∈ˢ e 
+
 -- Every term in the input tree is found as source in the edit script
 noEraseˢ : ∀ {xs ys as a} {α : View as a} {x : DList xs} {y : DList ys} {e : ES xs ys}
             -> Diff x y e -> α ∈ x -> α ∈ˢ e
@@ -61,7 +62,7 @@ noMadeUpAuxˢ eq (there End p) q = noMadeUpAuxˢ eq p q
 -- This lemma cannot be proved directly because of the abstraction introduced by ∈ˢ,
 -- therefore the auxiliary lemma noMadeUpAuxˢ, which requires explicit equality proofs,
 -- is used.
-noMadeUpˢ : ∀ {xs ys as a bs cs ds es} {t₀ : DList xs} {t₁ : DList ys} {e : ES xs ys} {c : Edit bs cs ds es}
+noMadeUpˢ : ∀ {xs ys as a} {t₀ : DList xs} {t₁ : DList ys} {e : ES xs ys}
               {α : View as a} -> α ∈ˢ e -> Diff t₀ t₁ e -> α ∈ t₀
 noMadeUpˢ (source-∈ x) q = noMadeUpAuxˢ refl x q
 

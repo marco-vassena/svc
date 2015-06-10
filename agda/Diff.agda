@@ -325,6 +325,36 @@ mkDiff (Upd x y e) with dsplit ⟪ e ⟫
 ... | r = Upd x y (Diff-⟦⟧ e (Diff-⟪⟫ e (mkDiff e)))
 mkDiff End = End
 
+open import Function
+
+≡-split : ∀ {xs ys} (a : DList xs) (b : DList ys) (c : DList (xs ++ ys)) -> (a +++ b) ≡ c ->
+        let ds₁ , ds₂ = dsplit c in a ≡ ds₁ × b ≡ ds₂
+≡-split [] b .b refl = refl , refl
+≡-split (t ∷ a) b (.t ∷ .(a +++ b)) refl with proj₁ (dsplit (a +++ b)) | proj₂ (dsplit (a +++ b)) | ≡-split a b (a +++ b) refl
+≡-split (t ∷ a) b (.t ∷ .(a +++ b)) refl | .a | .b | refl , refl = refl , refl
+ 
+-- Necessary condition of mkDiff for ⟪_⟫
+mkDiff⟪_⟫ : ∀ {xs ys} {t₀ : DList xs} {t₁ : DList ys} {e : ES xs ys} -> Diff t₀ t₁ e -> t₀ ≡ ⟪ e ⟫
+mkDiff⟪ End ⟫ = refl
+mkDiff⟪ Del {e = e} {ts₁ = ts₁} {ts₂ = ts₂} x d ⟫ with ≡-split ts₁ ts₂ ⟪ e ⟫ mkDiff⟪ d ⟫
+mkDiff⟪ Del x d ⟫ | refl , refl = refl
+mkDiff⟪ Upd {e = e} {ts₁ = ts₁} {ts₂ = ts₂} x y d ⟫ with ≡-split ts₁ ts₂ ⟪ e ⟫ mkDiff⟪ d ⟫
+mkDiff⟪ Upd x y d ⟫ | refl , refl = refl
+mkDiff⟪ Cpy {e = e} {ts₁ = ts₁} {ts₂ = ts₂} x d ⟫ with ≡-split ts₁ ts₂ ⟪ e ⟫ mkDiff⟪ d ⟫
+mkDiff⟪ Cpy x d ⟫ | refl , refl = refl
+mkDiff⟪ Ins y d ⟫ = mkDiff⟪ d ⟫
+
+-- Necessary condition of mkDiff for ⟦_⟧
+mkDiff⟦_⟧ : ∀ {xs ys} {t₀ : DList xs} {t₁ : DList ys} {e : ES xs ys} -> Diff t₀ t₁ e -> t₁ ≡ ⟦ e ⟧
+mkDiff⟦ End ⟧ = refl
+mkDiff⟦ Del x d ⟧ = mkDiff⟦ d ⟧
+mkDiff⟦ Upd {e = e} {ts₃ = ts₃} {ts₄ = ts₄} x y d ⟧ with ≡-split ts₃ ts₄ ⟦ e ⟧ mkDiff⟦ d ⟧
+mkDiff⟦ Upd x y d ⟧ | refl , refl = refl
+mkDiff⟦ Cpy {e = e} {ts₃ = ts₃} {ts₄ = ts₄} x d ⟧ with ≡-split ts₃ ts₄ ⟦ e ⟧ mkDiff⟦ d ⟧
+mkDiff⟦ Cpy x d ⟧ | refl , refl = refl
+mkDiff⟦ Ins {e = e} {ts₂ = ts₂} {ts₃ = ts₃} y d ⟧ with ≡-split ts₂ ts₃ ⟦ e ⟧ mkDiff⟦ d ⟧
+mkDiff⟦ Ins x d ⟧ | refl , refl = refl
+
 lemma-⨅₃ : ∀ {xs ys} (e₁ : ES xs ys) (e₂ : ES xs ys) (e₃ : ES xs ys) -> 
            let e = e₁ ⨅ e₂ ⨅ e₃ in e ≡ e₁ ⊎ e ≡ e₂ ⊎ e ≡ e₃ 
 lemma-⨅₃ e₁ e₂ e₃ with e₁ ⨅ e₂ | lemma-⨅ e₁ e₂
