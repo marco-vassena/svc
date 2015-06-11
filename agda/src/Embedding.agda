@@ -1,7 +1,6 @@
 module Embedding where
 
-open import DTree hiding ([_])
-open import View
+open import Data.DTree hiding ([_])
 open import Diff
 open import Data.List
 open import Data.Product

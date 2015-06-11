@@ -2,8 +2,8 @@
 
 module Mapping where
 
+open import Data.DTree
 open import Diff
-open import View
 open import Data.List
 open import Data.Unit
 open import Relation.Binary.PropositionalEquality hiding ([_])
@@ -25,7 +25,6 @@ infixr 3 _⊢ₑ_~>_
 -- TODO this part actually belongs to Embedding ... here to avoid recompiling all the other proofs
 open import Embedding
 open import Diff3
-open import DTree
 open import Data.List
 
 

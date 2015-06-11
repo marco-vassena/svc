@@ -1,8 +1,7 @@
-module Diff3 where
+module Diff3.Diff3 where
 
-open import DTree
-open import Diff
-open import View
+open import Data.DTree
+open import Diff.Diff
 
 open import Data.Product
 open import Data.Sum

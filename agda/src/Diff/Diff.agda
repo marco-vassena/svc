@@ -1,7 +1,6 @@
-module Diff where
+module Diff.Diff where
 
-open import DTree hiding ([_])
-open import View
+open import Data.DTree hiding ([_])
 open import Data.List
 open import Data.Product
 open import Lemmas

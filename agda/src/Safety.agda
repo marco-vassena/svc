@@ -1,9 +1,8 @@
 module Safety where
 
 open import Diff
-open import View
 open import Diff3
-open import DTree
+open import Data.DTree
 open import Lemmas
 
 open import Function
