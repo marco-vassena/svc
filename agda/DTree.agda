@@ -9,7 +9,6 @@ import Relation.Binary.PropositionalEquality as P
 open import Data.Nat
 open import Lemmas
 
-
 mutual 
   data DTree : Set -> Set₁ where
     Node : ∀ {a xs} -> (x : View xs a) -> (ts : DList xs) -> DTree a
@@ -56,16 +55,12 @@ mkSplit {{[]}} ds = MkS [] ds
 mkSplit {{x ∷ xs}} (t ∷ ds) with dsplit ds | mkSplit {{xs}} ds
 mkSplit {{x ∷ xs}} (t ∷ .(ds₁ +++ ds₂)) | ds₁ , ds₂ | MkS .ds₁ .ds₂ = MkS (t ∷ ds₁) ds₂
 
--- mutual
---   data _∈ᵗ_ : ∀ {xs a b} -> View xs a -> DTree b -> Set where
---     here : ∀ {xs a} (x : View xs a) (ts : DList xs) -> x ∈ᵗ Node x ts
---     there : ∀ {xs ys a b} {x : View xs a} (y : View ys b) (ts : DList ys) -> x ∈ ts -> x ∈ᵗ Node y ts 
-
 data _∈_ : ∀ {ys xs a} -> View xs a -> DList ys -> Set₁ where
   ∈-here : ∀ {xs a ys} (x : View xs a) {ts₁ : DList xs} {ts₂ : DList ys} -> x ∈ Node x ts₁ ∷ ts₂
-  -- ∈-this : ∀ {xs a b ys zs} {y : View ys b} {x : View xs a} {ts₁ : DList ys} {ts₂ : DList zs} -> x ∈ ts₁ -> x ∈ Node y ts₁ ∷ ts₂
   ∈-there : ∀ {xs a b zs ys} {x : View xs a} {y : View ys b} {ts₁ : DList ys} {ts₂ : DList zs} 
             -> x ∈ ts₁ +++ ts₂ -> x ∈ Node y ts₁ ∷ ts₂
+
+
 
 infixl 3 _∈_
 
@@ -106,6 +101,14 @@ data _⊢_⊏_ : ∀ {xs as bs a b} -> DList xs -> View as a -> View bs b -> Set
   --there : ∀ {xs ys zs a b c} {x : View xs a} {y : View ys b} {t : DTree c} {ts : DList zs} -> ts ⊢ x ⊏ y -> t ∷ ts ⊢ x ⊏ y
   there : ∀ {as bs cs xs a b c} {x : View as a} {y : View bs b} {z : View cs c} {ts₁ : DList cs} {ts₂ : DList xs} 
           -> ts₁ +++ ts₂ ⊢ x ⊏ y -> Node z ts₁ ∷ ts₂ ⊢ x ⊏ y
+
+⊏-∈₁ : ∀ {xs as bs a b} {ts : DList xs} {α : View as a} {β : View bs b} -> ts ⊢ α ⊏ β -> α ∈ ts
+⊏-∈₁ (here α x) = ∈-here α
+⊏-∈₁ (there p) = ∈-there (⊏-∈₁ p)
+
+⊏-∈₂ : ∀ {xs as bs a b} {ts : DList xs} {α : View as a} {β : View bs b} -> ts ⊢ α ⊏ β -> β ∈ ts
+⊏-∈₂ (here α x) = ∈-there x
+⊏-∈₂ (there p) = ∈-there (⊏-∈₂ p)
 
 infixl 3 _⊢_⊏_
 

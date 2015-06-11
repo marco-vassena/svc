@@ -13,7 +13,7 @@ postulate View : List Set -> Set -> Set
 -- relate views with different indexes.
 -- Using heterogeneous equality is not an option either because it refuse
 -- recognize refl, failing to solve the underlying constraint about the indexes.
-data _⋍_ : ∀ {xs ys a} -> View xs a -> View ys a -> Set where
+data _⋍_ : ∀ {xs ys a b} -> View xs a -> View ys b -> Set where
   refl : ∀ {xs a} {x : View xs a} -> x ⋍ x
 
 postulate eq? : (a b : Set) -> Dec (a ≡ b)
