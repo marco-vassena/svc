@@ -142,6 +142,16 @@ data _⊢ₑ_⊏_ : ∀ {xs ys as bs cs ds es fs gs hs} -> ES xs ys -> Edit as b
 
 infixl 3 _⊢ₑ_⊏_
 
+⊏ₑ-∈₁ : ∀ {xs ys as bs cs ds es fs gs hs} {e : ES xs ys} {c : Edit as bs cs ds} {d : Edit es fs gs hs} 
+          -> e ⊢ₑ c ⊏ d -> c ∈ₑ e
+⊏ₑ-∈₁ (here c o) = here c
+⊏ₑ-∈₁ (there e p) = there e (⊏ₑ-∈₁ p)
+
+⊏ₑ-∈₂ : ∀ {xs ys as bs cs ds es fs gs hs} {e : ES xs ys} {c : Edit as bs cs ds} {d : Edit es fs gs hs} 
+          -> e ⊢ₑ c ⊏ d -> d ∈ₑ e
+⊏ₑ-∈₂ (here c o) = there c o
+⊏ₑ-∈₂ (there e p) = there e (⊏ₑ-∈₂ p)
+
 --------------------------------------------------------------------------------
  
 ¬Ins : ∀ {xs ys} -> ES xs ys -> Set
