@@ -85,12 +85,12 @@ outputTy (Upd {a = a} x y) = a
 outputTy End {{()}}
 
 -- Returns the output View object
-⌞_⌟ : ∀ {as bs cs ds} (e : Edit as bs cs ds) -> {{p : output e}} -> View (outputArgs e) (outputTy e)
-⌞ Ins x ⌟ = x
-⌞_⌟ (Del x) {{()}}
-⌞ Cpy x ⌟ = x
-⌞ Upd x y ⌟ = y
-⌞_⌟ End {{()}}
+⌜_⌝ : ∀ {as bs cs ds} (e : Edit as bs cs ds) -> {{p : output e}} -> View (outputArgs e) (outputTy e)
+⌜ Ins x ⌝ = x
+⌜_⌝ (Del x) {{()}}
+⌜ Cpy x ⌝ = x
+⌜ Upd x y ⌝ = y
+⌜_⌝ End {{()}}
 
 --------------------------------------------------------------------------------
 
@@ -115,12 +115,12 @@ inputArgs (Cpy {as = as} x) = as
 inputArgs (Upd {xs = xs} x y) = xs
 inputArgs End {{()}}
 
-⌜_⌝ : ∀ {as bs cs ds} -> (e : Edit as bs cs ds) -> {{p : input e}} -> View (inputArgs e) (inputTy e)
-⌜_⌝ (Ins x) {{()}}
-⌜ Del x ⌝ = x
-⌜ Cpy x ⌝ = x
-⌜ Upd x y ⌝ = x
-⌜_⌝ End {{()}}
+⌞_⌟ : ∀ {as bs cs ds} -> (e : Edit as bs cs ds) -> {{p : input e}} -> View (inputArgs e) (inputTy e)
+⌞_⌟ (Ins x) {{()}}
+⌞ Del x ⌟ = x
+⌞ Cpy x ⌟ = x
+⌞ Upd x y ⌟ = x
+⌞_⌟ End {{()}}
 
 --------------------------------------------------------------------------------
 

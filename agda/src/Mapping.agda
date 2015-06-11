@@ -42,7 +42,7 @@ data _↦_⊏_ {xs ys as a bs b} (e : ES xs ys) (α : View as a) (β : View bs b
              -> e ⊢ₑ ⟨ α ⟩ ~> ⟨ γ ⟩ -> e ⊢ₑ ⟨ β ⟩ ~> ⟨ φ ⟩ -> ⟦ e ⟧ ⊢ γ ⊏ φ -> e ↦ α ⊏ β
  
 data Mapˢ {xs ys as a bs cs ds es} (e : ES xs ys) (α : View as a) (c : Edit bs cs ds es) : Set₁ where
-  source~> : {{o : output c}} -> e ⊢ₑ ⟨ α ⟩ ~> ⟨ ⌞ c ⌟ ⟩ -> Mapˢ e α c
+  source~> : {{o : output c}} -> e ⊢ₑ ⟨ α ⟩ ~> ⟨ ⌜ c ⌝ ⟩ -> Mapˢ e α c
 
 there~> : ∀ {xs ys as bs cs ds} {v₁ v₂ : Val} (c : Edit as bs cs ds) {e : ES (as ++ xs) (bs ++ ys)}
                 -> e ⊢ₑ v₁ ~> v₂ -> c ∻ e ⊢ₑ v₁ ~> v₂
@@ -63,7 +63,7 @@ thereMapˢ d (source~> x) = source~> (there~> d x)
 -- is a value to which it is mapped.
 ∈⟨⟩~> : ∀ {xs ys as bs cs ds} {e : ES xs ys} {d : Edit as bs cs ds} 
          {{i : input d }} 
-         -> d ∈ₑ e -> (e ⊢ₑ ⟨ ⌜ d ⌝ ⟩ ~> ⊥) ⊎ (Mapˢ e ⌜ d ⌝ d)
+         -> d ∈ₑ e -> (e ⊢ₑ ⟨ ⌞ d ⌟ ⟩ ~> ⊥) ⊎ (Mapˢ e ⌞ d ⌟ d)
 ∈⟨⟩~> {{i = ()}} (here (Ins x))
 ∈⟨⟩~> (here (Del x)) = inj₁ (Del x (here (Del x)))
 ∈⟨⟩~> (here (Cpy x)) = inj₂ (source~> (Cpy x (here (Cpy x))))
@@ -100,7 +100,7 @@ data _↤_⊏_ {xs ys as a bs b} (e : ES xs ys) (α : View as a) (β : View bs b
              -> e ⊢ₑ ⟨ γ ⟩ ~> ⟨ α ⟩ -> e ⊢ₑ ⟨ φ ⟩ ~> ⟨ β ⟩ -> ⟪ e ⟫ ⊢ γ ⊏ φ -> e ↤ α ⊏ β
 
 data Mapₒ {xs ys as a bs cs ds es} (e : ES xs ys) (α : View as a) (c : Edit bs cs ds es) : Set₁ where
-  target~> : {{o : input c}} -> e ⊢ₑ ⟨ ⌜ c ⌝ ⟩ ~> ⟨ α ⟩ -> Mapₒ e α c
+  target~> : {{o : input c}} -> e ⊢ₑ ⟨ ⌞ c ⌟ ⟩ ~> ⟨ α ⟩ -> Mapₒ e α c
 
 thereMapₒ : ∀ {xs ys as a bs cs ds es fs gs hs is} {e : ES (fs ++ xs) (gs ++ ys)} {α : View as a} {c : Edit bs cs ds es} 
             (d : Edit fs gs hs is) -> Mapₒ e α c -> Mapₒ (d ∻ e) α c
@@ -108,7 +108,7 @@ thereMapₒ d (target~> x) = target~> (there~> d x)
 
 ∈~>⟨⟩ : ∀ {xs ys as bs cs ds} {e : ES xs ys} {d : Edit as bs cs ds} 
          {{o : output d }} 
-         -> d ∈ₑ e -> (e ⊢ₑ ⊥ ~> ⟨ ⌞ d ⌟ ⟩) ⊎ (Mapₒ e ⌞ d ⌟ d)
+         -> d ∈ₑ e -> (e ⊢ₑ ⊥ ~> ⟨ ⌜ d ⌝ ⟩) ⊎ (Mapₒ e ⌜ d ⌝ d)
 ∈~>⟨⟩ (here (Ins x)) = inj₁ (Ins x (here (Ins x)))
 ∈~>⟨⟩ {{o = ()}} (here (Del x))
 ∈~>⟨⟩ (here (Cpy x)) = inj₂ (target~> (Cpy x (here (Cpy x))))

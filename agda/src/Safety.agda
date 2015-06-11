@@ -23,7 +23,7 @@ open import Relation.Binary.PropositionalEquality hiding ([_])
 -- Source View present in edit script
 data _∈ˢ_ : ∀ {xs ys as a} -> View as a -> ES xs ys -> Set₁ where
   source-∈ : ∀ {as bs cs ds xs ys} {c : Edit as bs cs ds} {i : input c} {e : ES xs ys}
-           -> c ∈ₑ e -> ⌜ c ⌝ ∈ˢ e 
+           -> c ∈ₑ e -> ⌞ c ⌟ ∈ˢ e 
 
 -- Every term in the input tree is found as source in the edit script
 noEraseˢ : ∀ {xs ys as a} {α : View as a} {x : DList xs} {y : DList ys} {e : ES xs ys}
@@ -45,7 +45,7 @@ noEraseˢ (Ins y p) (∈-there q) | source-∈ {i = i} x = source-∈ {i = i} (t
 open import Data.Unit
 
 noMadeUpAuxˢ : ∀ {xs ys bs cs ds es} {t₀ : DList xs} {t₁ : DList ys} {e : ES xs ys} {c : Edit bs cs ds es}
-              {{i : input c}} {α : View (inputArgs c) (inputTy c)} -> ⌜ c ⌝ ≡ α -> c ∈ₑ e -> Diff t₀ t₁ e -> α ∈ t₀
+              {{i : input c}} {α : View (inputArgs c) (inputTy c)} -> ⌞ c ⌟ ≡ α -> c ∈ₑ e -> Diff t₀ t₁ e -> α ∈ t₀
 noMadeUpAuxˢ {{i = ()}} eq (here (Ins x)) q
 noMadeUpAuxˢ {{i = tt}} refl (here (Del x)) (Del .x q) = ∈-here x
 noMadeUpAuxˢ {{i = tt}} refl (here (Cpy x)) (Cpy .x q) = ∈-here x
@@ -70,7 +70,7 @@ noMadeUpˢ (source-∈ x) q = noMadeUpAuxˢ refl x q
 
 data _∈ₒ_ : ∀ {xs ys as a} -> View as a -> ES xs ys -> Set₁ where
   target-∈ : ∀ {as bs cs ds xs ys} {c : Edit as bs cs ds} {o : output c} {e : ES xs ys}
-           -> c ∈ₑ e -> ⌞ c ⌟ ∈ₒ e 
+           -> c ∈ₑ e -> ⌜ c ⌝ ∈ₒ e 
 
 noEraseₒ : ∀ {xs ys as a} {α : View as a} {x : DList xs} {y : DList ys} {e : ES xs ys}
             -> Diff x y e -> α ∈ y -> α ∈ₒ e
@@ -88,7 +88,7 @@ noEraseₒ (Ins y p) (∈-there q) with noEraseₒ p q
 noEraseₒ (Ins y p) (∈-there q) | target-∈ {o = o} r = target-∈ {o = o} (there (Ins y) r)
 
 noMadeUpAuxₒ : ∀ {xs ys bs cs ds es} {t₀ : DList xs} {t₁ : DList ys} {e : ES xs ys} {c : Edit bs cs ds es}
-               {{o : output c}} {α : View (outputArgs c) (outputTy c)} -> ⌞ c ⌟ ≡ α -> c ∈ₑ e -> Diff t₀ t₁ e -> α ∈ t₁
+               {{o : output c}} {α : View (outputArgs c) (outputTy c)} -> ⌜ c ⌝ ≡ α -> c ∈ₑ e -> Diff t₀ t₁ e -> α ∈ t₁
 noMadeUpAuxₒ refl (here (Ins x)) (Ins .x q) = ∈-here x
 noMadeUpAuxₒ {{()}} eq (here (Del x)) q
 noMadeUpAuxₒ refl (here (Cpy x)) (Cpy .x q) = ∈-here x
