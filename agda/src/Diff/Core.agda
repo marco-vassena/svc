@@ -1,7 +1,7 @@
 module Diff.Core where
 
-open import EditScript.Core
-open import EditScript.Aligned
+open import EditScript.Core public 
+open import EditScript.Aligned public
 open import Lemmas 
 
 open import Data.Unit hiding (_≤?_ ; _≤_)

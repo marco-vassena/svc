@@ -1,7 +1,8 @@
 module Diff3.Core where
 
-open import Diff
-open import EditScript
+open import Diff.Core public
+open import EditScript.Core public
+open import EditScript.Aligned public
 
 open import Data.Product
 open import Data.Sum

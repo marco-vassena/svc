@@ -1,9 +1,9 @@
--- This module explicits the mapping between nodes induced by an edit script
-
-module Mapping where
+module EditScript.Mapping where
 
 open import Data.DTree
-open import Diff
+open import EditScript.Embedding
+open import Diff.Safety
+open import Diff.Embedding
 open import Data.List
 open import Data.Unit
 open import Relation.Binary.PropositionalEquality hiding ([_])
@@ -32,7 +32,6 @@ open import Function
 open import Data.Sum
 import Data.Sum as S
 open import Data.Empty hiding (⊥)
-open import Safety
 
 -- Edit scripts preserve ⊏ relation.
 data _↦_⊏_ {xs ys as a bs b} (e : ES xs ys) (α : View as a) (β : View bs b) : Set₁ where
@@ -130,3 +129,4 @@ preserve-↤ p | target-⊏ x | inj₂ f with ∈~>⟨⟩ (⊏ₑ-∈₂ x)
 preserve-↤ p | target-⊏ x | inj₂ f | inj₁ q = Ins₂ q
 preserve-↤ p | target-⊏ {c = c} {d = d} x | inj₂ (target~> f) | inj₂ (target~> g) 
   = Map₂ f g (⟪⟫-⊏ c d x)
+

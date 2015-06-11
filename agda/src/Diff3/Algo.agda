@@ -1,7 +1,5 @@
 module Diff3.Algo where
 
-open import EditScript
-open import Diff
 open import Diff3.Core
 
 open import Data.List

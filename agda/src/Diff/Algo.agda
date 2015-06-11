@@ -1,7 +1,6 @@
 module Diff.Algo where
 
 open import Data.DTree
-open import EditScript
 open import Diff.Core
 open import Lemmas
 
