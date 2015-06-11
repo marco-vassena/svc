@@ -47,20 +47,10 @@ dsplit-lemma : ∀ {{xs ys}} -> (ds : DList (xs ++ ys)) ->
 dsplit-lemma {{[]}} ds = refl
 dsplit-lemma {{x ∷ xs}} (t ∷ ds) = P.cong (_∷_ t) (dsplit-lemma ds)
 
-data Split : ∀ {as bs cs} -> DList as -> DList bs -> DList cs -> Set₁ where
-  MkS : ∀ {xs ys} -> (ds₁ : DList xs) (ds₂ : DList ys) -> Split ds₁ ds₂ (ds₁ +++ ds₂)
-
-mkSplit : ∀ {{xs}} {{ys}} -> (ds : DList (xs ++ ys)) -> Split (proj₁ (dsplit ds)) (proj₂ (dsplit ds)) ds
-mkSplit {{[]}} ds = MkS [] ds
-mkSplit {{x ∷ xs}} (t ∷ ds) with dsplit ds | mkSplit {{xs}} ds
-mkSplit {{x ∷ xs}} (t ∷ .(ds₁ +++ ds₂)) | ds₁ , ds₂ | MkS .ds₁ .ds₂ = MkS (t ∷ ds₁) ds₂
-
 data _∈_ : ∀ {ys xs a} -> View xs a -> DList ys -> Set₁ where
   ∈-here : ∀ {xs a ys} (x : View xs a) {ts₁ : DList xs} {ts₂ : DList ys} -> x ∈ Node x ts₁ ∷ ts₂
   ∈-there : ∀ {xs a b zs ys} {x : View xs a} {y : View ys b} {ts₁ : DList ys} {ts₂ : DList zs} 
             -> x ∈ ts₁ +++ ts₂ -> x ∈ Node y ts₁ ∷ ts₂
-
-
 
 infixl 3 _∈_
 
@@ -96,9 +86,6 @@ there+++ (t ∷ ts) r = there (there+++ ts r)
 data _⊢_⊏_ : ∀ {xs as bs a b} -> DList xs -> View as a -> View bs b -> Set₁ where
   here : ∀ {xs ys zs a b} (x : View xs a) {y : View ys b} {ts₁ : DList xs} {ts₂ : DList zs} -> y ∈ (ts₁ +++ ts₂) 
          -> Node x ts₁ ∷ ts₂ ⊢ x ⊏ y
-  -- here₁ : ∀ {xs ys zs a b} (x : View xs a) {y : View ys b} {ts₁ : DList xs} {ts₂ : DList zs} -> y ∈ ts₁ -> Node x ts₁ ∷ ts₂ ⊢ x ⊏ y
-  -- here₂ : ∀ {xs ys zs a b} (x : View xs a) {y : View ys b} {ts₁ : DList xs} {ts₂ : DList zs} -> y ∈ ts₂ -> Node x ts₁ ∷ ts₂ ⊢ x ⊏ y
-  --there : ∀ {xs ys zs a b c} {x : View xs a} {y : View ys b} {t : DTree c} {ts : DList zs} -> ts ⊢ x ⊏ y -> t ∷ ts ⊢ x ⊏ y
   there : ∀ {as bs cs xs a b c} {x : View as a} {y : View bs b} {z : View cs c} {ts₁ : DList cs} {ts₂ : DList xs} 
           -> ts₁ +++ ts₂ ⊢ x ⊏ y -> Node z ts₁ ∷ ts₂ ⊢ x ⊏ y
 
@@ -134,15 +121,3 @@ size-+++ [] y = refl
 size-+++ (Node x xs ∷ ts) y rewrite
     size-+++ ts y
   | +-assoc (size xs) (size ts) (size y) = refl
-
---------------------------------------------------------------------------------
--- Needed?
-
-data AView : Set₁ where
-  A : ∀ {xs a} -> View xs a -> AView
-
-elem : ∀ {xs n} -> (ts : DList xs) -> n <′ size ts -> AView
-elem [] ()
-elem (Node x xs ∷ ts) ≤′-refl = A x
-elem (Node x xs ∷ ts) (≤′-step p) rewrite sym (size-+++ xs ts) = elem (xs +++ ts) p
-

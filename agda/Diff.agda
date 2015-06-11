@@ -219,19 +219,19 @@ data _~_ : ∀ {xs ys zs ws} -> (e₁ : ES xs ys) (e₂ : ES zs ws) -> Set₁ wh
 open import Data.Nat hiding (eq?)
 open import Relation.Binary.PropositionalEquality
 
-del-size : ∀ {as zs ws us a n} (xs : DList zs) (ts₁ : DList ws) (y : View as a) (ys : DList as) (ts₂ : DList us) 
+del-size : ∀ {zs ws us as n} (xs : DList zs) (ts₁ : DList ws) (ys : DList as) (ts₂ : DList us) 
            -> size xs + size ts₁ + suc (size ys + size ts₂) ≤ n -> size (xs +++ ts₁) + suc (size ys + size ts₂) ≤ n
-del-size xs ts₁ x ys ts₂ p rewrite sym (size-+++ xs ts₁) = p
+del-size xs ts₁ ys ts₂ p rewrite sym (size-+++ xs ts₁) = p
 
-ins-size : ∀ {as zs ws us a n} (xs : DList zs) (ts₁ : DList ws) (y : View as a) (ys : DList as) (ts₂ : DList us) 
+ins-size : ∀ {zs ws us as n} (xs : DList zs) (ts₁ : DList ws) (ys : DList as) (ts₂ : DList us) 
            -> size xs + size ts₁ + suc (size ys + size ts₂) ≤ n -> suc (size xs + size ts₁ + size (ys +++ ts₂)) ≤ n
-ins-size xs ts₁ x ys ts₂ p rewrite 
+ins-size xs ts₁ ys ts₂ p rewrite 
     sym (size-+++ ys ts₂)
   | +-distr3 (size xs) (size ts₁) (size (ys +++ ts₂)) = p
 
-upd-size : ∀ {as zs ws us a n} (xs : DList zs) (ts₁ : DList ws) (y : View as a) (ys : DList as) (ts₂ : DList us) 
+upd-size : ∀ {zs ws us as n} (xs : DList zs) (ts₁ : DList ws) (ys : DList as) (ts₂ : DList us) 
          -> size xs + size ts₁ + suc (size ys + size ts₂) ≤ n -> size (xs +++ ts₁) + size (ys +++ ts₂) ≤ n
-upd-size xs ts₁ x ys ts₂ p rewrite 
+upd-size xs ts₁ ys ts₂ p rewrite 
     sym (size-+++ xs ts₁) 
   | sym (size-+++ ys ts₂) = ≤-lemma (size (xs +++ ts₁)) (size (ys +++ ts₂)) p
 
@@ -263,16 +263,16 @@ sdiff {n = suc n} (Node {a = a} x xs ∷ ts₁) (Node {a = b} y ys ∷ ts₂) (s
   with eq? a b
 sdiff {._} {._} {suc n} (Node x xs ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | yes refl with x =?= y
 sdiff {._} {._} {suc n} (Node x xs ∷ ts₁) (Node .x ys ∷ ts₂) (s≤s p) | yes refl | yes refl 
-  = Del x (sdiff (xs +++ ts₁) (Node x ys ∷ ts₂) (del-size xs ts₁ x ys ts₂ p)) 
-  ⨅ Ins x (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ x ys ts₂ p))
-  ⨅ Cpy x (sdiff (xs +++ ts₁) (ys +++ ts₂) (upd-size xs ts₁ x ys ts₂ p))
+  = Del x (sdiff (xs +++ ts₁) (Node x ys ∷ ts₂) (del-size xs ts₁ ys ts₂ p)) 
+  ⨅ Ins x (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ ys ts₂ p))
+  ⨅ Cpy x (sdiff (xs +++ ts₁) (ys +++ ts₂) (upd-size xs ts₁ ys ts₂ p))
 sdiff {._} {._} {suc n} (Node x xs ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | yes refl | no ¬p 
-  = Del x (sdiff (xs +++ ts₁) (Node y ys ∷ ts₂) (del-size xs ts₁ y ys ts₂ p)) 
-  ⨅ Ins y (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ y ys ts₂ p))
-  ⨅ Upd x y (sdiff (xs +++ ts₁) (ys +++ ts₂) (upd-size xs ts₁ y ys ts₂ p))
+  = Del x (sdiff (xs +++ ts₁) (Node y ys ∷ ts₂) (del-size xs ts₁ ys ts₂ p)) 
+  ⨅ Ins y (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ ys ts₂ p))
+  ⨅ Upd x y (sdiff (xs +++ ts₁) (ys +++ ts₂) (upd-size xs ts₁ ys ts₂ p))
 sdiff {._} {._} {suc n} (Node x xs ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | no ¬p 
-  = Del x (sdiff (xs +++ ts₁) (Node y ys ∷ ts₂) (del-size xs ts₁ y ys ts₂ p)) 
-  ⨅ Ins y (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ y ys ts₂ p))
+  = Del x (sdiff (xs +++ ts₁) (Node y ys ∷ ts₂) (del-size xs ts₁ ys ts₂ p)) 
+  ⨅ Ins y (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ ys ts₂ p))
 
 -- Computes the minimal-length edit-script.
 -- It calls sdiff with an appropriate upper bound on the number of nodes. 
@@ -325,14 +325,10 @@ Diff-⟪⟫ e d
 
 -- Relation between Diff, ⟦_⟧ and ⟪_⟫
 mkDiff : ∀ {xs ys} (e : ES xs ys) -> Diff ⟪ e ⟫ ⟦ e ⟧ e
-mkDiff (Ins x e) with dsplit ⟦ e ⟧
-... | ds₁ , ds₂ = Ins x (Diff-⟦⟧ e (mkDiff e))
-mkDiff (Del x e) with dsplit ⟪ e ⟫
-... | ds₁ , ds₂ = Del x (Diff-⟪⟫ e (mkDiff e))
-mkDiff (Cpy x e) with dsplit ⟪ e ⟫ 
-... | r = Cpy x (Diff-⟦⟧ e (Diff-⟪⟫ e (mkDiff e)))
-mkDiff (Upd x y e) with dsplit ⟪ e ⟫
-... | r = Upd x y (Diff-⟦⟧ e (Diff-⟪⟫ e (mkDiff e)))
+mkDiff (Ins x e) = Ins x (Diff-⟦⟧ e (mkDiff e))
+mkDiff (Del x e) = Del x (Diff-⟪⟫ e (mkDiff e))
+mkDiff (Cpy x e) = Cpy x (Diff-⟦⟧ e (Diff-⟪⟫ e (mkDiff e)))
+mkDiff (Upd x y e) = Upd x y (Diff-⟦⟧ e (Diff-⟪⟫ e (mkDiff e)))
 mkDiff End = End
 
 open import Function
@@ -384,40 +380,40 @@ Diff-suf' (Node x xs ∷ a) [] (s≤s p)
 Diff-suf' (Node {a = a₁} x xs ∷ a) (Node {a = b₁} y ys ∷ b) (s≤s p) with eq? a₁ b₁
 Diff-suf' (Node x xs₂ ∷ a₂) (Node y ys ∷ b) (s≤s p₁) | yes refl with x =?= y
 Diff-suf' (Node x xs ∷ ts₁) (Node .x ys ∷ ts₂) (s≤s p) | yes refl | yes refl 
-  with     Del x (sdiff (xs +++ ts₁) (Node x ys ∷ ts₂) (del-size xs ts₁ x ys ts₂ p)) 
-         ⨅ Ins x (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ x ys ts₂ p))
-         ⨅ Cpy x (sdiff (xs +++ ts₁) (ys +++ ts₂) (upd-size xs ts₁ x ys ts₂ p))
-       | lemma-⨅₃ (Del x (sdiff (xs +++ ts₁) (Node x ys ∷ ts₂) (del-size xs ts₁ x ys ts₂ p))) 
-                (Ins x (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ x ys ts₂ p)))
-                (Cpy x (sdiff (xs +++ ts₁) (ys +++ ts₂) (upd-size xs ts₁ x ys ts₂ p)))
+  with     Del x (sdiff (xs +++ ts₁) (Node x ys ∷ ts₂) (del-size xs ts₁ ys ts₂ p)) 
+         ⨅ Ins x (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ ys ts₂ p))
+         ⨅ Cpy x (sdiff (xs +++ ts₁) (ys +++ ts₂) (upd-size xs ts₁ ys ts₂ p))
+       | lemma-⨅₃ (Del x (sdiff (xs +++ ts₁) (Node x ys ∷ ts₂) (del-size xs ts₁ ys ts₂ p))) 
+                (Ins x (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ ys ts₂ p)))
+                (Cpy x (sdiff (xs +++ ts₁) (ys +++ ts₂) (upd-size xs ts₁ ys ts₂ p)))
 Diff-suf' (Node x xs ∷ ts₁) (Node .x ys ∷ ts₂) (s≤s p) | yes refl | yes refl | .(Del x _) | inj₁ refl 
-  = Del x (Diff-suf' (xs +++ ts₁) (Node x ys ∷ ts₂) (del-size xs ts₁ x ys ts₂ p))
+  = Del x (Diff-suf' (xs +++ ts₁) (Node x ys ∷ ts₂) (del-size xs ts₁ ys ts₂ p))
 Diff-suf' (Node x xs₂ ∷ ts₁) (Node .x ys ∷ ts₂) (s≤s p) | yes refl | yes refl | .(Ins x _) | inj₂ (inj₁ refl) 
-  = Ins x (Diff-suf' (Node x xs₂ ∷ ts₁) (ys +++ ts₂) (ins-size xs₂ ts₁ x ys ts₂ p))
+  = Ins x (Diff-suf' (Node x xs₂ ∷ ts₁) (ys +++ ts₂) (ins-size xs₂ ts₁ ys ts₂ p))
 Diff-suf' (Node x xs₂ ∷ ts₁) (Node .x ys ∷ ts₂) (s≤s p) | yes refl | yes refl | .(Cpy x _) | inj₂ (inj₂ refl) 
-  = Cpy x (Diff-suf' (xs₂ +++ ts₁) (ys +++ ts₂) (upd-size xs₂ ts₁ x ys ts₂ p))
+  = Cpy x (Diff-suf' (xs₂ +++ ts₁) (ys +++ ts₂) (upd-size xs₂ ts₁ ys ts₂ p))
 Diff-suf' (Node x xs ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | yes refl | no ¬p 
-  with     Del x (sdiff (xs +++ ts₁) (Node y ys ∷ ts₂) (del-size xs ts₁ y ys ts₂ p)) 
-         ⨅ Ins y (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ y ys ts₂ p))
-         ⨅ Upd x y (sdiff (xs +++ ts₁) (ys +++ ts₂) (upd-size xs ts₁ y ys ts₂ p))
-       | lemma-⨅₃ (Del x (sdiff (xs +++ ts₁) (Node y ys ∷ ts₂) (del-size xs ts₁ y ys ts₂ p)))
-                  (Ins y (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ y ys ts₂ p)))
-                  (Upd x y (sdiff (xs +++ ts₁) (ys +++ ts₂) (upd-size xs ts₁ y ys ts₂ p)))
+  with     Del x (sdiff (xs +++ ts₁) (Node y ys ∷ ts₂) (del-size xs ts₁ ys ts₂ p)) 
+         ⨅ Ins y (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ ys ts₂ p))
+         ⨅ Upd x y (sdiff (xs +++ ts₁) (ys +++ ts₂) (upd-size xs ts₁ ys ts₂ p))
+       | lemma-⨅₃ (Del x (sdiff (xs +++ ts₁) (Node y ys ∷ ts₂) (del-size xs ts₁ ys ts₂ p)))
+                  (Ins y (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ ys ts₂ p)))
+                  (Upd x y (sdiff (xs +++ ts₁) (ys +++ ts₂) (upd-size xs ts₁ ys ts₂ p)))
 Diff-suf' (Node x xs ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | yes refl | no ¬p | .(Del x _) | inj₁ refl 
-  = Del x (Diff-suf' (xs +++ ts₁) (Node y ys ∷ ts₂) (del-size xs ts₁ y ys ts₂ p))
+  = Del x (Diff-suf' (xs +++ ts₁) (Node y ys ∷ ts₂) (del-size xs ts₁ ys ts₂ p))
 Diff-suf' (Node x xs₃ ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | yes refl | no ¬p | .(Ins y _) | inj₂ (inj₁ refl) 
-  = Ins y (Diff-suf' (Node x xs₃ ∷ ts₁) (ys +++ ts₂) (ins-size xs₃ ts₁ y ys ts₂ p))
+  = Ins y (Diff-suf' (Node x xs₃ ∷ ts₁) (ys +++ ts₂) (ins-size xs₃ ts₁ ys ts₂ p))
 Diff-suf' (Node x xs₃ ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | yes refl | no ¬p | .(Upd x y _) | inj₂ (inj₂ refl) 
-  = Upd x y (Diff-suf' (xs₃ +++ ts₁) (ys +++ ts₂) (upd-size xs₃ ts₁ y ys ts₂ p))
+  = Upd x y (Diff-suf' (xs₃ +++ ts₁) (ys +++ ts₂) (upd-size xs₃ ts₁ ys ts₂ p))
 Diff-suf' (Node x xs ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | no ¬p with
-        Del x (sdiff (xs +++ ts₁) (Node y ys ∷ ts₂) (del-size xs ts₁ y ys ts₂ p)) 
-      ⨅ Ins y (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ y ys ts₂ p))
-    | lemma-⨅ (Del x (sdiff (xs +++ ts₁) (Node y ys ∷ ts₂) (del-size xs ts₁ y ys ts₂ p)))
-              (Ins y (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ y ys ts₂ p)))
+        Del x (sdiff (xs +++ ts₁) (Node y ys ∷ ts₂) (del-size xs ts₁ ys ts₂ p)) 
+      ⨅ Ins y (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ ys ts₂ p))
+    | lemma-⨅ (Del x (sdiff (xs +++ ts₁) (Node y ys ∷ ts₂) (del-size xs ts₁ ys ts₂ p)))
+              (Ins y (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ ys ts₂ p)))
 Diff-suf' (Node x xs₂ ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | no ¬p | .(Del x _) | inj₁ refl 
-  = Del x (Diff-suf' (xs₂ +++ ts₁) (Node y ys ∷ ts₂) (del-size xs₂ ts₁ y ys ts₂ p))
+  = Del x (Diff-suf' (xs₂ +++ ts₁) (Node y ys ∷ ts₂) (del-size xs₂ ts₁ ys ts₂ p))
 Diff-suf' (Node x xs₂ ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | no ¬p | .(Ins y _) | inj₂ refl 
-  = Ins y (Diff-suf' (Node x xs₂ ∷ ts₁) (ys +++ ts₂) (ins-size xs₂ ts₁ y ys ts₂ p))
+  = Ins y (Diff-suf' (Node x xs₂ ∷ ts₁) (ys +++ ts₂) (ins-size xs₂ ts₁ ys ts₂ p))
 
 -- Note that the opposite does not hold in general.
 -- The reason is that diff finds the edit script which minimizes cost.
@@ -452,3 +448,25 @@ Diff~ (Ins y p) (Del x q) = Ins₁ {{i = tt}} y (Diff~ p (Del x q))
 Diff~ (Ins y p) (Upd {ts₃ = ts₃} {ts₄ = ts₄} x z q) = Ins₁ {{i = tt}} y (Diff~ p (Upd {ts₃ = ts₃} {ts₄ = ts₄} x z q))
 Diff~ (Ins y p) (Cpy {ts₃ = ts₃} {ts₄ = ts₄} x q) = Ins₁ {{i = tt}} y (Diff~ p (Cpy {ts₃ = ts₃} {ts₄ = ts₄} x q))
 Diff~ (Ins y p) (Ins z q) = InsIns y z (Diff~ p q)
+
+-- Roughly says that ~ means that the scripts refer to the same source object. 
+~-⟪⟫ : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} -> e₁ ~ e₂
+       -> ⟪ e₁ ⟫ ≡ ⟪ e₂ ⟫
+~-⟪⟫ End = refl
+~-⟪⟫ (DelDel x p) rewrite ~-⟪⟫ p = refl
+~-⟪⟫ (UpdUpd x y z p) rewrite ~-⟪⟫ p = refl
+~-⟪⟫ (CpyCpy x p) rewrite ~-⟪⟫ p = refl
+~-⟪⟫ (CpyDel x p) rewrite ~-⟪⟫ p = refl
+~-⟪⟫ (DelCpy x p) rewrite ~-⟪⟫ p = refl
+~-⟪⟫ (CpyUpd x y p) rewrite ~-⟪⟫ p = refl
+~-⟪⟫ (UpdCpy x y p) rewrite ~-⟪⟫ p = refl
+~-⟪⟫ (DelUpd x y p) rewrite ~-⟪⟫ p = refl
+~-⟪⟫ (UpdDel x y p) rewrite ~-⟪⟫ p = refl
+~-⟪⟫ (InsIns x y p) rewrite ~-⟪⟫ p = refl
+~-⟪⟫ (Ins₁ x p) rewrite ~-⟪⟫ p = refl
+~-⟪⟫ (Ins₂ x p) rewrite ~-⟪⟫ p = refl
+
+Diff~nec : ∀ {xs ys zs} {x₁ x₂ : DList xs} {y : DList ys} {z : DList zs} {e₁ : ES xs ys} {e₂ : ES xs zs} 
+        -> Diff x₁ y e₁ -> Diff x₂ z e₂ -> e₁ ~ e₂ -> x₁ ≡ x₂
+Diff~nec d₁ d₂ p rewrite
+  mkDiff⟪ d₁ ⟫ | mkDiff⟪ d₂ ⟫ = ~-⟪⟫ p

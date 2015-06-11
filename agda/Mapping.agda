@@ -89,5 +89,5 @@ preserve-⊏ p | source-⊏ {c = c} x  with ∈⟨⟩~> (⊏ₑ-∈₁ x)
 preserve-⊏ p | source-⊏ {c = c} x | inj₁ a = Del₁ a
 preserve-⊏ p | source-⊏ {c = c} {d = d} x | inj₂ m with ∈⟨⟩~> (⊏ₑ-∈₂ x)
 preserve-⊏ p | source-⊏ x | inj₂ m | inj₁ b = Del₂ b
-preserve-⊏ p | source-⊏ {c = c} {d = d} {i₁ = i₁} {i₂ = i₂} x | inj₂ (source~> f) | inj₂ (source~> g) 
-  = Map₂ f g (⟦⟧-⊏ c x) 
+preserve-⊏ p | source-⊏ {c = c} {d = d} x | inj₂ (source~> f) | inj₂ (source~> g) 
+  = Map₂ f g (⟦⟧-⊏ c d x) 

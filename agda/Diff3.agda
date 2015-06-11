@@ -1,5 +1,6 @@
 module Diff3 where
 
+open import DTree
 open import Diff
 open import View
 
@@ -79,9 +80,6 @@ diff3 e₁ ._ (Ins₂ x p) = Ins x (diff3 _ _ p)
 -- When ES₃ is well typed ?
 --------------------------------------------------------------------------------
 
-open import HList
-postulate build : ∀ {xs a} -> View xs a -> HList xs -> a
-
 -- TODO consider haveing also input type-list in ↓
 -- We can of course prove that in any diff3 that is always the common xs,
 -- but maybe we can decouple ES₃ from e₁ and e₂.
@@ -92,20 +90,6 @@ data _↓_ : ES₃ -> List Set -> Set where
   Del : ∀ {xs ys a e} -> (x : View xs a) -> e ↓ ys -> Del x e ↓ ys
   Upd : ∀ {xs ys zs a e} -> (x : View xs a) (y : View ys a) -> e ↓ (ys ++ zs) -> Upd x y e ↓ (a ∷ zs)
   Cpy : ∀ {xs ys a e} -> (x : View xs a) -> e ↓ (xs ++ ys) -> Cpy x e ↓ (a ∷ ys)
-
--- Patch. If ES₃ is well typed then we can produce the desired result
-toHList : ∀ {xs} -> (e : ES₃) -> e ↓ xs -> HList xs
-toHList .End End = []
-toHList (Ins .x e) (Ins {xs = xs} {ys = ys} x p) with split {xs} {ys} (toHList e p)
-toHList (Ins .x e) (Ins x p) | hs₁ , hs₂ = (build x hs₁) ∷ hs₂
-toHList (Del .x e) (Del x p) = toHList e p
-toHList (Upd .x .y e) (Upd {ys = ys} {zs = zs} x y p) with split {ys} {zs} (toHList e p)
-toHList (Upd .x .y e) (Upd x y p) | hs₁ , hs₂ = (build y hs₁) ∷ hs₂
-toHList (Cpy .x e) (Cpy {xs = xs} {ys = ys} x p) with split {xs} {ys} (toHList e p)
-toHList (Cpy .x e) (Cpy x p) | hs₁ , hs₂ = (build x hs₁) ∷ hs₂
-
-
-open import DTree
 
 -- What are the sufficient conditions on e₁ and e₂ so that diff3 e₁ e₂ is well-typed?
 data _⇊_ : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES zs ws} -> e₁ ~ e₂ -> List Set -> Set₁ where
@@ -210,7 +194,6 @@ diff3-wt (Ins₁ x p) (Ins .x q) = Ins x (diff3-wt p q)
 diff3-wt (Ins₂ x p) (Ins .x q) = Ins x (diff3-wt p q)
 
 -- Well-typed ES₃ can be converted to well-typed ES
-
 toES : ∀ {xs ys zs ws} {e₀₁ : ES xs ys} {e₀₂ : ES xs zs} (p : e₀₁ ~ e₀₂) -> 
        let e₀₁₂ = diff3 e₀₁ e₀₂ p in (q : e₀₁₂ ↓ ws) -> ES xs ws
 toES End End = End
@@ -376,6 +359,23 @@ diff₃-nec (Ins₂ x p) (Ins .x q) (Ins₂ .x d) = cong (Ins x) (diff₃-nec p 
 -- Therefore, being uniquely determined by Diff₃, we can prove facts about 
 -- diff3 using Diff₃, which is much convinient as it results in simpler
 -- and shorter proofs.
+
+--------------------------------------------------------------------------------
+-- Relates Diff and Diff₃
+
+diff₃-Diff-suf : ∀ {xs ys zs ws} {x : DList xs} {y : DList ys} {z : DList zs}
+                 {e₁ : ES xs ys} {e₂ : ES xs zs} (d₁ : Diff x y e₁) (d₂ : Diff x z e₂) ->
+                 let p = Diff~ d₁ d₂ in
+                 let e₃ = diff3 e₁ e₂ p in (q : e₃ ↓ ws) -> Diff₃ e₁ e₂ (toES p q)
+diff₃-Diff-suf d₁ d₂ q = diff₃-suf (Diff~ d₁ d₂) q
+
+diff₃-Diff-nec : ∀ {xs ys zs ws} {x : DList xs} {y : DList ys} {z : DList zs}
+                 {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} (d₁ : Diff x y e₁) (d₂ : Diff x z e₂) ->
+                 let p = Diff~ d₁ d₂ in
+                 let e₁₂ = diff3 e₁ e₂ p in (q : e₁₂ ↓ ws) -> Diff₃ e₁ e₂ e₃ -> e₃ ≡ toES p q
+diff₃-Diff-nec d₁ d₂ q = diff₃-nec (Diff~ d₁ d₂) q
+
+--------------------------------------------------------------------------------
 
 diff3~ : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} 
            -> Diff₃ e₁ e₂ e₃ -> e₁ ~ e₂
