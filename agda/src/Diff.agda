@@ -1,4 +1,4 @@
 module Diff where
 
-open import Diff.Diff
-open Diff.Diff public
+open import Diff.Core public
+open import EditScript public
