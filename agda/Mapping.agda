@@ -43,7 +43,7 @@ data _↦_⊏_ {xs ys as a bs b} (e : ES xs ys) (α : View as a) (β : View bs b
              -> e ⊢ₑ ⟨ α ⟩ ~> ⟨ γ ⟩ -> e ⊢ₑ ⟨ β ⟩ ~> ⟨ φ ⟩ -> ⟦ e ⟧ ⊢ γ ⊏ φ -> e ↦ α ⊏ β
  
 data Mapˢ {xs ys as a bs cs ds es} (e : ES xs ys) (α : View as a) (c : Edit bs cs ds es) : Set₁ where
-  source~> : ∀ {i : input c} {o : output c} -> e ⊢ₑ ⟨ α ⟩ ~> ⟨ ⌞ c ⌟ ⟩ -> Mapˢ e α c
+  source~> : {{o : output c}} -> e ⊢ₑ ⟨ α ⟩ ~> ⟨ ⌞ c ⌟ ⟩ -> Mapˢ e α c
 
 there~> : ∀ {xs ys as bs cs ds} {v₁ v₂ : Val} (c : Edit as bs cs ds) {e : ES (as ++ xs) (bs ++ ys)}
                 -> e ⊢ₑ v₁ ~> v₂ -> c ∻ e ⊢ₑ v₁ ~> v₂
@@ -54,7 +54,7 @@ there~> c (Ins α x) = Ins α (there c x)
 
 thereMapˢ : ∀ {xs ys as a bs cs ds es fs gs hs is} {e : ES (fs ++ xs) (gs ++ ys)} {α : View as a} {c : Edit bs cs ds es} 
             (d : Edit fs gs hs is) -> Mapˢ e α c -> Mapˢ (d ∻ e) α c
-thereMapˢ d (source~> {i = i} {o = o} x) = source~> {i = i} {o = o} (there~> d x)
+thereMapˢ d (source~> x) = source~> (there~> d x)
 
 --------------------------------------------------------------------------------
 -- These functions convert an edit that belongs to an edit script, 
@@ -76,18 +76,58 @@ thereMapˢ d (source~> {i = i} {o = o} x) = source~> {i = i} {o = o} (there~> d 
 -- is a value from which it was generated.
 -- ∈~>⟨⟩
 
--- Final lemma:
 -- If ⟪ e ⟫ ⊢ α ⊏ β then e ↦ α ⊏ β, which means that either:  
 --   1) α is deleted
 --   2) β is deleted
 --   3) ∃ γ , φ . e ⊢ₑ ⟨ α ⟩ ~> ⟨ γ ⟩ and e ⊢ₑ ⟨ β ⟩ ~> ⟨ φ ⟩ and ⟦ e ⟧ ⊢ γ ⊏ φ 
-preserve-⊏ : ∀ {xs ys as bs a b} {e : ES xs ys}  
+preserve-↦ : ∀ {xs ys as bs a b} {e : ES xs ys}
               {α : View as a} {β : View bs b}
               (p : ⟪ e ⟫ ⊢ α ⊏ β) -> e ↦ α ⊏ β 
-preserve-⊏ {e = e} p with diff-⊏ˢ p (mkDiff e)
-preserve-⊏ p | source-⊏ {c = c} x  with ∈⟨⟩~> (⊏ₑ-∈₁ x)
-preserve-⊏ p | source-⊏ {c = c} x | inj₁ a = Del₁ a
-preserve-⊏ p | source-⊏ {c = c} {d = d} x | inj₂ m with ∈⟨⟩~> (⊏ₑ-∈₂ x)
-preserve-⊏ p | source-⊏ x | inj₂ m | inj₁ b = Del₂ b
-preserve-⊏ p | source-⊏ {c = c} {d = d} x | inj₂ (source~> f) | inj₂ (source~> g) 
+preserve-↦ {e = e} p with diff-⊏ˢ p (mkDiff e)
+preserve-↦ p | source-⊏ {c = c} x with ∈⟨⟩~> (⊏ₑ-∈₁ x)
+preserve-↦ p | source-⊏ {c = c} x | inj₁ a = Del₁ a
+preserve-↦ p | source-⊏ {c = c} {d = d} x | inj₂ m with ∈⟨⟩~> (⊏ₑ-∈₂ x)
+preserve-↦ p | source-⊏ x | inj₂ m | inj₁ b = Del₂ b
+preserve-↦ p | source-⊏ {c = c} {d = d} x | inj₂ (source~> f) | inj₂ (source~> g) 
   = Map₂ f g (⟦⟧-⊏ c d x) 
+
+--------------------------------------------------------------------------------
+-- The symmetric theorem
+
+data _↤_⊏_ {xs ys as a bs b} (e : ES xs ys) (α : View as a) (β : View bs b) : Set₁ where
+  Ins₁ : e ⊢ₑ ⊥ ~> ⟨ α ⟩ -> e ↤ α ⊏ β
+  Ins₂ : e ⊢ₑ ⊥ ~> ⟨ β ⟩ -> e ↤ α ⊏ β
+  Map₂ : ∀ {cs ds c d} {γ : View cs c} {φ : View ds d} 
+             -> e ⊢ₑ ⟨ γ ⟩ ~> ⟨ α ⟩ -> e ⊢ₑ ⟨ φ ⟩ ~> ⟨ β ⟩ -> ⟪ e ⟫ ⊢ γ ⊏ φ -> e ↤ α ⊏ β
+
+data Mapₒ {xs ys as a bs cs ds es} (e : ES xs ys) (α : View as a) (c : Edit bs cs ds es) : Set₁ where
+  target~> : {{o : input c}} -> e ⊢ₑ ⟨ ⌜ c ⌝ ⟩ ~> ⟨ α ⟩ -> Mapₒ e α c
+
+thereMapₒ : ∀ {xs ys as a bs cs ds es fs gs hs is} {e : ES (fs ++ xs) (gs ++ ys)} {α : View as a} {c : Edit bs cs ds es} 
+            (d : Edit fs gs hs is) -> Mapₒ e α c -> Mapₒ (d ∻ e) α c
+thereMapₒ d (target~> x) = target~> (there~> d x)
+
+∈~>⟨⟩ : ∀ {xs ys as bs cs ds} {e : ES xs ys} {d : Edit as bs cs ds} 
+         {{o : output d }} 
+         -> d ∈ₑ e -> (e ⊢ₑ ⊥ ~> ⟨ ⌞ d ⌟ ⟩) ⊎ (Mapₒ e ⌞ d ⌟ d)
+∈~>⟨⟩ (here (Ins x)) = inj₁ (Ins x (here (Ins x)))
+∈~>⟨⟩ {{o = ()}} (here (Del x))
+∈~>⟨⟩ (here (Cpy x)) = inj₂ (target~> (Cpy x (here (Cpy x))))
+∈~>⟨⟩ (here (Upd x y)) = inj₂ (target~> (Upd x y (here (Upd x y))))
+∈~>⟨⟩ {{o = ()}} (here End)
+∈~>⟨⟩ (there d p) = S.map (there~> d) (thereMapₒ d) (∈~>⟨⟩ p)
+
+-- If ⟪ e ⟫ ⊢ α ⊏ β then e ↤ α ⊏ β, which means that either:  
+--   1) α is inserted
+--   2) β is inserted
+--   3) ∃ γ , φ . e ⊢ₑ ⟨ γ ⟩ ~> ⟨ α ⟩ and e ⊢ₑ ⟨ φ ⟩ ~> ⟨ β ⟩ and ⟪ e ⟫ ⊢ γ ⊏ φ 
+preserve-↤ : ∀ {xs ys as bs a b} {e : ES xs ys}
+              {α : View as a} {β : View bs b}
+              (p : ⟦ e ⟧ ⊢ α ⊏ β) -> e ↤ α ⊏ β 
+preserve-↤ {e = e} p with diff-⊏ₒ p (mkDiff e)
+preserve-↤ p | target-⊏ x with ∈~>⟨⟩ (⊏ₑ-∈₁ x)
+preserve-↤ p | target-⊏ x | inj₁ q = Ins₁ q
+preserve-↤ p | target-⊏ x | inj₂ f with ∈~>⟨⟩ (⊏ₑ-∈₂ x)
+preserve-↤ p | target-⊏ x | inj₂ f | inj₁ q = Ins₂ q
+preserve-↤ p | target-⊏ {c = c} {d = d} x | inj₂ (target~> f) | inj₂ (target~> g) 
+  = Map₂ f g (⟪⟫-⊏ c d x)
