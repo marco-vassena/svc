@@ -1,12 +1,9 @@
 module EditScript.Mapping where
 
-open import Data.DTree
-open import EditScript.Embedding
-open import Diff.Safety
-open import Diff.Embedding
+open import EditScript.Core public
 open import Data.List
-open import Data.Unit
-open import Relation.Binary.PropositionalEquality hiding ([_])
+open import Data.Sum
+import Data.Sum as S
 
 data Val : Set₁ where
   ⊥ : Val
@@ -21,17 +18,6 @@ data _⊢ₑ_~>_  {xs ys} (e : ES xs ys) : Val -> Val -> Set₁ where
 infixr 3 _⊢ₑ_~>_
 
 --------------------------------------------------------------------------------
-
--- TODO this part actually belongs to Embedding ... here to avoid recompiling all the other proofs
-open import Embedding
-open import Diff3
-open import Data.List
-
-
-open import Function
-open import Data.Sum
-import Data.Sum as S
-open import Data.Empty hiding (⊥)
 
 -- Edit scripts preserve ⊏ relation.
 data _↦_⊏_ {xs ys as a bs b} (e : ES xs ys) (α : View as a) (β : View bs b) : Set₁ where
@@ -55,6 +41,8 @@ thereMapˢ : ∀ {xs ys as a bs cs ds es fs gs hs is} {e : ES (fs ++ xs) (gs ++ 
 thereMapˢ d (source~> x) = source~> (there~> d x)
 
 --------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
 -- These functions convert an edit that belongs to an edit script, 
 -- e ⊢ₑ_~>_ statement.
 
@@ -69,25 +57,6 @@ thereMapˢ d (source~> x) = source~> (there~> d x)
 ∈⟨⟩~> (here (Upd x y)) = inj₂ (source~> (Upd x y (here (Upd x y))))
 ∈⟨⟩~> {{i = ()}} (here End)
 ∈⟨⟩~> (there d p) = S.map (there~> d) (thereMapˢ d) (∈⟨⟩~> p)
-
--- If the edit script has an output then, that value is either inserted or there
--- is a value from which it was generated.
--- ∈~>⟨⟩
-
--- If ⟪ e ⟫ ⊢ α ⊏ β then e ↦ α ⊏ β, which means that either:  
---   1) α is deleted
---   2) β is deleted
---   3) ∃ γ , φ . e ⊢ₑ ⟨ α ⟩ ~> ⟨ γ ⟩ and e ⊢ₑ ⟨ β ⟩ ~> ⟨ φ ⟩ and ⟦ e ⟧ ⊢ γ ⊏ φ 
-preserve-↦ : ∀ {xs ys as bs a b} {e : ES xs ys}
-              {α : View as a} {β : View bs b}
-              (p : ⟪ e ⟫ ⊢ α ⊏ β) -> e ↦ α ⊏ β 
-preserve-↦ {e = e} p with diff-⊏ˢ p (mkDiff e)
-preserve-↦ p | source-⊏ {c = c} x with ∈⟨⟩~> (⊏ₑ-∈₁ x)
-preserve-↦ p | source-⊏ {c = c} x | inj₁ a = Del₁ a
-preserve-↦ p | source-⊏ {c = c} {d = d} x | inj₂ m with ∈⟨⟩~> (⊏ₑ-∈₂ x)
-preserve-↦ p | source-⊏ x | inj₂ m | inj₁ b = Del₂ b
-preserve-↦ p | source-⊏ {c = c} {d = d} x | inj₂ (source~> f) | inj₂ (source~> g) 
-  = Map₂ f g (⟦⟧-⊏ c d x) 
 
 --------------------------------------------------------------------------------
 -- The symmetric theorem
@@ -114,19 +83,3 @@ thereMapₒ d (target~> x) = target~> (there~> d x)
 ∈~>⟨⟩ (here (Upd x y)) = inj₂ (target~> (Upd x y (here (Upd x y))))
 ∈~>⟨⟩ {{o = ()}} (here End)
 ∈~>⟨⟩ (there d p) = S.map (there~> d) (thereMapₒ d) (∈~>⟨⟩ p)
-
--- If ⟪ e ⟫ ⊢ α ⊏ β then e ↤ α ⊏ β, which means that either:  
---   1) α is inserted
---   2) β is inserted
---   3) ∃ γ , φ . e ⊢ₑ ⟨ γ ⟩ ~> ⟨ α ⟩ and e ⊢ₑ ⟨ φ ⟩ ~> ⟨ β ⟩ and ⟪ e ⟫ ⊢ γ ⊏ φ 
-preserve-↤ : ∀ {xs ys as bs a b} {e : ES xs ys}
-              {α : View as a} {β : View bs b}
-              (p : ⟦ e ⟧ ⊢ α ⊏ β) -> e ↤ α ⊏ β 
-preserve-↤ {e = e} p with diff-⊏ₒ p (mkDiff e)
-preserve-↤ p | target-⊏ x with ∈~>⟨⟩ (⊏ₑ-∈₁ x)
-preserve-↤ p | target-⊏ x | inj₁ q = Ins₁ q
-preserve-↤ p | target-⊏ x | inj₂ f with ∈~>⟨⟩ (⊏ₑ-∈₂ x)
-preserve-↤ p | target-⊏ x | inj₂ f | inj₁ q = Ins₂ q
-preserve-↤ p | target-⊏ {c = c} {d = d} x | inj₂ (target~> f) | inj₂ (target~> g) 
-  = Map₂ f g (⟪⟫-⊏ c d x)
-

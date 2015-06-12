@@ -1,13 +1,20 @@
 module EditScript.Embedding where
 
-open import Data.DTree hiding ([_])
 open import EditScript.Core public
+open import EditScript.Mapping
+open import Diff.Safety
+--open import Diff.Embedding
+-- open import Diff.Safety
+-- open import Diff3.Safety
+
+open import Data.Unit
+open import Data.Sum
+import Data.Sum as S
+open import Data.Empty hiding (⊥)
 open import Data.List
 open import Data.Product
 open import Relation.Binary.PropositionalEquality hiding ([_])
 open import Relation.Nullary
-open import Diff.Safety
-open import Diff3.Safety
 
 ∈-dsplit : ∀ {as a} {{ys zs}} {ds : DList (ys ++ zs)} (α : View as a) ->  
            let ds₁ , ds₂ = dsplit ds in α ∈ ds -> α ∈ ds₁ +++ ds₂

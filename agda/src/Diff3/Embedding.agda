@@ -10,7 +10,6 @@ open import Diff.Safety
 open import Diff3.Safety
 
 
--- TODO move this to another module just for Diff₃ lemmas
 diff3-⊏₁ : ∀ {as bs cs ds es fs gs hs xs ys zs ws} 
             {c : Edit as bs cs ds} {d : Edit es fs gs hs} {{c₁ : change c}} {{c₂ : change d}}
             {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws}
@@ -46,3 +45,14 @@ diff3-⊏₂ : ∀ {as bs cs ds es fs gs hs xs ys zs ws}
             {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws}
             -> e₂ ⊢ₑ c ⊏ d -> Diff₃ e₁ e₂ e₃ -> e₃ ⊢ₑ c ⊏ d
 diff3-⊏₂ p d = diff3-⊏₁ p (Diff₃-sym d)
+
+--------------------------------------------------------------------------------
+
+open import EditScript.Mapping
+open import Diff.Embedding
+
+-- Diff₃↦ : ∀ {xs ys zs ws as bs a b} {x : DList xs} {y : DList ys} {z : DList zs}
+--            {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} {α : View as a} {β : View bs b} ->
+--            Diff x y e₁ -> Diff x z e₂ -> Diff₃ e₁ e₂ e₃ -> x ⊢ α ⊏ β -> e₃ ↦ α ⊏ β
+-- Diff₃↦ {e₃ = e₃} d₁ d₂ d₃ p 
+--   rewrite Diff₃⟪ d₃ ⟫ |  = Diff↦ {!mkDiff e₃!} p

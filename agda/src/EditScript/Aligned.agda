@@ -81,3 +81,28 @@ data _~_ : ∀ {xs ys zs ws} -> (e₁ : ES xs ys) (e₂ : ES zs ws) -> Set₁ wh
 ~-⟪⟫ (InsIns x y p) rewrite ~-⟪⟫ p = refl
 ~-⟪⟫ (Ins₁ x p) rewrite ~-⟪⟫ p = refl
 ~-⟪⟫ (Ins₂ x p) rewrite ~-⟪⟫ p = refl
+
+-- What are the sufficient conditions on e₁ and e₂ so that diff3 e₁ e₂ is well-typed?
+data _⇊_ : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES zs ws} -> e₁ ~ e₂ -> List Set -> Set₁ where
+  End : End ⇊ []
+  InsIns : ∀ {xs ys zs ws us a} {e₁ : ES xs (ys ++ zs)} {e₂ : ES xs (ys ++ ws)} {p : e₁ ~ e₂}
+           -> (x : View ys a) -> p ⇊ (ys ++ us) -> InsIns x x p ⇊ (a ∷ us)  -- Same x
+  UpdUpd : ∀ {xs ys zs ws us ts a} {e₁ : ES (xs ++ zs) (ys ++ ws)} {e₂ : ES (xs ++ zs) (ys ++ us)} {p : e₁ ~ e₂} 
+           -> (x : View xs a) (y : View ys a) -> p ⇊ (ys ++ ts) -> UpdUpd x y y p ⇊ (a ∷ ts)
+  CpyCpy : ∀ {xs ys zs ws ts a} {e₁ : ES (xs ++ ys) (xs ++ zs)} {e₂ : ES (xs ++ ys) (xs ++ ws)} {p : e₁ ~ e₂} 
+           -> (x : View xs a) -> p ⇊ (xs ++ ts) -> CpyCpy x p ⇊ (a ∷ ts)
+  DelDel : ∀ {xs ys zs ws ts a} {e₁ : ES (xs ++ ys) zs} {e₂ : ES (xs ++ ys) ws} {p : e₁ ~ e₂} 
+           -> (x : View xs a) -> p ⇊ ts -> DelDel x p ⇊ ts
+  DelCpy : ∀ {xs ys zs us ws a} {e₁ : ES (xs ++ ys) zs} {e₂ : ES (xs ++ ys) (xs ++ ws)} {p : e₁ ~ e₂} 
+           -> (x : View xs a) -> p ⇊ us -> DelCpy x p ⇊ us
+  CpyDel : ∀ {xs ys zs us ws a} {e₁ : ES (xs ++ ys) (xs ++ ws)} {e₂ : ES (xs ++ ys) zs} {p : e₁ ~ e₂} 
+           -> (x : View xs a) -> p ⇊ us -> CpyDel x p ⇊ us
+  CpyUpd : ∀ {xs ys zs us ws ts a} {e₁ : ES (xs ++ zs) (xs ++ ws)} {e₂ : ES (xs ++ zs) (ys ++ us)} {p : e₁ ~ e₂} 
+           ->  (x : View xs a) (y : View ys a) -> p ⇊ (ys ++ ts) -> CpyUpd x y p ⇊ (a ∷ ts)
+  UpdCpy : ∀ {xs ys zs us ws ts a} {e₁ : ES (xs ++ zs) (ys ++ us)} {e₂ : ES (xs ++ zs) (xs ++ ws)} {p : e₁ ~ e₂} 
+           -> (x : View xs a) (y : View ys a) -> p ⇊ (ys ++ ts) -> UpdCpy x y p ⇊ (a ∷ ts)
+  Ins₁ : ∀ {xs ys zs us ws a} {e₁ : ES ys (xs ++ zs)} {e₂ : ES ys us} {p : e₁ ~ e₂} {{i : ¬Ins e₂}}
+         -> (x : View xs a) -> p ⇊ (xs ++ ws) -> Ins₁ x p ⇊ (a ∷ ws)
+  Ins₂ : ∀ {xs ys zs us ws a} {e₁ : ES ys us} {e₂ : ES ys (xs ++ zs)} {p : e₁ ~ e₂} {{i : ¬Ins e₁}} 
+         -> (x : View xs a) -> p ⇊ (xs ++ ws) -> Ins₂ x p ⇊ (a ∷ ws)
+
