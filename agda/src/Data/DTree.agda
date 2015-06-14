@@ -150,3 +150,10 @@ size-+++ [] y = refl
 size-+++ (Node x xs ∷ ts) y rewrite
     size-+++ ts y
   | +-assoc (size xs) (size ts) (size y) = refl
+
+--------------------------------------------------------------------------------
+
+∈-dsplit : ∀ {as a} {{ys zs}} {ds : DList (ys ++ zs)} (α : View as a) ->  
+           let ds₁ , ds₂ = dsplit ds in α ∈ ds -> α ∈ ds₁ +++ ds₂
+∈-dsplit {ds = ds} _ q
+  rewrite dsplit-lemma ds = q

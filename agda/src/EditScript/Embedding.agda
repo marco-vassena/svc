@@ -1,30 +1,25 @@
 module EditScript.Embedding where
 
 open import EditScript.Core public
-open import EditScript.Mapping
-open import Diff.Safety
---open import Diff.Embedding
--- open import Diff.Safety
--- open import Diff3.Safety
+open import Data.DTree
 
-open import Data.Unit
-open import Data.Sum
-import Data.Sum as S
-open import Data.Empty hiding (⊥)
 open import Data.List
 open import Data.Product
-open import Relation.Binary.PropositionalEquality hiding ([_])
 open import Relation.Nullary
 
-∈-dsplit : ∀ {as a} {{ys zs}} {ds : DList (ys ++ zs)} (α : View as a) ->  
-           let ds₁ , ds₂ = dsplit ds in α ∈ ds -> α ∈ ds₁ +++ ds₂
-∈-dsplit {ds = ds} _ q
-  rewrite dsplit-lemma ds = q
-
---------------------------------------------------------------------------------
+-- TODO separate module Safety!
 
 ∈-⟦⟧  : ∀ {as bs cs ds xs ys} {d : Edit as bs cs ds} {{ o : output d }} {e : ES xs ys} -> d ∈ₑ e -> ⌜ d ⌝ ∈ ⟦ e ⟧
-∈-⟦⟧ {{o = o}} {e = e} p = noMadeUpₒ (target-∈ {o = o} p) (mkDiff e)
+∈-⟦⟧ (here (Ins x)) = ∈-here x
+∈-⟦⟧ {{o = ()}} (here (Del x))
+∈-⟦⟧ (here (Cpy x)) = ∈-here x
+∈-⟦⟧ (here (Upd x y)) = ∈-here y
+∈-⟦⟧ {{o = ()}} (here End)
+∈-⟦⟧ {d = d} {{o = o}} (there (Ins x) p) = ∈-there (∈-dsplit ⌜ d ⌝ (∈-⟦⟧ p))
+∈-⟦⟧ (there (Del x) p) = ∈-⟦⟧ p
+∈-⟦⟧ {d = d} (there (Cpy x) p) = ∈-there (∈-dsplit ⌜ d ⌝ (∈-⟦⟧ p))
+∈-⟦⟧ {d = d} (there (Upd x y) p) = ∈-there (∈-dsplit ⌜ d ⌝ (∈-⟦⟧ p))
+∈-⟦⟧ (there End p) = ∈-⟦⟧ p
 
 ⟦⟧-lemma : ∀ {{ys}} {{zs}} {as bs cs ds es fs gs hs xs} (c : Edit as bs cs ds) (d : Edit es fs gs hs) (e : ES xs (ys ++ zs))
              {{p : output c}} {{q : output d}} -> ⟦ e ⟧ ⊢ ⌜ c ⌝ ⊏ ⌜ d ⌝ ->
@@ -50,7 +45,16 @@ open import Relation.Nullary
 -- Similar lemma for ⟪⟫
 
 ∈-⟪⟫  : ∀ {as bs cs ds xs ys} {d : Edit as bs cs ds} {{ i : input d }} {e : ES xs ys} -> d ∈ₑ e -> ⌞ d ⌟ ∈ ⟪ e ⟫
-∈-⟪⟫ {{i = i}} {e = e} p = noMadeUpˢ (source-∈ {i = i} p) (mkDiff e)
+∈-⟪⟫ {{i = ()}} (here (Ins x))
+∈-⟪⟫ (here (Del x)) = ∈-here x
+∈-⟪⟫ (here (Cpy x)) = ∈-here x
+∈-⟪⟫ (here (Upd x y)) = ∈-here x
+∈-⟪⟫ {{i = ()}} (here End)
+∈-⟪⟫ (there (Ins x) p) = ∈-⟪⟫ p
+∈-⟪⟫ {d = d} (there (Del x) p) = ∈-there (∈-dsplit ⌞ d ⌟ (∈-⟪⟫ p))
+∈-⟪⟫ {d = d} (there (Cpy x) p) = ∈-there (∈-dsplit ⌞ d ⌟ (∈-⟪⟫ p))
+∈-⟪⟫ {d = d} (there (Upd x y) p) = ∈-there (∈-dsplit ⌞ d ⌟ (∈-⟪⟫ p))
+∈-⟪⟫ (there End p) = ∈-⟪⟫ p
 
 ⟪⟫-lemma : ∀ {{xs ys}} {as bs cs ds es fs gs hs zs} (c : Edit as bs cs ds) (d : Edit es fs gs hs) (e : ES (xs ++ ys) zs)
              {{p : input c}} {{q : input d}} -> ⟪ e ⟫ ⊢ ⌞ c ⌟ ⊏ ⌞ d ⌟ ->
