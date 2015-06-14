@@ -323,7 +323,7 @@ diff₃-Diff-nec : ∀ {xs ys zs ws} {x : DList xs} {y : DList ys} {z : DList zs
 diff₃-Diff-nec d₁ d₂ q = diff₃-nec (Diff~ d₁ d₂) q
 
 diff3↓ : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} 
-           -> (d : Diff₃ e₁ e₂ e₃) -> diff3 e₁ e₂ (diff3~ d) ↓ ws
+           -> (d : Diff₃ e₁ e₂ e₃) -> diff3 e₁ e₂ (Diff₃~ d) ↓ ws
 diff3↓ End = End
 diff3↓ (InsIns {a = a} x d) with eq? a a
 diff3↓ (InsIns x d) | yes refl with x =?= x
