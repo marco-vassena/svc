@@ -9,7 +9,6 @@ open import Relation.Nullary
 open import Diff.Safety
 open import Diff3.Safety
 
-
 diff3-⊏₁ : ∀ {as bs cs ds es fs gs hs xs ys zs ws} 
             {c : Edit as bs cs ds} {d : Edit es fs gs hs} {{c₁ : change c}} {{c₂ : change d}}
             {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws}

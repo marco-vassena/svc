@@ -74,8 +74,9 @@ thereMapₒ : ∀ {xs ys as a bs cs ds es fs gs hs is} {e : ES (fs ++ xs) (gs ++
             (d : Edit fs gs hs is) -> Mapₒ e α c -> Mapₒ (d ∻ e) α c
 thereMapₒ d (target~> x) = target~> (there~> d x)
 
-∈~>⟨⟩ : ∀ {xs ys as bs cs ds} {e : ES xs ys} {d : Edit as bs cs ds} 
-         {{o : output d }} 
+-- If the edit script has an output then, that value is either inserted or there
+-- is a value from which it was generated.
+∈~>⟨⟩ : ∀ {xs ys as bs cs ds} {e : ES xs ys} {d : Edit as bs cs ds} {{o : output d }} 
          -> d ∈ₑ e -> (e ⊢ₑ ⊥ ~> ⟨ ⌜ d ⌝ ⟩) ⊎ (Mapₒ e ⌜ d ⌝ d)
 ∈~>⟨⟩ (here (Ins x)) = inj₁ (Ins x (here (Ins x)))
 ∈~>⟨⟩ {{o = ()}} (here (Del x))
