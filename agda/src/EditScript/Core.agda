@@ -164,3 +164,37 @@ infixl 3 _⊢ₑ_⊏_
 ⊏ₑ-∈₂ (there e p) = there e (⊏ₑ-∈₂ p)
 
 --------------------------------------------------------------------------------
+
+∈-here-⟪⟫ : ∀ {as bs cs ds xs ys} {e : ES (as ++ xs) (bs ++ ys)} (c : Edit as bs cs ds) {{i : input c}} -> ⌞ c ⌟ ∈ ⟪ c ∻ e ⟫
+∈-here-⟪⟫ (Ins x) {{()}}
+∈-here-⟪⟫ (Del x) = ∈-here x
+∈-here-⟪⟫ (Cpy x) = ∈-here x
+∈-here-⟪⟫ (Upd x y) = ∈-here x
+∈-here-⟪⟫ End {{()}}
+
+∈-there-⟪⟫ : ∀ {as bs cs ds ms m xs ys} {e : ES (as ++ xs) (bs ++ ys)} {α : View ms m} -> 
+               (d : Edit as bs cs ds) -> α ∈ ⟪ e ⟫ -> α ∈ ⟪ d ∻ e ⟫
+∈-there-⟪⟫ (Ins x) p = p
+∈-there-⟪⟫ (Del x) p = ∈-there (∈-dsplit _ p)
+∈-there-⟪⟫ (Cpy x) p = ∈-there (∈-dsplit _ p)
+∈-there-⟪⟫ (Upd x y) p = ∈-there (∈-dsplit _ p)
+∈-there-⟪⟫ End p = p
+
+--------------------------------------------------------------------------------
+
+∈-there-⟦⟧ :  ∀ {as bs cs ds ms m xs ys} {e : ES (as ++ xs) (bs ++ ys)} {α : View ms m} -> 
+               (d : Edit as bs cs ds) -> α ∈ ⟦ e ⟧ -> α ∈ ⟦ d ∻ e ⟧
+∈-there-⟦⟧ (Ins x) p = ∈-there (∈-dsplit _ p)
+∈-there-⟦⟧ (Del x) p = p
+∈-there-⟦⟧ (Cpy x) p = ∈-there (∈-dsplit _ p)
+∈-there-⟦⟧ (Upd x y) p = ∈-there (∈-dsplit _ p)
+∈-there-⟦⟧ End p = p
+
+∈-here-⟦⟧ : ∀ {as bs cs ds xs ys} {e : ES (as ++ xs) (bs ++ ys)} (c : Edit as bs cs ds) {{o : output c}} -> ⌜ c ⌝ ∈ ⟦ c ∻ e ⟧
+∈-here-⟦⟧ (Ins x) = ∈-here x
+∈-here-⟦⟧ (Del x) {{()}}
+∈-here-⟦⟧ (Cpy x) = ∈-here x
+∈-here-⟦⟧ (Upd x y) = ∈-here y
+∈-here-⟦⟧ End {{()}}
+
+--------------------------------------------------------------------------------

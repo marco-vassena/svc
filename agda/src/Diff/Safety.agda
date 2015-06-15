@@ -1,7 +1,7 @@
 module Diff.Safety where
 
 open import Diff.Core public
-open import Diff3.Core public
+open import EditScript.Safety
 open import Data.DTree
 open import Lemmas
 
@@ -44,26 +44,13 @@ noEraseˢ (Ins y p) (∈-there q) | source-∈ {i = i} x = source-∈ {i = i} (t
 
 open import Data.Unit
 
-noMadeUpAuxˢ : ∀ {xs ys bs cs ds es} {t₀ : DList xs} {t₁ : DList ys} {e : ES xs ys} {c : Edit bs cs ds es}
-              {{i : input c}} {α : View (inputArgs c) (inputTy c)} -> ⌞ c ⌟ ≡ α -> c ∈ₑ e -> Diff t₀ t₁ e -> α ∈ t₀
-noMadeUpAuxˢ {{i = ()}} eq (here (Ins x)) q
-noMadeUpAuxˢ {{i = tt}} refl (here (Del x)) (Del .x q) = ∈-here x
-noMadeUpAuxˢ {{i = tt}} refl (here (Cpy x)) (Cpy .x q) = ∈-here x
-noMadeUpAuxˢ {{i = tt}} refl (here (Upd x y)) (Upd .x .y q) = ∈-here x
-noMadeUpAuxˢ {{i = ()}} eq (here End) q
-noMadeUpAuxˢ eq (there (Ins x) p) (Ins .x q) = noMadeUpAuxˢ eq p q
-noMadeUpAuxˢ eq (there (Del x) p) (Del .x q) = ∈-there (noMadeUpAuxˢ eq p q)
-noMadeUpAuxˢ eq (there (Cpy x) p) (Cpy .x q) = ∈-there (noMadeUpAuxˢ eq p q)
-noMadeUpAuxˢ eq (there (Upd x y) p) (Upd .x .y q) = ∈-there (noMadeUpAuxˢ eq p q)
-noMadeUpAuxˢ eq (there End p) q = noMadeUpAuxˢ eq p q
-
 -- Inverse of noErase
 -- This lemma cannot be proved directly because of the abstraction introduced by ∈ˢ,
 -- therefore the auxiliary lemma noMadeUpAuxˢ, which requires explicit equality proofs,
 -- is used.
 noMadeUpˢ : ∀ {xs ys as a} {t₀ : DList xs} {t₁ : DList ys} {e : ES xs ys}
               {α : View as a} -> α ∈ˢ e -> Diff t₀ t₁ e -> α ∈ t₀
-noMadeUpˢ (source-∈ x) q = noMadeUpAuxˢ refl x q
+noMadeUpˢ (source-∈ x) q rewrite mkDiff⟪ q ⟫ = ∈-⟪⟫ x
 
 --------------------------------------------------------------------------------
 -- Target view present in edit script
@@ -87,19 +74,6 @@ noEraseₒ (Ins α p) (∈-here .α) = target-∈ (here (Ins α))
 noEraseₒ (Ins y p) (∈-there q) with noEraseₒ p q 
 noEraseₒ (Ins y p) (∈-there q) | target-∈ {o = o} r = target-∈ {o = o} (there (Ins y) r)
 
-noMadeUpAuxₒ : ∀ {xs ys bs cs ds es} {t₀ : DList xs} {t₁ : DList ys} {e : ES xs ys} {c : Edit bs cs ds es}
-               {{o : output c}} {α : View (outputArgs c) (outputTy c)} -> ⌜ c ⌝ ≡ α -> c ∈ₑ e -> Diff t₀ t₁ e -> α ∈ t₁
-noMadeUpAuxₒ refl (here (Ins x)) (Ins .x q) = ∈-here x
-noMadeUpAuxₒ {{()}} eq (here (Del x)) q
-noMadeUpAuxₒ refl (here (Cpy x)) (Cpy .x q) = ∈-here x
-noMadeUpAuxₒ refl (here (Upd x y)) (Upd .x .y q) = ∈-here y
-noMadeUpAuxₒ {{()}} eq (here End) q
-noMadeUpAuxₒ eq (there (Ins x) p) (Ins .x q) = ∈-there (noMadeUpAuxₒ eq p q)
-noMadeUpAuxₒ eq (there (Del x) p) (Del .x q) = noMadeUpAuxₒ eq p q
-noMadeUpAuxₒ eq (there (Cpy x) p) (Cpy .x q) = ∈-there (noMadeUpAuxₒ eq p q)
-noMadeUpAuxₒ eq (there (Upd x y) p) (Upd .x .y q) = ∈-there (noMadeUpAuxₒ eq p q)
-noMadeUpAuxₒ eq (there End p) q = noMadeUpAuxₒ eq p q
-
 noMadeUpₒ : ∀ {xs ys as a} {α : View as a} {x : DList xs} {y : DList ys} {e : ES xs ys}
             -> α ∈ₒ e -> Diff x y e -> α ∈ y 
-noMadeUpₒ (target-∈ x) q = noMadeUpAuxₒ refl x q
+noMadeUpₒ (target-∈ x) q rewrite mkDiff⟦ q ⟧ = ∈-⟦⟧ x
