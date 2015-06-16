@@ -3,6 +3,7 @@ module Diff3.Core where
 open import Diff.Core public
 open import EditScript.Core public
 open import EditScript.Aligned public
+open import EditScript.Mapping
 
 open import Data.Product
 open import Data.Sum
@@ -113,3 +114,9 @@ getDiff {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} d₃
         aux d p rewrite p = d
 
 --------------------------------------------------------------------------------
+
+-- Represents how changes can be merged
+data _≔_⊔_ : ∀ {a b c d e f} -> a ~> b -> c ~> d -> e ~> f -> Set where
+  Same : ∀ {v w} -> (g : v ~> w) -> g ≔ g ⊔ g
+  Change₁ : ∀ {v w} -> (f : v ~> w) (g : v ~> v) -> f ≔ f ⊔ g
+  Change₂ : ∀ {v w} -> (f : v ~> v) (g : v ~> w) -> g ≔ f ⊔ g

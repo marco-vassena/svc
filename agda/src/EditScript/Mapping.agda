@@ -19,6 +19,67 @@ infixr 3 _⊢ₑ_~>_
 
 --------------------------------------------------------------------------------
 
+-- Convenient way to deal with Edits
+data _~>_ : Val -> Val -> Set where
+  Ins : ∀ {as a} -> (α : View as a) -> ⊥ ~> ⟨ α ⟩
+  Del : ∀ {as a} -> (α : View as a) -> ⟨ α ⟩ ~> ⊥
+  Cpy : ∀ {as a} -> (α : View as a) -> ⟨ α ⟩ ~> ⟨ α ⟩
+  Upd : ∀ {as a bs} -> (α : View as a) (β : View bs a) -> ⟨ α ⟩ ~> ⟨ β ⟩
+  End : ⊥ ~> ⊥
+
+source : ∀ {as bs cs ds} -> Edit as bs cs ds -> Val
+source (Ins x) = ⊥
+source (Del x) = ⟨ x ⟩
+source (Cpy x) = ⟨ x ⟩
+source (Upd x y) = ⟨ x ⟩
+source End = ⊥
+
+target : ∀ {as bs cs ds} -> Edit as bs cs ds -> Val
+target (Ins x) = ⟨ x ⟩
+target (Del x) = ⊥
+target (Cpy x) = ⟨ x ⟩
+target (Upd x y) = ⟨ y ⟩
+target End = ⊥
+
+toMap : ∀ {as bs cs ds} -> (c : Edit as bs cs ds) -> source c ~> target c
+toMap (Ins x) = Ins x
+toMap (Del x) = Del x
+toMap (Cpy x) = Cpy x
+toMap (Upd x y) = Upd x y
+toMap End = End
+
+sourceMap : (v : Val) -> List Set
+sourceMap ⊥ = []
+sourceMap (⟨_⟩ {as = as} x) = as
+
+targetMap : (v : Val) -> List Set
+targetMap ⊥ = []
+targetMap (⟨_⟩ {a = a} x ) = a ∷ []
+
+fromMap : ∀ {v w} -> v ~> w -> Edit (sourceMap v) (sourceMap w) (targetMap v) (targetMap w)
+fromMap (Ins α) = Ins α
+fromMap (Del α) = Del α
+fromMap (Cpy α) = Cpy α
+fromMap (Upd α β) = Upd α β
+fromMap End = End
+
+--------------------------------------------------------------------------------
+
+data Mapping : Set₁ where
+  [] : Mapping
+  _∷_ : ∀ {v w} -> v ~> w -> Mapping -> Mapping
+
+infixr 3 _∷_
+
+mapping : ∀ {xs ys} -> ES xs ys -> Mapping
+mapping (Ins x e) = Ins x ∷ mapping e
+mapping (Del x e) = Del x ∷ mapping e
+mapping (Cpy x e) = Cpy x ∷ mapping e
+mapping (Upd x y e) = Upd x y ∷ mapping e
+mapping End = []
+
+--------------------------------------------------------------------------------
+
 -- Edit scripts preserve ⊏ relation.
 data _↦_⊏_ {xs ys as a bs b} (e : ES xs ys) (α : View as a) (β : View bs b) : Set₁ where
   Del₁ : e ⊢ₑ ⟨ α ⟩ ~> ⊥ -> e ↦ α ⊏ β
