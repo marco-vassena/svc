@@ -3,24 +3,10 @@ module Diff3.Algo where
 open import Diff3.Core
 
 open import Data.List
+open import Data.Empty
 open import Relation.Nullary
 open import Relation.Nullary.Decidable
 open import Relation.Binary.PropositionalEquality hiding ([_])
-
-data Conflict : Set₁ where
-  UpdUpd : ∀ {xs ys a} -> View xs a -> View ys a -> Conflict
-  DelUpd : ∀ {xs ys a} -> View xs a -> View ys a -> Conflict
-  UpdDel : ∀ {xs ys a} -> View xs a -> View ys a -> Conflict
-  InsIns : ∀ {xs ys a b} -> View xs a -> View ys b -> Conflict
-
--- Untytped version of ES3
-data ES₃ : Set₁ where
-  End : ES₃
-  Ins : ∀ {xs a} -> View xs a -> ES₃ -> ES₃
-  Del : ∀ {xs a} -> View xs a -> ES₃ -> ES₃
-  Upd : ∀ {xs ys a} -> View xs a -> View ys a -> ES₃ -> ES₃
-  Cpy : ∀ {xs a} -> View xs a -> ES₃ -> ES₃
-  Cnf : Conflict -> ES₃ -> ES₃
 
 -- Untyped version of diff3.
 -- Well-typedness is check afterwards, and produces separate conflcits
@@ -45,39 +31,68 @@ diff3 ._ ._ (InsIns x y p) | no ¬p = Cnf (InsIns x y) (diff3 _ _ p)
 diff3 ._ e₂ (Ins₁ x p) = Ins x (diff3 _ _ p)
 diff3 e₁ ._ (Ins₂ x p) = Ins x (diff3 _ _ p)
 
--- If the returned ES₃ is not empty the remaining nodes are tagged as conflicts.
+diff3=>RawDiff₃ : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} -> (p : e₁ ~ e₂) -> RawDiff₃ e₁ e₂ (diff3 e₁ e₂ p)
+diff3=>RawDiff₃ End = EndEnd
+diff3=>RawDiff₃ (DelDel x p) = DelDel x (diff3=>RawDiff₃ p)
+diff3=>RawDiff₃ (UpdUpd x y z p) with y =?= z
+diff3=>RawDiff₃ (UpdUpd x y .y p) | yes refl = UpdUpd x y (diff3=>RawDiff₃ p)
+diff3=>RawDiff₃ (UpdUpd x y z p) | no ¬p = UpdUpdC x y z {¬eq = ¬p} (diff3=>RawDiff₃ p)
+diff3=>RawDiff₃ (CpyCpy x p) = CpyCpy x (diff3=>RawDiff₃ p)
+diff3=>RawDiff₃ (CpyDel x p) = CpyDel x (diff3=>RawDiff₃ p)
+diff3=>RawDiff₃ (DelCpy x p) = DelCpy x (diff3=>RawDiff₃ p)
+diff3=>RawDiff₃ (CpyUpd x y p) = CpyUpd x y (diff3=>RawDiff₃ p)
+diff3=>RawDiff₃ (UpdCpy x y p) = UpdCpy x y (diff3=>RawDiff₃ p)
+diff3=>RawDiff₃ (DelUpd x y p) = DelUpdC x y (diff3=>RawDiff₃ p)
+diff3=>RawDiff₃ (UpdDel x y p) = UpdDelC x y (diff3=>RawDiff₃ p)
+diff3=>RawDiff₃ (InsIns {a = a} {b = b} x y p) with eq? a b
+diff3=>RawDiff₃ (InsIns x y p) | yes refl with x =?= y
+diff3=>RawDiff₃ (InsIns x .x p) | yes refl | yes refl = InsIns x (diff3=>RawDiff₃ p)
+diff3=>RawDiff₃ (InsIns x y p) | yes refl | no ¬p = InsInsC x y {¬eq = ¬p} (diff3=>RawDiff₃ p)
+diff3=>RawDiff₃ (InsIns x y p) | no ¬p = InsInsC x y {¬eq = ty=>⋍ ¬p} (diff3=>RawDiff₃ p)
+diff3=>RawDiff₃ (Ins₁ x p) = Ins₁ x (diff3=>RawDiff₃ p)
+diff3=>RawDiff₃ (Ins₂ x p) = Ins₂ x (diff3=>RawDiff₃ p)
 
--- Here we try to reconstruct a value of the desired type.
--- {-# NON_TERMINATING #-}
--- toDTree : (A : Set) -> ES₃ -> (DTree A × ES₃)
--- toDList : (xs : List Set) -> ES₃ -> (DList xs × ES₃)
+diff3<=RawDiff₃ : ∀ {xs ys zs e₃} {e₁ : ES xs ys} {e₂ : ES xs zs} -> (p : e₁ ~ e₂) -> RawDiff₃ e₁ e₂ e₃ -> diff3 e₁ e₂ p ≡ e₃
+diff3<=RawDiff₃ End EndEnd = refl
+diff3<=RawDiff₃ (InsIns {a = a}  α .α p) (InsIns .α r) with eq? a a
+diff3<=RawDiff₃ (InsIns α .α p) (InsIns .α r) | yes refl with α =?= α
+diff3<=RawDiff₃ (InsIns α .α p) (InsIns .α r) | yes refl | yes refl = cong (Ins α) (diff3<=RawDiff₃ p r)
+diff3<=RawDiff₃ (InsIns α .α p) (InsIns .α r) | yes refl | no ¬p = ⊥-elim (¬p refl)
+diff3<=RawDiff₃ (InsIns α .α p) (InsIns .α r) | no ¬p = ⊥-elim (¬p refl)
+diff3<=RawDiff₃ (Ins₁ {{i = ()}} α p) (InsIns .α r)
+diff3<=RawDiff₃ (Ins₂ {{i = ()}} α p) (InsIns .α r)
+diff3<=RawDiff₃ (InsIns α y p) (Ins₁ {{i = ()}} .α r)
+diff3<=RawDiff₃ (Ins₁ α p) (Ins₁ .α r) = cong (Ins α) (diff3<=RawDiff₃ p r)
+diff3<=RawDiff₃ (Ins₂ x p) (Ins₁ {{i = ()}} α r)
+diff3<=RawDiff₃ (InsIns x α p) (Ins₂ {{i = ()}} .α r)
+diff3<=RawDiff₃ (Ins₁ x p) (Ins₂ {{i = ()}} α r)
+diff3<=RawDiff₃ (Ins₂ α p) (Ins₂ .α r) = cong (Ins α) (diff3<=RawDiff₃ p r)
+diff3<=RawDiff₃ (DelDel α p) (DelDel .α r) = cong (Del α) (diff3<=RawDiff₃ p r)
+diff3<=RawDiff₃ (CpyCpy α p) (CpyCpy .α r) = cong (Cpy α) (diff3<=RawDiff₃ p r)
+diff3<=RawDiff₃ (UpdUpd α β .β p) (UpdUpd .α .β r) with β =?= β
+diff3<=RawDiff₃ (UpdUpd α β .β p) (UpdUpd .α .β r) | yes refl = cong (Upd α β) (diff3<=RawDiff₃ p r)
+diff3<=RawDiff₃ (UpdUpd α β .β p) (UpdUpd .α .β r) | no ¬p = ⊥-elim (¬p refl)
+diff3<=RawDiff₃ (CpyDel α p) (CpyDel .α r) = cong (Del α) (diff3<=RawDiff₃ p r)
+diff3<=RawDiff₃ (DelCpy α p) (DelCpy .α r) = cong (Del α) (diff3<=RawDiff₃ p r)
+diff3<=RawDiff₃ (CpyUpd α β p) (CpyUpd .α .β r) = cong (Upd α β) (diff3<=RawDiff₃ p r)
+diff3<=RawDiff₃ (UpdCpy α β p) (UpdCpy .α .β r) = cong (Upd α β) (diff3<=RawDiff₃ p r)
+diff3<=RawDiff₃ (DelUpd α β p) (DelUpdC .α .β r) = cong (Cnf (DelUpd α β)) (diff3<=RawDiff₃ p r)
+diff3<=RawDiff₃ (UpdDel α β p) (UpdDelC .α .β r) = cong (Cnf (UpdDel α β)) (diff3<=RawDiff₃ p r)
+diff3<=RawDiff₃ (InsIns {a = a} {b = b} α β p) (InsInsC .α .β r) with eq? a b
+diff3<=RawDiff₃ (InsIns α β p) (InsInsC .α .β r) | yes refl with α =?= β
+diff3<=RawDiff₃ (InsIns α β p₁) (InsInsC .α .β {¬eq = ¬p} r) | yes refl | yes p = ⊥-elim (¬p p)
+diff3<=RawDiff₃ (InsIns α β p) (InsInsC .α .β r) | yes refl | no ¬p = cong (Cnf (InsIns α β)) (diff3<=RawDiff₃ p r)
+diff3<=RawDiff₃ (InsIns α β p) (InsInsC .α .β r) | no ¬p = cong (Cnf (InsIns α β)) (diff3<=RawDiff₃ p r)
+diff3<=RawDiff₃ (Ins₁ {{i = ()}} α p) (InsInsC .α β r)
+diff3<=RawDiff₃ (Ins₂ {{i = ()}} β p) (InsInsC α .β r)
+diff3<=RawDiff₃ (UpdUpd α β γ p) (UpdUpdC .α .β .γ r) with β =?= γ
+diff3<=RawDiff₃ (UpdUpd α β .β p₁) (UpdUpdC .α .β .β {¬eq = ¬p} r) | yes refl = ⊥-elim (¬p refl)
+diff3<=RawDiff₃ (UpdUpd α β γ p) (UpdUpdC .α .β .γ r) | no ¬p = cong (Cnf (UpdUpd β γ)) (diff3<=RawDiff₃ p r)
 
--- toDTree A End = MTree , End
--- toDTree A (Node {xs = xs} {a = B} x e) with toDList xs e | eq? A B
--- toDTree a (Node x e) | ds , e₁ | yes refl = (Node x ds) , e₁
--- toDTree A (Node x e) | ds , e₁ | no ¬p = (TCnf x ds) , e₁
--- -- When a conflict occurs we follow the first edit script types
--- toDTree A (Cnf (UpdUpd {xs = xs} x y) e) with toDList xs e
--- ... | ds , e₁ = (Cnf (UpdUpd x y) ds) , e₁
--- toDTree A (Cnf (DelUpd {xs = xs} x y) e) with toDList xs e
--- toDTree A (Cnf (DelUpd x y) e) | ds , e₁ = (Cnf (DelUpd x y) ds) , e₁
--- toDTree A (Cnf (UpdDel {xs = xs} x y) e) with toDList xs e
--- toDTree A (Cnf (UpdDel x y) e) | ds , e₁ = (Cnf (UpdDel x y) ds) , e₁
--- toDTree A (Cnf (InsIns {xs = xs} x y) e) with toDList xs e
--- toDTree A (Cnf (InsIns x y) e) | ds , e₁ = (Cnf (InsIns x y) ds) , e₁ 
-
--- toDList [] e = DNil , e
--- toDList (x ∷ xs) e with toDTree x e
--- toDList (x ∷ xs) e | t , e₁ with toDList xs e₁
--- toDList (x ∷ xs) e | t , e₁ | ts , e₂ = (DCons t ts) , e₂
-  
 --------------------------------------------------------------------------------
 -- When ES₃ is well typed ?
 --------------------------------------------------------------------------------
 
--- TODO consider haveing also input type-list in ↓
--- We can of course prove that in any diff3 that is always the common xs,
--- but maybe we can decouple ES₃ from e₁ and e₂.
 -- ES₃ is well typed
 data _↓_ : ES₃ -> List Set -> Set where
   End : End ↓ []
@@ -341,3 +356,6 @@ diff3↓ (UpdCpy x y d) = Upd x y (diff3↓ d)
 diff3↓ (UpdUpd x y d) with y =?= y
 diff3↓ (UpdUpd x y d) | yes refl = Upd x y (diff3↓ d)
 diff3↓ (UpdUpd x y d) | no ¬p = ⊥-elim (¬p refl)
+
+--------------------------------------------------------------------------------
+

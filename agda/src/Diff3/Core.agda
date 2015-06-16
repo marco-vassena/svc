@@ -5,10 +5,63 @@ open import EditScript.Core public
 open import EditScript.Aligned public
 open import EditScript.Mapping
 
+open import Relation.Nullary
 open import Data.Product
 open import Data.Sum
 open import Data.List
 open import Relation.Binary
+
+--------------------------------------------------------------------------------
+
+data Conflict : Set₁ where
+  UpdUpd : ∀ {xs ys a} -> View xs a -> View ys a -> Conflict
+  DelUpd : ∀ {xs ys a} -> View xs a -> View ys a -> Conflict
+  UpdDel : ∀ {xs ys a} -> View xs a -> View ys a -> Conflict
+  InsIns : ∀ {xs ys a b} -> View xs a -> View ys b -> Conflict
+
+-- Untytped version of ES3
+data ES₃ : Set₁ where
+  End : ES₃
+  Ins : ∀ {xs a} -> View xs a -> ES₃ -> ES₃
+  Del : ∀ {xs a} -> View xs a -> ES₃ -> ES₃
+  Upd : ∀ {xs ys a} -> View xs a -> View ys a -> ES₃ -> ES₃
+  Cpy : ∀ {xs a} -> View xs a -> ES₃ -> ES₃
+  Cnf : Conflict -> ES₃ -> ES₃
+
+-- Reifies the outcome of diff₃
+data RawDiff₃ : ∀ {xs ys zs} (e₁ : ES xs ys) (e₂ : ES xs zs) ->  ES₃ -> Set₁ where
+  EndEnd : RawDiff₃ End End End
+  InsIns : ∀ {as a xs ys zs e₃} {e₁ : ES xs (as ++ ys)} {e₂ : ES xs (as ++ zs)} (α : View as a) -> 
+           RawDiff₃ e₁ e₂ e₃ -> RawDiff₃ (Ins α e₁) (Ins α e₂) (Ins α e₃)
+  Ins₁ : ∀ {as a xs ys zs e₃} {e₁ : ES xs (as ++ ys)} {e₂ : ES xs zs} {{i : ¬Ins e₂}} (α : View as a) -> 
+           RawDiff₃ e₁ e₂ e₃ -> RawDiff₃ (Ins α e₁) e₂ (Ins α e₃)
+  Ins₂ : ∀ {as a xs ys zs e₃} {e₁ : ES xs ys} {e₂ : ES xs (as ++ zs)} {{i : ¬Ins e₁}} (α : View as a) -> 
+           RawDiff₃ e₁ e₂ e₃ -> RawDiff₃ e₁ (Ins α e₂) (Ins α e₃)
+  DelDel : ∀ {as a xs ys zs e₃} {e₁ : ES (as ++ xs) ys} {e₂ : ES (as ++ xs) zs} (α : View as a) -> 
+             RawDiff₃ e₁ e₂ e₃ -> RawDiff₃ (Del α e₁) (Del α e₂) (Del α e₃)
+  CpyCpy : ∀ {as a xs ys zs e₃} {e₁ : ES (as ++ xs) (as ++ ys)} {e₂ : ES (as ++ xs) (as ++ zs)} (α : View as a) -> 
+             RawDiff₃ e₁ e₂ e₃ -> RawDiff₃ (Cpy α e₁) (Cpy α e₂) (Cpy α e₃)
+  UpdUpd : ∀ {as bs a xs ys zs e₃} {e₁ : ES (as ++ xs) (bs ++ ys)} {e₂ : ES (as ++ xs) (bs ++ zs)} 
+             (α : View as a) (β : View bs a) -> RawDiff₃ e₁ e₂ e₃ -> RawDiff₃ (Upd α β e₁) (Upd α β e₂) (Upd α β e₃)
+  CpyDel : ∀ {as a xs ys zs e₃} {e₁ : ES (as ++ xs) (as ++ ys)} {e₂ : ES (as ++ xs) zs} (α : View as a) ->
+              RawDiff₃ e₁ e₂ e₃ -> RawDiff₃ (Cpy α e₁) (Del α e₂) (Del α e₃)
+  DelCpy : ∀ {as a xs ys zs e₃} {e₁ : ES (as ++ xs) ys} {e₂ : ES (as ++ xs) (as ++ zs)} (α : View as a) ->
+              RawDiff₃ e₁ e₂ e₃ -> RawDiff₃ (Del α e₁) (Cpy α e₂) (Del α e₃)
+  CpyUpd : ∀ {as bs a xs ys zs e₃} {e₁ : ES (as ++ xs) (as ++ ys)} {e₂ : ES (as ++ xs) (bs ++ zs)} (α : View as a) (β : View bs a) ->
+              RawDiff₃ e₁ e₂ e₃ -> RawDiff₃ (Cpy α e₁) (Upd α β e₂) (Upd α β e₃)
+  UpdCpy : ∀ {as bs a xs ys zs e₃} {e₁ : ES (as ++ xs) (bs ++ ys)} {e₂ : ES (as ++ xs) (as ++ zs)} (α : View as a) (β : View bs a) ->
+              RawDiff₃ e₁ e₂ e₃ -> RawDiff₃ (Upd α β e₁) (Cpy α e₂) (Upd α β e₃)
+  DelUpdC : ∀ {as bs a xs ys zs e₃} {e₁ : ES (as ++ xs) ys} {e₂ : ES (as ++ xs) (bs ++ zs)} (α : View as a) (β : View bs a) ->
+              RawDiff₃ e₁ e₂ e₃ -> RawDiff₃ (Del α e₁) (Upd α β e₂) (Cnf (DelUpd α β) e₃)
+  UpdDelC : ∀ {as bs a xs ys zs e₃} {e₁ : ES (as ++ xs) (bs ++ ys)} {e₂ : ES (as ++ xs) zs} (α : View as a) (β : View bs a) ->
+              RawDiff₃ e₁ e₂ e₃ -> RawDiff₃ (Upd α β e₁) (Del α e₂) (Cnf (UpdDel α β) e₃)
+  InsInsC : ∀ {as bs a b xs ys zs e₃} {e₁ : ES xs (as ++ ys)} {e₂ : ES xs (bs ++ zs)} (α : View as a) (β : View bs b) ->
+              {¬eq : ¬ (α ⋍ β)} -> RawDiff₃ e₁ e₂ e₃ -> RawDiff₃ (Ins α e₁) (Ins β e₂) (Cnf (InsIns α β) e₃)
+  UpdUpdC : ∀ {as bs cs a xs ys zs e₃} {e₁ : ES (as ++ xs) (bs ++ ys)} {e₂ : ES (as ++ xs) (cs ++ zs)} 
+              (α : View as a) (β : View bs a) (γ : View cs a) -> {¬eq : ¬ (β ⋍ γ)} -> RawDiff₃ e₁ e₂ e₃ 
+              -> RawDiff₃ (Upd α β e₁) (Upd α γ e₂) (Cnf (UpdUpd β γ) e₃)
+  
+--------------------------------------------------------------------------------
 
 -- Refifies result of diff3
 data Diff₃ : ∀ {xs ys zs ws} -> ES xs ys -> ES xs zs -> ES xs ws -> Set where

@@ -24,6 +24,9 @@ postulate View : List Set -> Set -> Set
 data _⋍_ : ∀ {xs ys a b} -> View xs a -> View ys b -> Set where
   refl : ∀ {xs a} {x : View xs a} -> x ⋍ x
 
+ty=>⋍ : ∀ {a b as bs} {x : View as a} {y : View bs b} -> ¬ (a ≡ b) -> ¬ (x ⋍ y)
+ty=>⋍ ¬p refl = ¬p refl
+
 postulate eq? : (a b : Set) -> Dec (a ≡ b)
 postulate _=?=_ : ∀ {a xs ys} -> (x : View xs a) (y : View ys a) -> Dec (x ⋍ y)
 
