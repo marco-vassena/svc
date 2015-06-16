@@ -4,3 +4,4 @@ open import Diff3.Core public
 open import Diff3.Algo
 open import Diff3.Safety
 open import Diff3.Embedding
+open import Diff3.Maximal

@@ -5,7 +5,6 @@ open import Data.DTree
 open import Lemmas
 
 open import Function
-open import Data.Empty
 open import Data.Product
 open import Data.List
 open import Relation.Binary
@@ -76,12 +75,6 @@ noEditMadeUp (there (Upd x y) p) (CpyUpd .x .y d) = S.map (there (Cpy x)) (there
 noEditMadeUp (there (Upd x y) p) (UpdCpy .x .y d) = S.map (there (Upd x y)) (there (Cpy x)) (noEditMadeUp p d)
 noEditMadeUp (there (Upd x y) p) (UpdUpd .x .y d) = S.map (there (Upd x y)) (there (Upd x y)) (noEditMadeUp p d)
 noEditMadeUp (there End p) d = noEditMadeUp p d
-
---------------------------------------------------------------------------------
-
--- How should I formulate maximality ?
--- It means that diff3 must propagate all the changes from e1 and e2
---------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
 

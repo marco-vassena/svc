@@ -111,3 +111,5 @@ getDiff {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} d₃
 ... | d₁ | d₂ | p = d₁ , aux d₂ (Diff~nec d₁ d₂ p)
   where aux : Diff ⟪ e₂ ⟫ ⟦ e₂ ⟧ e₂ -> ⟪ e₁ ⟫ ≡ ⟪ e₂ ⟫ -> Diff ⟪ e₁ ⟫ ⟦ e₂ ⟧ e₂
         aux d p rewrite p = d
+
+--------------------------------------------------------------------------------
