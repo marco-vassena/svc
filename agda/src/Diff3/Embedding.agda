@@ -49,9 +49,17 @@ diff3-⊏₂ p d = diff3-⊏₁ p (Diff₃-sym d)
 
 open import EditScript.Mapping
 open import Diff.Embedding
+open import Data.Sum
 
--- Diff₃↦ : ∀ {xs ys zs ws as bs a b} {x : DList xs} {y : DList ys} {z : DList zs}
---            {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} {α : View as a} {β : View bs b} ->
---            Diff x y e₁ -> Diff x z e₂ -> Diff₃ e₁ e₂ e₃ -> x ⊢ α ⊏ β -> e₃ ↦ α ⊏ β
--- Diff₃↦ {e₃ = e₃} d₁ d₂ d₃ p 
---   rewrite Diff₃⟪ d₃ ⟫ |  = Diff↦ {!mkDiff e₃!} p
+Diff₃↦ : ∀ {xs ys zs ws as bs a b} {x : DList xs} {y : DList ys} {z : DList zs}
+           {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} {α : View as a} {β : View bs b} ->
+           Diff x y e₁ -> Diff x z e₂ -> Diff₃ e₁ e₂ e₃ -> x ⊢ α ⊏ β -> e₃ ↦ α ⊏ β
+Diff₃↦ {e₃ = e₃} d₁ d₂ d₃ p rewrite
+  trans (mkDiff⟪ d₁ ⟫) (sym (Diff₃⟪ d₃ ⟫)) = Diff↦ (mkDiff e₃) p
+
+-- Since e₃ is maximal, it includes all the changes from e₁ and e₂ therefore e₃ ↤ α ⊏ β 
+-- holds as the inserts cases cover when α and β comes from e₁ or e₂. 
+Diff₃↤ : ∀ {xs ys zs ws as bs a b} {x : DList xs} {y : DList ys} {z : DList zs}
+           {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} {α : View as a} {β : View bs b} ->
+           Diff x y e₁ -> Diff x z e₂ -> Diff₃ e₁ e₂ e₃ -> ⟦ e₃ ⟧ ⊢ α ⊏ β -> e₃ ↤ α ⊏ β 
+Diff₃↤ {e₃ = e₃} d₁ d₂ d₃ p = Diff↤ (mkDiff e₃) p
