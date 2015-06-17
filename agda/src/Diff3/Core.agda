@@ -60,7 +60,7 @@ data RawDiff₃ : ∀ {xs ys zs} (e₁ : ES xs ys) (e₂ : ES xs zs) ->  ES₃ -
   UpdUpdC : ∀ {as bs cs a xs ys zs e₃} {e₁ : ES (as ++ xs) (bs ++ ys)} {e₂ : ES (as ++ xs) (cs ++ zs)} 
               (α : View as a) (β : View bs a) (γ : View cs a) -> {¬eq : ¬ (β ⋍ γ)} -> RawDiff₃ e₁ e₂ e₃ 
               -> RawDiff₃ (Upd α β e₁) (Upd α γ e₂) (Cnf (UpdUpd β γ) e₃)
-  
+
 --------------------------------------------------------------------------------
 
 -- Refifies result of diff3

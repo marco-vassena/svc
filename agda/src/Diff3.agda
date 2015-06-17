@@ -5,3 +5,4 @@ open import Diff3.Algo
 open import Diff3.Safety
 open import Diff3.Embedding
 open import Diff3.Maximal
+open import Diff3.Conflict

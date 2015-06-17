@@ -38,6 +38,8 @@ data ES : (xs : List Set) (ys : List Set) -> Set₁ where
 --------------------------------------------------------------------------------
 -- Edit abstracts over the concret edit operation
 
+-- TODO consider removing the End from edits: it is not an acutal edit operation
+-- and probably complicates unification with ∻
 data Edit : List Set -> List Set -> List Set -> List Set -> Set₁ where
   Ins : ∀ {as a} -> View as a -> Edit [] as [] [ a ]
   Del : ∀ {as a} -> View as a -> Edit as [] [ a ] []
