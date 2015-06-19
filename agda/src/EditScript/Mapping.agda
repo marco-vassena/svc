@@ -161,10 +161,10 @@ thereMapₒ d (target~> x) = target~> (there~> d x)
 import Data.Empty
 open import Data.Unit
 
-data _~ᵐ_ : Mapping -> Mapping -> Set where
-  cons : ∀ {xs ys a b c} (x : a ~> b) (y : a ~> c) -> xs ~ᵐ ys -> (x ∷ xs) ~ᵐ (y ∷ ys)
-  ins₁ : ∀ {xs ys b} {{i : ¬Insᵐ ys}} (x : ⊥ ~> b) -> xs ~ᵐ ys -> x ∷ xs ~ᵐ ys
-  ins₂ : ∀ {xs ys c} {{i : ¬Insᵐ xs}} (y : ⊥ ~> c) -> xs ~ᵐ ys -> xs ~ᵐ y ∷ ys
-  nil : [] ~ᵐ []
+data _⋎_ : Mapping -> Mapping -> Set where
+  cons : ∀ {xs ys a b c} (x : a ~> b) (y : a ~> c) -> xs ⋎ ys -> (x ∷ xs) ⋎ (y ∷ ys)
+  ins₁ : ∀ {xs ys b} {{i : ¬Insᵐ ys}} (x : ⊥ ~> b) -> xs ⋎ ys -> x ∷ xs ⋎ ys
+  ins₂ : ∀ {xs ys c} {{i : ¬Insᵐ xs}} (y : ⊥ ~> c) -> xs ⋎ ys -> xs ⋎ y ∷ ys
+  nil : [] ⋎ []
 
-infixl 3 _~ᵐ_
+infixl 3 _⋎_

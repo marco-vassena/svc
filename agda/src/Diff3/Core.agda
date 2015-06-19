@@ -134,103 +134,71 @@ getDiff {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} d₃
         aux d p rewrite p = d
 
 --------------------------------------------------------------------------------
+-- Merge datatypes
 
--- Represents how changes can be merged
+
+-- It minimally represents how mappings can be merged.
+-- Id₁ and Id₂ can be used when one of the two function is just a copy, in which case we choose the other function.
+-- The third constructor Idem corresponds to the fact that ⊔ is idempotent, therefore any 
+-- function can be successfully merged against itself producing the same function. 
+-- Note that this datatype is polymorphic in the source node v, which is common
+-- in all the three mappings.
 data _≔_⊔_ {v : Val} : ∀ {a b c} -> v ~> a -> v ~> b -> v ~> c -> Set₁ where
   Id₁ : ∀ {w} -> (f : v ~> v) (g : v ~> w) -> g ≔ f ⊔ g
   Id₂ : ∀ {w} -> (f : v ~> w) (g : v ~> v) -> f ≔ f ⊔ g
   Idem : ∀ {w} -> (f : v ~> w) -> f ≔ f ⊔ f
 
+-- This datatype is the proof that two mapping cannot be merged, thus ⊔ fails producing a conflict.
+-- There are 4 constructors, one for each possible conflict.
+-- Furthermore necessary inequality proofs about nodes are included.  
+data _⊔_↥_ : ∀ {v w z} -> (v ~> w) -> (v ~> z) -> Conflict -> Set where
+  InsIns : ∀ {as a bs b} {α : View as a} {β : View bs b} 
+             (f : ⊥ ~> ⟨ α ⟩) (g : ⊥ ~> ⟨ β ⟩) (α≠β : ¬ (α ⋍ β)) -> f ⊔ g ↥ InsIns α β
+  UpdUpd : ∀ {as bs cs a} {α : View as a} {β : View bs a} {γ : View cs a}
+             (f : ⟨ α ⟩ ~> ⟨ β ⟩) (g : ⟨ α ⟩ ~> ⟨ γ ⟩)
+             (α≠β : ¬ (α ⋍ β)) (α≠γ : ¬ (α ⋍ γ)) (β≠γ : ¬ (β ⋍ γ))
+             -> f ⊔ g ↥ UpdUpd β γ
+  UpdDel : ∀ {as bs a} {α : View as a} {β : View bs a} 
+             (f : ⟨ α ⟩ ~> ⟨ β ⟩) (g : ⟨ α ⟩ ~> ⊥) (α≠β : ¬ (α ⋍ β)) -> f ⊔ g ↥ UpdDel α β
+  DelUpd : ∀ {as bs a} {α : View as a} {β : View bs a} 
+             (f : ⟨ α ⟩ ~> ⊥) (g : ⟨ α ⟩ ~> ⟨ β ⟩) (α≠β : ¬ (α ⋍ β)) -> f ⊔ g ↥ DelUpd α β
+
+infixl 2 _⊔_↥_
+
+
+--------------------------------------------------------------------------------
+-- RawMapping
 --------------------------------------------------------------------------------
 
+-- TODO better name
+-- It represents a partial mapping, which may contain conflicts. 
 data RawMapping : Set₁ where
   [] : RawMapping
   _∷_ : ∀ {a b} -> a ~> b -> RawMapping -> RawMapping
   _∷ᶜ_ : Conflict -> RawMapping -> RawMapping
 
-data _,_↥_ : ∀ {v w z} -> (v ~> w) -> (v ~> z) -> Conflict -> Set where
-  InsIns : ∀ {as a bs b} {α : View as a} {β : View bs b} 
-             (f : ⊥ ~> ⟨ α ⟩) (g : ⊥ ~> ⟨ β ⟩) (α≠β : ¬ (α ⋍ β)) -> f , g ↥ InsIns α β
-  UpdUpd : ∀ {as bs cs a} {α : View as a} {β : View bs a} {γ : View cs a}
-             (f : ⟨ α ⟩ ~> ⟨ β ⟩) (g : ⟨ α ⟩ ~> ⟨ γ ⟩)
-             (α≠β : ¬ (α ⋍ β)) (α≠γ : ¬ (α ⋍ γ)) (β≠γ : ¬ (β ⋍ γ))
-             -> f , g ↥ UpdUpd β γ
-  UpdDel : ∀ {as bs a} {α : View as a} {β : View bs a} 
-             (f : ⟨ α ⟩ ~> ⟨ β ⟩) (g : ⟨ α ⟩ ~> ⊥) (α≠β : ¬ (α ⋍ β)) -> f , g ↥ UpdDel α β
-  DelUpd : ∀ {as bs a} {α : View as a} {β : View bs a} 
-             (f : ⟨ α ⟩ ~> ⊥) (g : ⟨ α ⟩ ~> ⟨ β ⟩) (α≠β : ¬ (α ⋍ β)) -> f , g ↥ DelUpd α β
 
-infixl 2 _,_↥_
+data _∈ᶜ_ : Conflict -> RawMapping -> Set₁ where
+  here : ∀ {xs} (c : Conflict) -> c ∈ᶜ c ∷ᶜ xs
+  there : ∀ {xs v w} {c : Conflict} (x : v ~> w) -> c ∈ᶜ xs -> c ∈ᶜ x ∷ xs
+  thereᶜ : ∀ {xs c} (c' : Conflict) -> c ∈ᶜ xs -> c ∈ᶜ c' ∷ᶜ xs
 
--- data Merge : Mapping -> Mapping -> RawMapping -> Set₁ where
---   [] : Merge [] [] []
---   merge : ∀ {xs ys zs a b c d} {x : a ~> b} {y : a ~> c} {z : a ~> d} -> 
---           z ≔ x ⊔ y -> Merge xs ys zs -> Merge (x ∷ xs) (y ∷ ys) (z ∷ zs)
---   conflict : ∀ {xs ys zs v w z c} {x : v ~> w} {y : v ~> z} -> 
---                x , y ↥ c -> Merge xs ys zs -> Merge (x ∷ xs) (y ∷ ys) (c ∷ᶜ zs)
---   ins₁ : ∀ {xs ys zs as a} {α : View as a} {{i : ¬Insᵐ ys}} (x : ⊥ ~> ⟨ α ⟩) -> Merge xs ys zs -> Merge (x ∷ xs) ys (x ∷ zs)
---   ins₂ : ∀ {xs ys zs as a} {α : View as a} {{i : ¬Insᵐ xs}} (y : ⊥ ~> ⟨ α ⟩) -> Merge xs ys zs -> Merge xs (y ∷ ys) (y ∷ zs)       
+infixr 3 _∈ᶜ_ 
 
--- Reifies the outcome of diff₃
--- Merges two mapping producing
--- data Merge : Mapping -> Mapping -> Mapping -> Set₁ where
---   [] : Merge [] [] []
---   cons : ∀ {xs ys zs a b c d} {x : a ~> b} {y : a ~> c} {z : a ~> d} -> 
---               z ≔ x ⊔ y -> Merge xs ys zs -> Merge (x ∷ xs) (y ∷ ys) (z ∷ zs)
---   ins₁ : ∀ {xs ys zs as a} {α : View as a} (x : ⊥ ~> ⟨ α ⟩) -> Merge xs ys zs -> Merge (x ∷ xs) ys (x ∷ zs)
---   ins₂ : ∀ {xs ys zs as a} {α : View as a} (y : ⊥ ~> ⟨ α ⟩) -> Merge xs ys zs -> Merge xs (y ∷ ys) (y ∷ zs)       
+--------------------------------------------------------------------------------
 
--- Alternative definition with ~ᵐ
--- data Merge : {xs : Mapping} {ys : Mapping} -> xs ~ᵐ ys -> Mapping -> Set₁ where
---   [] : Merge nil []
---   cons : ∀ {xs ys zs a b c d} {p : xs ~ᵐ ys} {x : a ~> b} {y : a ~> c} {z : a ~> d} -> 
---               z ≔ x ⊔ y -> Merge p zs -> Merge (cons x y p) (z ∷ zs)
---   ins₁ : ∀ {xs ys zs as a} {p : xs ~ᵐ ys} {α : View as a} {{i : ¬Insᵐ ys}} 
---            (x : ⊥ ~> ⟨ α ⟩) -> Merge p zs -> Merge (ins₁ x p) (x ∷ zs)
---   ins₂ : ∀ {xs ys zs as a} {p : xs ~ᵐ ys} {α : View as a}  {{i : ¬Insᵐ xs}}
---            (y : ⊥ ~> ⟨ α ⟩) -> Merge p zs -> Merge (ins₂ y p) (y ∷ zs)
-
--- data MVal : Set₁ where
---   V : ∀ (v : Val) -> MVal
---   [_,_∥_] : ∀ (v w : Val) -> (v≠w : ¬ (v ≡ w)) -> MVal
-
--- data _=>_ (a : Val) : MVal -> Set₁ where
---   S : ∀ {b : Val} -> a ~> b -> a => V b 
---   F : ∀ (b c : Val) -> (b≠c : ¬ (b ≡ c)) -> a => [ b , c ∥ b≠c ]
-
--- -- Merge two mapping a ~> b, a ~> c
--- data MergeMap (a : Val) : Val -> Val -> MVal -> Set₁ where
---   Eq₁ : ∀ b -> MergeMap a a b (V b)
---   Eq₂ : ∀ b -> MergeMap a b a (V b)
---   Eq₃ : ∀ b -> MergeMap a b b (V b)
---   Cnf : ∀ {b c} -> (a≠b : ¬ (a ≡ b)) (a≠c : ¬ (a ≡ c)) (b≠c : ¬ (b ≡ c)) -> MergeMap a b c [ b , c ∥ b≠c ]
-  
--- import Level as L
-
--- data Mapping' {l} (a : Set₁) (b : Set₁) (_:~>:_ : a -> b -> Set l) : Set (L.suc l) where
---   [] : Mapping' a b _:~>:_
---   _∷_ : ∀ {v : a} {w : b} -> v :~>: w -> Mapping' a b _:~>:_ -> Mapping' a b _:~>:_
- 
-
--- Map~> : Set₁
--- Map~> = Mapping' Val Val _~>_
-
--- Map=> : Set₂ 
--- Map=> = Mapping' Val MVal _=>_
-
--- data Merge : Map~> -> Map~> -> Map=> -> Set₁ where
---   [] : Merge [] [] []
---   cons : ∀ {xs ys zs a b c d} {x : a ~> b} {y : a ~> c} {z : a => d} -> 
---               MergeMap a b c d -> Merge xs ys zs -> Merge (x ∷ xs) (y ∷ ys) (z ∷ zs)
---   ins₁ : ∀ {xs ys zs as a} {α : View as a} (x : ⊥ ~> ⟨ α ⟩) -> Merge xs ys zs -> Merge (x ∷ xs) ys (S x ∷ zs)
---   ins₂ : ∀ {xs ys zs as a} {α : View as a} (y : ⊥ ~> ⟨ α ⟩) -> Merge xs ys zs -> Merge xs (y ∷ ys) (S y ∷ zs)       
-
--- TODO point out in thesis that we need to use ~ᵐ to keep things aligned in the proofs.
-data _⇓_ : ∀ {xs ys} -> xs ~ᵐ ys -> RawMapping -> Set₁ where
+-- TODO point out in thesis that we need to use ⋎ to keep things aligned in the proofs.
+-- p ⇓ zs is the proof that two aligned mapping xs ⋎ ys when merged produce the 
+-- RawMapping zs. Unilateral inserts are always accepted (ins₁, ins₂).
+-- The constructor merge requires the proof z ≔ x ⊔ y, i.e. x and y can be successfully merged
+-- producing the mapping z, which can now be prepended to zs.
+-- The constructor conflict instead requires the proof that x ⊔ y ↥ c, i.e. x and y cannot
+-- be merged and therefore produce a conflict c, which is prepended to zs.
+data _⇓_ : ∀ {xs ys} -> xs ⋎ ys -> RawMapping -> Set₁ where
   nil : nil ⇓ []
-  merge : ∀ {xs ys zs a b c d} {p : xs ~ᵐ ys} {x : a ~> b} {y : a ~> c} {z : a ~> d} -> 
+  merge : ∀ {xs ys zs a b c d} {p : xs ⋎ ys} {x : a ~> b} {y : a ~> c} {z : a ~> d} -> 
           (m : z ≔ x ⊔ y) -> p ⇓ zs -> cons x y p ⇓ (z ∷ zs)
-  conflict : ∀ {xs ys zs v w z c} {x : v ~> w} {y : v ~> z} {p : xs ~ᵐ ys}  -> 
-               (u : x , y ↥ c) -> p ⇓ zs -> cons x y p ⇓ (c ∷ᶜ zs)
-  ins₁ : ∀ {xs ys zs as a} {p : xs ~ᵐ ys} {α : View as a} {{i : ¬Insᵐ ys}} (x : ⊥ ~> ⟨ α ⟩) -> p ⇓ zs -> ins₁ x p ⇓ (x ∷ zs)
-  ins₂ : ∀ {xs ys zs as a} {p : xs ~ᵐ ys} {α : View as a} {{i : ¬Insᵐ xs}} (y : ⊥ ~> ⟨ α ⟩) -> p ⇓ zs -> ins₂ y p ⇓ (y ∷ zs)   
+  conflict : ∀ {xs ys zs v w z c} {x : v ~> w} {y : v ~> z} {p : xs ⋎ ys}  -> 
+               (u : x ⊔ y ↥ c) -> p ⇓ zs -> cons x y p ⇓ (c ∷ᶜ zs)
+  ins₁ : ∀ {xs ys zs as a} {p : xs ⋎ ys} {α : View as a} {{i : ¬Insᵐ ys}} (x : ⊥ ~> ⟨ α ⟩) -> p ⇓ zs -> ins₁ x p ⇓ (x ∷ zs)
+  ins₂ : ∀ {xs ys zs as a} {p : xs ⋎ ys} {α : View as a} {{i : ¬Insᵐ xs}} (y : ⊥ ~> ⟨ α ⟩) -> p ⇓ zs -> ins₂ y p ⇓ (y ∷ zs)   
