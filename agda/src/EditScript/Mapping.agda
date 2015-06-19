@@ -3,11 +3,22 @@ module EditScript.Mapping where
 open import EditScript.Core public
 open import Data.List
 open import Data.Sum
+open import Relation.Binary.PropositionalEquality
+open import Relation.Nullary
 import Data.Sum as S
 
 data Val : Set₁ where
   ⊥ : Val
   ⟨_⟩ : ∀ {a as} -> View as a -> Val
+  -- This is supposed to be used only with ⊥ ⟨_⟩ 
+  [_,_∥_] : ∀ (v w : Val) -> ¬ (v ≡ w) -> Val    
+ 
+
+
+⟨_,_∥_⟩ : ∀ {as a bs b} -> (α : View as a) (β : View bs b) -> ¬ (α ⋍ β) -> Val
+⟨ α , β ∥ α≠β ⟩ = [ ⟨ α ⟩ , ⟨ β ⟩ ∥ aux α≠β ] 
+    where aux : ∀ {as a bs b} {α : View as a} {β : View bs b} -> ¬ (α ⋍ β) -> ¬ ( ⟨ α ⟩ ≡ ⟨ β ⟩ )
+          aux p refl = p refl
 
 data _⊢ₑ_~>_  {xs ys} (e : ES xs ys) : Val -> Val -> Set₁ where
   Cpy : ∀ {as a} (α : View as a) -> Cpy α ∈ₑ e -> e ⊢ₑ ⟨ α ⟩ ~> ⟨ α ⟩
@@ -20,12 +31,15 @@ infixr 3 _⊢ₑ_~>_
 --------------------------------------------------------------------------------
 
 -- Convenient way to deal with Edits
+-- TODO add conflict constructor
 data _~>_ : Val -> Val -> Set where
   Ins : ∀ {as a} -> (α : View as a) -> ⊥ ~> ⟨ α ⟩
   Del : ∀ {as a} -> (α : View as a) -> ⟨ α ⟩ ~> ⊥
   Cpy : ∀ {as a} -> (α : View as a) -> ⟨ α ⟩ ~> ⟨ α ⟩
   Upd : ∀ {as a bs} -> (α : View as a) (β : View bs a) -> ⟨ α ⟩ ~> ⟨ β ⟩
   End : ⊥ ~> ⊥
+
+infixr 3 _~>_
 
 source : ∀ {as bs cs ds} -> Edit as bs cs ds -> Val
 source (Ins x) = ⊥
@@ -48,21 +62,6 @@ toMap (Cpy x) = Cpy x
 toMap (Upd x y) = Upd x y
 toMap End = End
 
-sourceMap : (v : Val) -> List Set
-sourceMap ⊥ = []
-sourceMap (⟨_⟩ {as = as} x) = as
-
-targetMap : (v : Val) -> List Set
-targetMap ⊥ = []
-targetMap (⟨_⟩ {a = a} x ) = a ∷ []
-
-fromMap : ∀ {v w} -> v ~> w -> Edit (sourceMap v) (sourceMap w) (targetMap v) (targetMap w)
-fromMap (Ins α) = Ins α
-fromMap (Del α) = Del α
-fromMap (Cpy α) = Cpy α
-fromMap (Upd α β) = Upd α β
-fromMap End = End
-
 --------------------------------------------------------------------------------
 
 data Mapping : Set₁ where
@@ -77,6 +76,17 @@ mapping (Del x e) = Del x ∷ mapping e
 mapping (Cpy x e) = Cpy x ∷ mapping e
 mapping (Upd x y e) = Upd x y ∷ mapping e
 mapping End = []
+
+open import Data.Unit
+import Data.Empty
+
+¬Insᵐ : Mapping -> Set
+¬Insᵐ [] = ⊤
+¬Insᵐ (Ins α ∷ m) = Data.Empty.⊥
+¬Insᵐ (Del α ∷ m) = ⊤
+¬Insᵐ (Cpy α ∷ m) = ⊤
+¬Insᵐ (Upd α β ∷ m) = ⊤
+¬Insᵐ (End ∷ m) = ⊤
 
 --------------------------------------------------------------------------------
 
@@ -145,3 +155,16 @@ thereMapₒ d (target~> x) = target~> (there~> d x)
 ∈~>⟨⟩ (here (Upd x y)) = inj₂ (target~> (Upd x y (here (Upd x y))))
 ∈~>⟨⟩ {{o = ()}} (here End)
 ∈~>⟨⟩ (there d p) = S.map (there~> d) (thereMapₒ d) (∈~>⟨⟩ p)
+
+--------------------------------------------------------------------------------
+
+import Data.Empty
+open import Data.Unit
+
+data _~ᵐ_ : Mapping -> Mapping -> Set where
+  cons : ∀ {xs ys a b c} (x : a ~> b) (y : a ~> c) -> xs ~ᵐ ys -> (x ∷ xs) ~ᵐ (y ∷ ys)
+  ins₁ : ∀ {xs ys b} {{i : ¬Insᵐ ys}} (x : ⊥ ~> b) -> xs ~ᵐ ys -> x ∷ xs ~ᵐ ys
+  ins₂ : ∀ {xs ys c} {{i : ¬Insᵐ xs}} (y : ⊥ ~> c) -> xs ~ᵐ ys -> xs ~ᵐ y ∷ ys
+  nil : [] ~ᵐ []
+
+infixl 3 _~ᵐ_
