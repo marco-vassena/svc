@@ -148,6 +148,8 @@ data _≔_⊔_ {v : Val} : ∀ {a b c} -> v ~> a -> v ~> b -> v ~> c -> Set₁ w
   Id₂ : ∀ {w} -> (f : v ~> w) (g : v ~> v) -> f ≔ f ⊔ g
   Idem : ∀ {w} -> (f : v ~> w) -> f ≔ f ⊔ f
 
+infixl 2 _≔_⊔_
+
 -- This datatype is the proof that two mapping cannot be merged, thus ⊔ fails producing a conflict.
 -- There are 4 constructors, one for each possible conflict.
 -- Furthermore necessary inequality proofs about nodes are included.  
@@ -165,6 +167,39 @@ data _⊔_↥_ : ∀ {v w z} -> (v ~> w) -> (v ~> z) -> Conflict -> Set where
 
 infixl 2 _⊔_↥_
 
+open import Data.Sum
+
+≡-⋍ : ∀ {as bs} {a b : Set} {α : View as a} {β : View bs b} -> ¬ (a ≡ b) -> ¬ (α ⋍ β)
+≡-⋍ ¬p refl = ¬p refl
+
+-- For any two mapping from the same source u, either there is a third mapping h from u that merges them
+-- or the merge fails with some conflict c. 
+mergeOrConflict : ∀ {u v w} (f : u ~> v) (g : u ~> w) -> ∃₂ {A = Val} {B = _~>_ u} (λ _ h → h ≔ f ⊔ g) ⊎ (∃ λ c -> f ⊔ g ↥ c)
+mergeOrConflict (Ins {a = a} α) (Ins {a = b} β) with eq? a b 
+mergeOrConflict (Ins α) (Ins β) | yes refl with α =?= β
+mergeOrConflict (Ins α) (Ins .α) | yes refl | yes refl = inj₁ (⟨ α ⟩ , Ins α , Idem (Ins α))
+mergeOrConflict (Ins α) (Ins β) | yes refl | no ¬p = inj₂ (InsIns α β , InsIns (Ins α) (Ins β) ¬p)
+mergeOrConflict (Ins α) (Ins β) | no ¬p = inj₂ (InsIns α β , InsIns (Ins α) (Ins β) (≡-⋍ ¬p))
+mergeOrConflict (Ins α) End = inj₁ (⟨ α ⟩ , Ins α , Id₂ (Ins α) End)
+mergeOrConflict (Del α) (Del .α) = inj₁ (⊥ , Del α , Idem (Del α))
+mergeOrConflict (Del α) (Cpy .α) = inj₁ (⊥ , Del α , Id₂ (Del α) (Cpy α))
+-- Implicitly with Upd we assume that α≠β however ~> is enough expressive to cover also this case.
+mergeOrConflict (Del α) (Upd .α β) with α =?= β
+mergeOrConflict (Del α) (Upd .α .α) | yes refl = inj₁ (⊥ , Del α , Id₂ (Del α) (Upd α α))
+mergeOrConflict (Del α) (Upd .α β) | no ¬p = inj₂ (DelUpd α β , DelUpd (Del α) (Upd α β) ¬p)
+mergeOrConflict (Cpy α) g = inj₁ (_ , g , Id₁ (Cpy α) g)
+mergeOrConflict (Upd α β) (Del .α) with α =?= β
+mergeOrConflict (Upd α .α) (Del .α) | yes refl = inj₁ (⊥ , Del α , Id₁ (Upd α α) (Del α))
+mergeOrConflict (Upd α β) (Del .α) | no ¬p = inj₂ (UpdDel α β , UpdDel (Upd α β) (Del α) ¬p)
+mergeOrConflict (Upd α β) (Cpy .α) = inj₁ (⟨ β ⟩ , Upd α β , Id₂ (Upd α β) (Cpy α))
+mergeOrConflict (Upd α β) (Upd .α γ) with β =?= γ
+mergeOrConflict (Upd α β) (Upd .α .β) | yes refl = inj₁ (⟨ β ⟩ , Upd α β , Idem (Upd α β))
+mergeOrConflict (Upd α β) (Upd .α γ) | no ¬p with α =?= β
+mergeOrConflict (Upd β .β) (Upd .β γ) | no ¬p | yes refl = inj₁ (⟨ γ ⟩ , Upd β γ , Id₁ (Upd β β) (Upd β γ))
+mergeOrConflict (Upd α β) (Upd .α γ) | no ¬p₁ | no ¬p with α =?= γ
+mergeOrConflict (Upd α β) (Upd .α .α) | no ¬p₁ | no ¬p | yes refl = inj₁ (⟨ β ⟩ , Upd α β , Id₂ (Upd α β) (Upd α α))
+mergeOrConflict (Upd α β) (Upd .α γ) | no β≠γ | no α≠β | no α≠γ = inj₂ (UpdUpd β γ , UpdUpd (Upd α β) (Upd α γ) α≠β α≠γ β≠γ)
+mergeOrConflict End g = inj₁ (_ , g , Id₁ End g)
 
 --------------------------------------------------------------------------------
 -- RawMapping
