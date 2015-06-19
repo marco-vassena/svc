@@ -221,6 +221,13 @@ data _∈ᶜ_ : Conflict -> RawMapping -> Set₁ where
 infixr 3 _∈ᶜ_ 
 
 --------------------------------------------------------------------------------
+-- Merge
+
+_⨆_ : (xs ys : Mapping) -> {{ p : xs ⋎ ys }} -> RawMapping
+_⨆_ (x ∷ xs) (y ∷ ys) {{cons .x .y p}} with mergeOrConflict x y
+_⨆_ (x ∷ xs) (y ∷ ys) {{cons .x .y p}} | inj₁ (_ , z , _) = z ∷ (xs ⨆ ys)
+_⨆_ (x ∷ xs) (y ∷ ys) {{cons .x .y p}} | inj₂ (c , _) = c ∷ᶜ (xs ⨆ ys)
+_⨆_ .[] .[] {{nil}} = []
 
 -- TODO point out in thesis that we need to use ⋎ to keep things aligned in the proofs.
 -- p ⇓ zs is the proof that two aligned mapping xs ⋎ ys when merged produce the 
@@ -235,5 +242,60 @@ data _⇓_ : ∀ {xs ys} -> xs ⋎ ys -> RawMapping -> Set₁ where
           (m : z ≔ x ⊔ y) -> p ⇓ zs -> cons x y p ⇓ (z ∷ zs)
   conflict : ∀ {xs ys zs v w z c} {x : v ~> w} {y : v ~> z} {p : xs ⋎ ys}  -> 
                (u : x ⊔ y ↥ c) -> p ⇓ zs -> cons x y p ⇓ (c ∷ᶜ zs)
-  ins₁ : ∀ {xs ys zs as a} {p : xs ⋎ ys} {α : View as a} {{i : ¬Insᵐ ys}} (x : ⊥ ~> ⟨ α ⟩) -> p ⇓ zs -> ins₁ x p ⇓ (x ∷ zs)
-  ins₂ : ∀ {xs ys zs as a} {p : xs ⋎ ys} {α : View as a} {{i : ¬Insᵐ xs}} (y : ⊥ ~> ⟨ α ⟩) -> p ⇓ zs -> ins₂ y p ⇓ (y ∷ zs)   
+
+suf-⇓ : ∀ {xs ys} (p : xs ⋎ ys) -> p ⇓ (xs ⨆ ys)
+suf-⇓ (cons x y p) with mergeOrConflict x y
+suf-⇓ (cons x y p) | inj₁ (_ , z , m) = merge m (suf-⇓ p)
+suf-⇓ (cons x y p) | inj₂ (c , u) = conflict u (suf-⇓ p)
+suf-⇓ nil = nil 
+
+-- Heterogeneous equality tailored for transformations
+data _≅_ {a b} (x : a ~> b) : ∀ {c d} (y : c ~> d) → Set where
+   refl : x ≅ x
+
+~>≡ : ∀ {a b} -> (x y : a ~> b) -> x ≡ y
+~>≡ (Ins α) (Ins .α) = refl
+~>≡ (Del α) (Del .α) = refl
+~>≡ (Cpy α) (Cpy .α) = refl
+~>≡ (Cpy α) (Upd .α .α) = {!!} -- Require in Upd that α and β are different
+~>≡ (Upd α β) y = {!!} 
+~>≡ End End = refl
+
+mergeConflictExclusive : ∀ {c s u v w} {x : s ~> u} {y : s ~> v} {z : s ~> w} -> z ≔ x ⊔ y -> ¬ (x ⊔ y ↥ c)
+mergeConflictExclusive (Id₁ f y) (UpdUpd .f .y α≠β α≠γ β≠γ) = α≠β refl
+mergeConflictExclusive (Id₁ f y) (UpdDel .f .y α≠β) = α≠β refl
+mergeConflictExclusive (Id₂ f y) (UpdUpd .f .y α≠β α≠γ β≠γ) = α≠γ refl
+mergeConflictExclusive (Id₂ f y) (DelUpd .f .y α≠β) = α≠β refl
+mergeConflictExclusive (Idem x) (InsIns .x .x α≠β) = α≠β refl
+mergeConflictExclusive (Idem x) (UpdUpd .x .x α≠β α≠γ β≠γ) = β≠γ refl
+
+mergeDeterministic : ∀ {a b c d e} {x : a ~> b} {y : a ~> c} {z₁ : a ~> d} {z₂ : a ~> e} ->
+                       z₁ ≔ x ⊔ y -> z₂ ≔ x ⊔ y -> z₁ ≅ z₂
+mergeDeterministic (Id₁ f z₂) (Id₁ .f .z₂) = refl
+mergeDeterministic (Id₁ f y) (Id₂ .f .y) rewrite ~>≡ y f = refl
+mergeDeterministic (Id₁ z₂ .z₂) (Idem .z₂) = refl
+mergeDeterministic (Id₂ f z₂) (Id₁ .f .z₂) rewrite ~>≡ f z₂ = refl
+mergeDeterministic (Id₂ f y) (Id₂ .f .y) = refl
+mergeDeterministic (Id₂ z₂ .z₂) (Idem .z₂) = refl
+mergeDeterministic (Idem f) (Id₁ .f .f) = refl
+mergeDeterministic (Idem f) (Id₂ .f .f) = refl
+mergeDeterministic (Idem z₂) (Idem .z₂) = refl 
+
+conflictDeterministic : ∀ {u v w c₁ c₂} {x : u ~> v} {y : u ~> w} -> x ⊔ y ↥ c₁ -> x ⊔ y ↥ c₂ -> c₁ ≡ c₂
+conflictDeterministic (InsIns x y α≠β) (InsIns .x .y α≠β₁) = refl
+conflictDeterministic (UpdUpd x y α≠β α≠γ β≠γ) (UpdUpd .x .y α≠β₁ α≠γ₁ β≠γ₁) = refl
+conflictDeterministic (UpdDel x y α≠β) (UpdDel .x .y α≠β₁) = refl
+conflictDeterministic (DelUpd x y α≠β) (DelUpd .x .y α≠β₁) = refl
+
+open import Data.Empty
+
+nec-⇓ : ∀ {xs ys zs} {p :  xs ⋎ ys} -> p ⇓ zs -> zs ≡ xs ⨆ ys
+nec-⇓ nil = refl
+nec-⇓ (merge {x = x} {y = y} m q) with mergeOrConflict x y
+nec-⇓ (merge m q) | inj₁ (v , z , m') with mergeDeterministic m m'
+nec-⇓ (merge m q) | inj₁ (v , z , m') | refl = cong (_∷_ z) (nec-⇓ q)
+nec-⇓ (merge m q) | inj₂ (c , u) = ⊥-elim (mergeConflictExclusive m u)
+nec-⇓ (conflict {x = x} {y = y} u q) with mergeOrConflict x y
+nec-⇓ (conflict u q) | inj₁ (v , z , m) = ⊥-elim (mergeConflictExclusive m u)
+nec-⇓ (conflict u q) | inj₂ (c , u') with conflictDeterministic u u'
+nec-⇓ (conflict u q) | inj₂ (c , u') | refl = cong (_∷ᶜ_ c) (nec-⇓ q)

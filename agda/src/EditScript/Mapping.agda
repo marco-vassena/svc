@@ -10,15 +10,7 @@ import Data.Sum as S
 data Val : Set₁ where
   ⊥ : Val
   ⟨_⟩ : ∀ {a as} -> View as a -> Val
-  -- This is supposed to be used only with ⊥ ⟨_⟩ 
-  [_,_∥_] : ∀ (v w : Val) -> ¬ (v ≡ w) -> Val    
  
-
-
-⟨_,_∥_⟩ : ∀ {as a bs b} -> (α : View as a) (β : View bs b) -> ¬ (α ⋍ β) -> Val
-⟨ α , β ∥ α≠β ⟩ = [ ⟨ α ⟩ , ⟨ β ⟩ ∥ aux α≠β ] 
-    where aux : ∀ {as a bs b} {α : View as a} {β : View bs b} -> ¬ (α ⋍ β) -> ¬ ( ⟨ α ⟩ ≡ ⟨ β ⟩ )
-          aux p refl = p refl
 
 data _⊢ₑ_~>_  {xs ys} (e : ES xs ys) : Val -> Val -> Set₁ where
   Cpy : ∀ {as a} (α : View as a) -> Cpy α ∈ₑ e -> e ⊢ₑ ⟨ α ⟩ ~> ⟨ α ⟩
@@ -70,6 +62,8 @@ data Mapping : Set₁ where
 
 infixr 3 _∷_
 
+-- Note that mapping is a lossy representation of ES xs ys:
+-- We loose the connection to e and type-safety. 
 mapping : ∀ {xs ys} -> ES xs ys -> Mapping
 mapping (Ins x e) = Ins x ∷ mapping e
 mapping (Del x e) = Del x ∷ mapping e
@@ -163,8 +157,6 @@ open import Data.Unit
 
 data _⋎_ : Mapping -> Mapping -> Set where
   cons : ∀ {xs ys a b c} (x : a ~> b) (y : a ~> c) -> xs ⋎ ys -> (x ∷ xs) ⋎ (y ∷ ys)
-  ins₁ : ∀ {xs ys b} {{i : ¬Insᵐ ys}} (x : ⊥ ~> b) -> xs ⋎ ys -> x ∷ xs ⋎ ys
-  ins₂ : ∀ {xs ys c} {{i : ¬Insᵐ xs}} (y : ⊥ ~> c) -> xs ⋎ ys -> xs ⋎ y ∷ ys
   nil : [] ⋎ []
 
 infixl 3 _⋎_
