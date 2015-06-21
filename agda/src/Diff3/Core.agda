@@ -144,8 +144,8 @@ getDiff {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} d₃
 -- Note that this datatype is polymorphic in the source node v, which is common
 -- in all the three mappings.
 data _≔_⊔_ {v : Val} : ∀ {a b c} -> v ~> a -> v ~> b -> v ~> c -> Set₁ where
-  Id₁ : ∀ {w} -> (f : v ~> v) (g : v ~> w) -> g ≔ f ⊔ g
-  Id₂ : ∀ {w} -> (f : v ~> w) (g : v ~> v) -> f ≔ f ⊔ g
+  Id₁ : ∀ {w} -> (f : v ~> v) (g : v ~> w) (v≠w : ¬ (v ≡ w)) -> g ≔ f ⊔ g
+  Id₂ : ∀ {w} -> (f : v ~> w) (g : v ~> v) (v≠w : ¬ (v ≡ w)) -> f ≔ f ⊔ g
   Idem : ∀ {w} -> (f : v ~> w) -> f ≔ f ⊔ f
 
 infixl 2 _≔_⊔_
@@ -172,6 +172,9 @@ open import Data.Sum
 ≡-⋍ : ∀ {as bs} {a b : Set} {α : View as a} {β : View bs b} -> ¬ (a ≡ b) -> ¬ (α ⋍ β)
 ≡-⋍ ¬p refl = ¬p refl
 
+aux : ∀ {as bs a b} {α : View as a} {β : View bs b} -> ¬ (α ⋍ β) -> ¬ (⟨ α ⟩ ≡ ⟨ β ⟩)
+aux p refl = p refl
+
 -- For any two mapping from the same source u, either there is a third mapping h from u that merges them
 -- or the merge fails with some conflict c. 
 mergeOrConflict : ∀ {u v w} (f : u ~> v) (g : u ~> w) -> ∃₂ {A = Val} {B = _~>_ u} (λ _ h → h ≔ f ⊔ g) ⊎ (∃ λ c -> f ⊔ g ↥ c)
@@ -180,26 +183,30 @@ mergeOrConflict (Ins α) (Ins β) | yes refl with α =?= β
 mergeOrConflict (Ins α) (Ins .α) | yes refl | yes refl = inj₁ (⟨ α ⟩ , Ins α , Idem (Ins α))
 mergeOrConflict (Ins α) (Ins β) | yes refl | no ¬p = inj₂ (InsIns α β , InsIns (Ins α) (Ins β) ¬p)
 mergeOrConflict (Ins α) (Ins β) | no ¬p = inj₂ (InsIns α β , InsIns (Ins α) (Ins β) (≡-⋍ ¬p))
-mergeOrConflict (Ins α) End = inj₁ (⟨ α ⟩ , Ins α , Id₂ (Ins α) End)
+mergeOrConflict (Ins α) End = inj₁ (⟨ α ⟩ , Ins α , Id₂ (Ins α) End (λ ()))
 mergeOrConflict (Del α) (Del .α) = inj₁ (⊥ , Del α , Idem (Del α))
-mergeOrConflict (Del α) (Cpy .α) = inj₁ (⊥ , Del α , Id₂ (Del α) (Cpy α))
+mergeOrConflict (Del α) (Cpy .α) = inj₁ (⊥ , Del α , Id₂ (Del α) (Cpy α) (λ ()))
 -- Implicitly with Upd we assume that α≠β however ~> is enough expressive to cover also this case.
 mergeOrConflict (Del α) (Upd .α β) with α =?= β
-mergeOrConflict (Del α) (Upd .α .α) | yes refl = inj₁ (⊥ , Del α , Id₂ (Del α) (Upd α α))
+mergeOrConflict (Del α) (Upd .α .α) | yes refl = inj₁ (⊥ , Del α , Id₂ (Del α) (Upd α α) (λ ()))
 mergeOrConflict (Del α) (Upd .α β) | no ¬p = inj₂ (DelUpd α β , DelUpd (Del α) (Upd α β) ¬p)
-mergeOrConflict (Cpy α) g = inj₁ (_ , g , Id₁ (Cpy α) g)
+mergeOrConflict (Cpy α) (Del .α) = inj₁ (⊥ , Del α , Id₁ (Cpy α) (Del α) (λ ()))
+mergeOrConflict (Cpy α) (Cpy .α) = inj₁ (⟨ α ⟩ , Cpy α , Idem (Cpy α))
+mergeOrConflict (Cpy α) (Upd .α β) with α =?= β
+mergeOrConflict (Cpy α) (Upd .α .α) | yes refl = inj₁ (⟨ α ⟩ , {!!} , {! !})
+mergeOrConflict (Cpy α) (Upd .α β) | no α≠β = inj₁ (⟨ β ⟩ , Upd α β , Id₁ (Cpy α) (Upd α β) (aux α≠β)) -- inj₁ (_ , g , Id₁ (Cpy α) g {!!})
 mergeOrConflict (Upd α β) (Del .α) with α =?= β
-mergeOrConflict (Upd α .α) (Del .α) | yes refl = inj₁ (⊥ , Del α , Id₁ (Upd α α) (Del α))
+mergeOrConflict (Upd α .α) (Del .α) | yes refl = inj₁ (⊥ , Del α , Id₁ (Upd α α) (Del α) (λ ()))
 mergeOrConflict (Upd α β) (Del .α) | no ¬p = inj₂ (UpdDel α β , UpdDel (Upd α β) (Del α) ¬p)
-mergeOrConflict (Upd α β) (Cpy .α) = inj₁ (⟨ β ⟩ , Upd α β , Id₂ (Upd α β) (Cpy α))
+mergeOrConflict (Upd α β) (Cpy .α) = inj₁ (⟨ β ⟩ , Upd α β , Id₂ (Upd α β) (Cpy α) {!!})
 mergeOrConflict (Upd α β) (Upd .α γ) with β =?= γ
 mergeOrConflict (Upd α β) (Upd .α .β) | yes refl = inj₁ (⟨ β ⟩ , Upd α β , Idem (Upd α β))
 mergeOrConflict (Upd α β) (Upd .α γ) | no ¬p with α =?= β
-mergeOrConflict (Upd β .β) (Upd .β γ) | no ¬p | yes refl = inj₁ (⟨ γ ⟩ , Upd β γ , Id₁ (Upd β β) (Upd β γ))
+mergeOrConflict (Upd β .β) (Upd .β γ) | no ¬p | yes refl = inj₁ (⟨ γ ⟩ , Upd β γ , Id₁ (Upd β β) (Upd β γ) (aux ¬p))
 mergeOrConflict (Upd α β) (Upd .α γ) | no ¬p₁ | no ¬p with α =?= γ
-mergeOrConflict (Upd α β) (Upd .α .α) | no ¬p₁ | no ¬p | yes refl = inj₁ (⟨ β ⟩ , Upd α β , Id₂ (Upd α β) (Upd α α))
+mergeOrConflict (Upd α β) (Upd .α .α) | no ¬p₁ | no ¬p | yes refl = inj₁ (⟨ β ⟩ , Upd α β , Id₂ (Upd α β) (Upd α α) (aux ¬p))
 mergeOrConflict (Upd α β) (Upd .α γ) | no β≠γ | no α≠β | no α≠γ = inj₂ (UpdUpd β γ , UpdUpd (Upd α β) (Upd α γ) α≠β α≠γ β≠γ)
-mergeOrConflict End g = inj₁ (_ , g , Id₁ End g)
+mergeOrConflict End g = inj₁ (_ , g , Id₁ End g {!!})
 
 --------------------------------------------------------------------------------
 -- RawMapping
@@ -253,33 +260,18 @@ suf-⇓ nil = nil
 data _≅_ {a b} (x : a ~> b) : ∀ {c d} (y : c ~> d) → Set where
    refl : x ≅ x
 
-~>≡ : ∀ {a b} -> (x y : a ~> b) -> x ≡ y
-~>≡ (Ins α) (Ins .α) = refl
-~>≡ (Del α) (Del .α) = refl
-~>≡ (Cpy α) (Cpy .α) = refl
-~>≡ (Cpy α) (Upd .α .α) = {!!} -- Require in Upd that α and β are different
-~>≡ (Upd α β) y = {!!} 
-~>≡ End End = refl
-
 mergeConflictExclusive : ∀ {c s u v w} {x : s ~> u} {y : s ~> v} {z : s ~> w} -> z ≔ x ⊔ y -> ¬ (x ⊔ y ↥ c)
-mergeConflictExclusive (Id₁ f y) (UpdUpd .f .y α≠β α≠γ β≠γ) = α≠β refl
-mergeConflictExclusive (Id₁ f y) (UpdDel .f .y α≠β) = α≠β refl
-mergeConflictExclusive (Id₂ f y) (UpdUpd .f .y α≠β α≠γ β≠γ) = α≠γ refl
-mergeConflictExclusive (Id₂ f y) (DelUpd .f .y α≠β) = α≠β refl
-mergeConflictExclusive (Idem x) (InsIns .x .x α≠β) = α≠β refl
-mergeConflictExclusive (Idem x) (UpdUpd .x .x α≠β α≠γ β≠γ) = β≠γ refl
+mergeConflictExclusive p q = {!!}
+-- mergeConflictExclusive (Id₁ f y _) (UpdUpd .f .y α≠β α≠γ β≠γ) = α≠β refl
+-- mergeConflictExclusive (Id₁ f y _) (UpdDel .f .y α≠β) = α≠β refl
+-- mergeConflictExclusive (Id₂ f y) (UpdUpd .f .y α≠β α≠γ β≠γ) = α≠γ refl
+-- mergeConflictExclusive (Id₂ f y) (DelUpd .f .y α≠β) = α≠β refl
+-- mergeConflictExclusive (Idem x) (InsIns .x .x α≠β) = α≠β refl
+-- mergeConflictExclusive (Idem x) (UpdUpd .x .x α≠β α≠γ β≠γ) = β≠γ refl
 
 mergeDeterministic : ∀ {a b c d e} {x : a ~> b} {y : a ~> c} {z₁ : a ~> d} {z₂ : a ~> e} ->
                        z₁ ≔ x ⊔ y -> z₂ ≔ x ⊔ y -> z₁ ≅ z₂
-mergeDeterministic (Id₁ f z₂) (Id₁ .f .z₂) = refl
-mergeDeterministic (Id₁ f y) (Id₂ .f .y) rewrite ~>≡ y f = refl
-mergeDeterministic (Id₁ z₂ .z₂) (Idem .z₂) = refl
-mergeDeterministic (Id₂ f z₂) (Id₁ .f .z₂) rewrite ~>≡ f z₂ = refl
-mergeDeterministic (Id₂ f y) (Id₂ .f .y) = refl
-mergeDeterministic (Id₂ z₂ .z₂) (Idem .z₂) = refl
-mergeDeterministic (Idem f) (Id₁ .f .f) = refl
-mergeDeterministic (Idem f) (Id₂ .f .f) = refl
-mergeDeterministic (Idem z₂) (Idem .z₂) = refl 
+mergeDeterministic p q = {!!}
 
 conflictDeterministic : ∀ {u v w c₁ c₂} {x : u ~> v} {y : u ~> w} -> x ⊔ y ↥ c₁ -> x ⊔ y ↥ c₂ -> c₁ ≡ c₂
 conflictDeterministic (InsIns x y α≠β) (InsIns .x .y α≠β₁) = refl
