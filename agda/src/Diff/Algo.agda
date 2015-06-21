@@ -31,7 +31,6 @@ upd-size xs ts₁ ys ts₂ p rewrite
 cost : ∀ {xs ys} -> ES xs ys -> ℕ
 cost (Ins x e) = 1 + cost e
 cost (Del x e) = 1 + cost e
-cost (Cpy x e) = cost e
 cost (Upd x y e) = distance x y + cost e 
 cost End = 0
 
@@ -53,12 +52,7 @@ sdiff [] (Node y ys ∷ ts) (s≤s p) rewrite sym (size-+++ ys ts) = Ins y (sdif
 sdiff (Node x xs ∷ ts) [] (s≤s p) rewrite sym (size-+++ xs ts) = Del x (sdiff (xs +++ ts) [] p)
 sdiff {n = suc n} (Node {a = a} x xs ∷ ts₁) (Node {a = b} y ys ∷ ts₂) (s≤s p) 
   with eq? a b
-sdiff {._} {._} {suc n} (Node x xs ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | yes refl with x =?= y
-sdiff {._} {._} {suc n} (Node x xs ∷ ts₁) (Node .x ys ∷ ts₂) (s≤s p) | yes refl | yes refl 
-  = Del x (sdiff (xs +++ ts₁) (Node x ys ∷ ts₂) (del-size xs ts₁ ys ts₂ p)) 
-  ⨅ Ins x (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ ys ts₂ p))
-  ⨅ Cpy x (sdiff (xs +++ ts₁) (ys +++ ts₂) (upd-size xs ts₁ ys ts₂ p))
-sdiff {._} {._} {suc n} (Node x xs ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | yes refl | no ¬p 
+sdiff {._} {._} {suc n} (Node x xs ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | yes refl 
   = Del x (sdiff (xs +++ ts₁) (Node y ys ∷ ts₂) (del-size xs ts₁ ys ts₂ p)) 
   ⨅ Ins y (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ ys ts₂ p))
   ⨅ Upd x y (sdiff (xs +++ ts₁) (ys +++ ts₂) (upd-size xs ts₁ ys ts₂ p))
@@ -97,32 +91,18 @@ Diff-suf' [] (Node y ys ∷ b) (s≤s p)
 Diff-suf' (Node x xs ∷ a) [] (s≤s p) 
   rewrite sym (size-+++ xs a) = Del x (Diff-suf' (xs +++ a) [] p)
 Diff-suf' (Node {a = a₁} x xs ∷ a) (Node {a = b₁} y ys ∷ b) (s≤s p) with eq? a₁ b₁
-Diff-suf' (Node x xs₂ ∷ a₂) (Node y ys ∷ b) (s≤s p₁) | yes refl with x =?= y
-Diff-suf' (Node x xs ∷ ts₁) (Node .x ys ∷ ts₂) (s≤s p) | yes refl | yes refl 
-  with     Del x (sdiff (xs +++ ts₁) (Node x ys ∷ ts₂) (del-size xs ts₁ ys ts₂ p)) 
-         ⨅ Ins x (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ ys ts₂ p))
-         ⨅ Cpy x (sdiff (xs +++ ts₁) (ys +++ ts₂) (upd-size xs ts₁ ys ts₂ p))
-       | lemma-⨅₃ (Del x (sdiff (xs +++ ts₁) (Node x ys ∷ ts₂) (del-size xs ts₁ ys ts₂ p))) 
-                (Ins x (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ ys ts₂ p)))
-                (Cpy x (sdiff (xs +++ ts₁) (ys +++ ts₂) (upd-size xs ts₁ ys ts₂ p)))
-Diff-suf' (Node x xs ∷ ts₁) (Node .x ys ∷ ts₂) (s≤s p) | yes refl | yes refl | .(Del x _) | inj₁ refl 
-  = Del x (Diff-suf' (xs +++ ts₁) (Node x ys ∷ ts₂) (del-size xs ts₁ ys ts₂ p))
-Diff-suf' (Node x xs₂ ∷ ts₁) (Node .x ys ∷ ts₂) (s≤s p) | yes refl | yes refl | .(Ins x _) | inj₂ (inj₁ refl) 
-  = Ins x (Diff-suf' (Node x xs₂ ∷ ts₁) (ys +++ ts₂) (ins-size xs₂ ts₁ ys ts₂ p))
-Diff-suf' (Node x xs₂ ∷ ts₁) (Node .x ys ∷ ts₂) (s≤s p) | yes refl | yes refl | .(Cpy x _) | inj₂ (inj₂ refl) 
-  = Cpy x (Diff-suf' (xs₂ +++ ts₁) (ys +++ ts₂) (upd-size xs₂ ts₁ ys ts₂ p))
-Diff-suf' (Node x xs ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | yes refl | no ¬p 
+Diff-suf' (Node x xs ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | yes refl
   with     Del x (sdiff (xs +++ ts₁) (Node y ys ∷ ts₂) (del-size xs ts₁ ys ts₂ p)) 
          ⨅ Ins y (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ ys ts₂ p))
          ⨅ Upd x y (sdiff (xs +++ ts₁) (ys +++ ts₂) (upd-size xs ts₁ ys ts₂ p))
        | lemma-⨅₃ (Del x (sdiff (xs +++ ts₁) (Node y ys ∷ ts₂) (del-size xs ts₁ ys ts₂ p)))
                   (Ins y (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ ys ts₂ p)))
                   (Upd x y (sdiff (xs +++ ts₁) (ys +++ ts₂) (upd-size xs ts₁ ys ts₂ p)))
-Diff-suf' (Node x xs ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | yes refl | no ¬p | .(Del x _) | inj₁ refl 
+Diff-suf' (Node x xs ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | yes refl | .(Del x _) | inj₁ refl 
   = Del x (Diff-suf' (xs +++ ts₁) (Node y ys ∷ ts₂) (del-size xs ts₁ ys ts₂ p))
-Diff-suf' (Node x xs₃ ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | yes refl | no ¬p | .(Ins y _) | inj₂ (inj₁ refl) 
+Diff-suf' (Node x xs₃ ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | yes refl | .(Ins y _) | inj₂ (inj₁ refl) 
   = Ins y (Diff-suf' (Node x xs₃ ∷ ts₁) (ys +++ ts₂) (ins-size xs₃ ts₁ ys ts₂ p))
-Diff-suf' (Node x xs₃ ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | yes refl | no ¬p | .(Upd x y _) | inj₂ (inj₂ refl) 
+Diff-suf' (Node x xs₃ ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | yes refl | .(Upd x y _) | inj₂ (inj₂ refl) 
   = Upd x y (Diff-suf' (xs₃ +++ ts₁) (ys +++ ts₂) (upd-size xs₃ ts₁ ys ts₂ p))
 Diff-suf' (Node x xs ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | no ¬p with
         Del x (sdiff (xs +++ ts₁) (Node y ys ∷ ts₂) (del-size xs ts₁ ys ts₂ p)) 

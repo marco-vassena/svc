@@ -16,8 +16,6 @@ data Diff : ∀ {xs ys} ->  DList xs -> DList ys -> ES xs ys -> Set₁ where
   Upd : ∀ {as bs a xs ys} {e : ES (as ++ xs) (bs ++ ys)} {ts₁ : DList as} {ts₂ : DList xs} {ts₃ : DList bs} {ts₄ : DList ys}
       -> (x : View as a) (y : View bs a) -> Diff (ts₁ +++ ts₂) (ts₃ +++ ts₄) e 
       -> Diff (Node x ts₁ ∷ ts₂) (Node y ts₃ ∷ ts₄) (Upd x y e)
-  Cpy : ∀ {as a xs ys} {e : ES (as ++ xs) (as ++ ys)} {ts₁ : DList as} {ts₂ : DList xs} {ts₃ : DList as} {ts₄ : DList ys}
-        -> (x : View as a) -> Diff (ts₁ +++ ts₂) (ts₃ +++ ts₄) e -> Diff (Node x ts₁ ∷ ts₂) (Node x ts₃ ∷ ts₄) (Cpy x e)
   Ins : ∀ {bs b xs ys} {e : ES xs (bs ++ ys)} {ts₁ : DList xs} {ts₂ : DList bs} {ts₃ : DList ys}   
         -> (y : View bs b) -> Diff ts₁ (ts₂ +++ ts₃) e -> Diff ts₁ (Node y ts₂ ∷ ts₃) (Ins y e)
 
@@ -37,7 +35,6 @@ Diff-⟪⟫ e d
 mkDiff : ∀ {xs ys} (e : ES xs ys) -> Diff ⟪ e ⟫ ⟦ e ⟧ e
 mkDiff (Ins x e) = Ins x (Diff-⟦⟧ e (mkDiff e))
 mkDiff (Del x e) = Del x (Diff-⟪⟫ e (mkDiff e))
-mkDiff (Cpy x e) = Cpy x (Diff-⟦⟧ e (Diff-⟪⟫ e (mkDiff e)))
 mkDiff (Upd x y e) = Upd x y (Diff-⟦⟧ e (Diff-⟪⟫ e (mkDiff e)))
 mkDiff End = End
 
@@ -58,8 +55,6 @@ mkDiff⟪ Del {e = e} {ts₁ = ts₁} {ts₂ = ts₂} x d ⟫ with ≡-split ts�
 mkDiff⟪ Del x d ⟫ | refl , refl = refl
 mkDiff⟪ Upd {e = e} {ts₁ = ts₁} {ts₂ = ts₂} x y d ⟫ with ≡-split ts₁ ts₂ ⟪ e ⟫ mkDiff⟪ d ⟫
 mkDiff⟪ Upd x y d ⟫ | refl , refl = refl
-mkDiff⟪ Cpy {e = e} {ts₁ = ts₁} {ts₂ = ts₂} x d ⟫ with ≡-split ts₁ ts₂ ⟪ e ⟫ mkDiff⟪ d ⟫
-mkDiff⟪ Cpy x d ⟫ | refl , refl = refl
 mkDiff⟪ Ins y d ⟫ = mkDiff⟪ d ⟫
 
 -- Necessary condition of mkDiff for ⟦_⟧
@@ -68,8 +63,6 @@ mkDiff⟦ End ⟧ = refl
 mkDiff⟦ Del x d ⟧ = mkDiff⟦ d ⟧
 mkDiff⟦ Upd {e = e} {ts₃ = ts₃} {ts₄ = ts₄} x y d ⟧ with ≡-split ts₃ ts₄ ⟦ e ⟧ mkDiff⟦ d ⟧
 mkDiff⟦ Upd x y d ⟧ | refl , refl = refl
-mkDiff⟦ Cpy {e = e} {ts₃ = ts₃} {ts₄ = ts₄} x d ⟧ with ≡-split ts₃ ts₄ ⟦ e ⟧ mkDiff⟦ d ⟧
-mkDiff⟦ Cpy x d ⟧ | refl , refl = refl
 mkDiff⟦ Ins {e = e} {ts₂ = ts₂} {ts₃ = ts₃} y d ⟧ with ≡-split ts₂ ts₃ ⟦ e ⟧ mkDiff⟦ d ⟧
 mkDiff⟦ Ins x d ⟧ | refl , refl = refl
 
@@ -81,20 +74,13 @@ Diff~ End End = End
 Diff~ End (Ins y q) = Ins₂ {{i = tt}} y (Diff~ End q)
 Diff~ (Del x p) (Del .x q) = DelDel x (Diff~ p q)
 Diff~ (Del x p) (Upd .x y q) = DelUpd x y (Diff~ p q)
-Diff~ (Del x p) (Cpy .x q) = DelCpy x (Diff~ p q)
 Diff~ (Del x p) (Ins y q) = Ins₂ {{i = tt}} y (Diff~ (Del x p) q)
 Diff~ (Upd x y p) (Del .x q) = UpdDel x y (Diff~ p q)
 Diff~ (Upd x y p) (Upd .x z q) = UpdUpd x y z (Diff~ p q)
-Diff~ (Upd x y p) (Cpy .x q) = UpdCpy x y (Diff~ p q)
 Diff~ (Upd {ts₃ = ts₃} {ts₄ = ts₄} x y p) (Ins z q) = Ins₂ {{i = tt}} z (Diff~ (Upd {ts₃ = ts₃} {ts₄ = ts₄} x y p) q)
-Diff~ (Cpy x p) (Del .x q) = CpyDel x (Diff~ p q)
-Diff~ (Cpy x p) (Upd .x y q) = CpyUpd x y (Diff~ p q)
-Diff~ (Cpy x p) (Cpy .x q) = CpyCpy x (Diff~ p q)
-Diff~ (Cpy {ts₃ = ts₃} {ts₄ = ts₄} x p) (Ins y q) = Ins₂ {{i = tt}} y (Diff~ (Cpy {ts₃ = ts₃} {ts₄ = ts₄} x p) q)
 Diff~ (Ins y p) End = Ins₁ {{i = tt}} y (Diff~ p End)
 Diff~ (Ins y p) (Del x q) = Ins₁ {{i = tt}} y (Diff~ p (Del x q))
 Diff~ (Ins y p) (Upd {ts₃ = ts₃} {ts₄ = ts₄} x z q) = Ins₁ {{i = tt}} y (Diff~ p (Upd {ts₃ = ts₃} {ts₄ = ts₄} x z q))
-Diff~ (Ins y p) (Cpy {ts₃ = ts₃} {ts₄ = ts₄} x q) = Ins₁ {{i = tt}} y (Diff~ p (Cpy {ts₃ = ts₃} {ts₄ = ts₄} x q))
 Diff~ (Ins y p) (Ins z q) = InsIns y z (Diff~ p q)
 
 

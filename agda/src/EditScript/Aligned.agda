@@ -10,7 +10,6 @@ open import Relation.Binary.PropositionalEquality
 ¬Ins : ∀ {xs ys} -> ES xs ys -> Set
 ¬Ins (Ins x e) = ⊥
 ¬Ins (Del x e) = ⊤
-¬Ins (Cpy x e) = ⊤
 ¬Ins (Upd x y e) = ⊤
 ¬Ins End = ⊤
 
@@ -22,16 +21,6 @@ data _~_ : ∀ {xs ys zs ws} -> (e₁ : ES xs ys) (e₂ : ES zs ws) -> Set₁ wh
            e₁ ~ e₂ -> Del x e₁ ~ Del x e₂
   UpdUpd : ∀ {as bs cs xs ys zs a} (x : View as a) (y : View bs a) (z : View cs a)
            {e₁ : ES (as ++ xs) (bs ++ ys)} {e₂ : ES (as ++ xs) (cs ++ zs)} -> e₁ ~ e₂ -> Upd x y e₁ ~ Upd x z e₂
-  CpyCpy : ∀ {xs ys zs as a} (x : View as a) {e₁ : ES (as ++ xs) (as ++ ys)} {e₂ : ES (as ++ xs) (as ++ zs)}
-           -> e₁ ~ e₂ -> Cpy x e₁ ~ Cpy x e₂
-  CpyDel : ∀ {xs ys zs as a} (x : View as a) {e₁ : ES (as ++ xs) (as ++ ys)} {e₂ : ES (as ++ xs) zs}
-           -> e₁ ~ e₂ -> Cpy x e₁ ~ Del x e₂
-  DelCpy : ∀ {xs ys zs as a} (x : View as a) {e₁ : ES (as ++ xs) ys} {e₂ : ES (as ++ xs) (as ++ zs)}
-           -> e₁ ~ e₂ -> Del x e₁ ~ Cpy x e₂
-  CpyUpd : ∀ {xs ys zs as bs a} (x : View as a) (y : View bs a) {e₁ : ES (as ++ xs) (as ++ ys)} {e₂ : ES (as ++ xs) (bs ++ zs)}
-           -> e₁ ~ e₂ -> Cpy x e₁ ~ Upd x y e₂
-  UpdCpy : ∀ {xs ys zs as bs a} (x : View as a) (y : View bs a) {e₁ : ES (as ++ xs) (bs ++ ys)} {e₂ : ES (as ++ xs) (as ++ zs)}
-           -> e₁ ~ e₂ -> Upd x y e₁ ~ Cpy x e₂
   DelUpd : ∀ {as bs xs ys zs a} (x : View as a) (y : View bs a) 
            {e₁ : ES (as ++ xs) ys} {e₂ : ES (as ++ xs) (bs ++ zs)} -> e₁ ~ e₂ -> Del x e₁ ~ Upd x y e₂
   UpdDel : ∀ {as bs xs ys zs a} (x : View as a) (y : View bs a) 
@@ -46,11 +35,6 @@ data _~_ : ∀ {xs ys zs ws} -> (e₁ : ES xs ys) (e₂ : ES zs ws) -> Set₁ wh
 ~-sym End = End
 ~-sym (DelDel x p) = DelDel x (~-sym p)
 ~-sym (UpdUpd x y z p) = UpdUpd x z y (~-sym p)
-~-sym (CpyCpy x p) = CpyCpy x (~-sym p)
-~-sym (CpyDel x p) = DelCpy x (~-sym p)
-~-sym (DelCpy x p) = CpyDel x (~-sym p)
-~-sym (CpyUpd x y p) = UpdCpy x y (~-sym p)
-~-sym (UpdCpy x y p) = CpyUpd x y (~-sym p)
 ~-sym (DelUpd x y p) = UpdDel x y (~-sym p)
 ~-sym (UpdDel x y p) = DelUpd x y (~-sym p)
 ~-sym (InsIns x y p) = InsIns y x (~-sym p)
@@ -61,7 +45,6 @@ data _~_ : ∀ {xs ys zs ws} -> (e₁ : ES xs ys) (e₂ : ES zs ws) -> Set₁ wh
 ~-refl : ∀ {xs ys} -> (e : ES xs ys) -> e ~ e
 ~-refl (Ins x e) = InsIns x x (~-refl e)
 ~-refl (Del x e) = DelDel x (~-refl e)
-~-refl (Cpy x e) = CpyCpy x (~-refl e)
 ~-refl (Upd x y e) = UpdUpd x y y (~-refl e)
 ~-refl End = End
 
@@ -71,11 +54,6 @@ data _~_ : ∀ {xs ys zs ws} -> (e₁ : ES xs ys) (e₂ : ES zs ws) -> Set₁ wh
 ~-⟪⟫ End = refl
 ~-⟪⟫ (DelDel x p) rewrite ~-⟪⟫ p = refl
 ~-⟪⟫ (UpdUpd x y z p) rewrite ~-⟪⟫ p = refl
-~-⟪⟫ (CpyCpy x p) rewrite ~-⟪⟫ p = refl
-~-⟪⟫ (CpyDel x p) rewrite ~-⟪⟫ p = refl
-~-⟪⟫ (DelCpy x p) rewrite ~-⟪⟫ p = refl
-~-⟪⟫ (CpyUpd x y p) rewrite ~-⟪⟫ p = refl
-~-⟪⟫ (UpdCpy x y p) rewrite ~-⟪⟫ p = refl
 ~-⟪⟫ (DelUpd x y p) rewrite ~-⟪⟫ p = refl
 ~-⟪⟫ (UpdDel x y p) rewrite ~-⟪⟫ p = refl
 ~-⟪⟫ (InsIns x y p) rewrite ~-⟪⟫ p = refl
@@ -89,18 +67,12 @@ data _⇊_ : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES zs ws} -> e₁ ~ e�
            -> (x : View ys a) -> p ⇊ (ys ++ us) -> InsIns x x p ⇊ (a ∷ us)  -- Same x
   UpdUpd : ∀ {xs ys zs ws us ts a} {e₁ : ES (xs ++ zs) (ys ++ ws)} {e₂ : ES (xs ++ zs) (ys ++ us)} {p : e₁ ~ e₂} 
            -> (x : View xs a) (y : View ys a) -> p ⇊ (ys ++ ts) -> UpdUpd x y y p ⇊ (a ∷ ts)
-  CpyCpy : ∀ {xs ys zs ws ts a} {e₁ : ES (xs ++ ys) (xs ++ zs)} {e₂ : ES (xs ++ ys) (xs ++ ws)} {p : e₁ ~ e₂} 
-           -> (x : View xs a) -> p ⇊ (xs ++ ts) -> CpyCpy x p ⇊ (a ∷ ts)
   DelDel : ∀ {xs ys zs ws ts a} {e₁ : ES (xs ++ ys) zs} {e₂ : ES (xs ++ ys) ws} {p : e₁ ~ e₂} 
            -> (x : View xs a) -> p ⇊ ts -> DelDel x p ⇊ ts
   DelCpy : ∀ {xs ys zs us ws a} {e₁ : ES (xs ++ ys) zs} {e₂ : ES (xs ++ ys) (xs ++ ws)} {p : e₁ ~ e₂} 
-           -> (x : View xs a) -> p ⇊ us -> DelCpy x p ⇊ us
+           -> (x : View xs a) -> p ⇊ us -> DelUpd x x p ⇊ us
   CpyDel : ∀ {xs ys zs us ws a} {e₁ : ES (xs ++ ys) (xs ++ ws)} {e₂ : ES (xs ++ ys) zs} {p : e₁ ~ e₂} 
-           -> (x : View xs a) -> p ⇊ us -> CpyDel x p ⇊ us
-  CpyUpd : ∀ {xs ys zs us ws ts a} {e₁ : ES (xs ++ zs) (xs ++ ws)} {e₂ : ES (xs ++ zs) (ys ++ us)} {p : e₁ ~ e₂} 
-           ->  (x : View xs a) (y : View ys a) -> p ⇊ (ys ++ ts) -> CpyUpd x y p ⇊ (a ∷ ts)
-  UpdCpy : ∀ {xs ys zs us ws ts a} {e₁ : ES (xs ++ zs) (ys ++ us)} {e₂ : ES (xs ++ zs) (xs ++ ws)} {p : e₁ ~ e₂} 
-           -> (x : View xs a) (y : View ys a) -> p ⇊ (ys ++ ts) -> UpdCpy x y p ⇊ (a ∷ ts)
+           -> (x : View xs a) -> p ⇊ us -> UpdDel x x p ⇊ us
   Ins₁ : ∀ {xs ys zs us ws a} {e₁ : ES ys (xs ++ zs)} {e₂ : ES ys us} {p : e₁ ~ e₂} {{i : ¬Ins e₂}}
          -> (x : View xs a) -> p ⇊ (xs ++ ws) -> Ins₁ x p ⇊ (a ∷ ws)
   Ins₂ : ∀ {xs ys zs us ws a} {e₁ : ES ys us} {e₂ : ES ys (xs ++ zs)} {p : e₁ ~ e₂} {{i : ¬Ins e₁}} 

@@ -23,16 +23,12 @@ diff-⊏ˢ (Del α p) (here .α q) with noEraseˢ p q
 diff-⊏ˢ (Del α p) (here .α q) | source-∈ {i = i} r = source-⊏ {i₂ = i} (here (Del α) r)
 diff-⊏ˢ (Upd α β p) (here .α q) with noEraseˢ p q
 diff-⊏ˢ (Upd α β p) (here .α q) | source-∈ {i = i} r = source-⊏ {i₂ = i} (here (Upd α β) r)
-diff-⊏ˢ (Cpy α p) (here .α q) with noEraseˢ p q
-diff-⊏ˢ (Cpy α p) (here .α q) | source-∈ {i = i} r = source-⊏ {i₂ = i} (here (Cpy α) r)
 diff-⊏ˢ (Ins y p) (here α q) with diff-⊏ˢ p (here α q)
 diff-⊏ˢ (Ins y p) (here ._ q) | source-⊏ {i₁ = i₁} {i₂ = i₂} r = source-⊏ {i₁ = i₁} {i₂ = i₂} (there (Ins y) r)
 diff-⊏ˢ (Del z p) (there q) with diff-⊏ˢ p q
 diff-⊏ˢ (Del z p) (there q) | source-⊏ {i₁ = i₁} {i₂ = i₂} r = source-⊏ {i₁ = i₁} {i₂ = i₂} (there (Del z) r)
 diff-⊏ˢ (Upd z y p) (there q) with diff-⊏ˢ p q
 diff-⊏ˢ (Upd z y p) (there q) | source-⊏ {i₁ = i₁} {i₂ = i₂} r = source-⊏ {i₁ = i₁} {i₂ = i₂} (there (Upd z y) r)
-diff-⊏ˢ (Cpy z p) (there q) with diff-⊏ˢ p q
-diff-⊏ˢ (Cpy z p) (there q) | source-⊏ {i₁ = i₁} {i₂ = i₂} r = source-⊏ {i₁ = i₁} {i₂ = i₂} (there (Cpy z) r)
 diff-⊏ˢ (Ins y p) (there q) with diff-⊏ˢ p (there q)
 diff-⊏ˢ (Ins y p) (there q) | source-⊏ {i₁ = i₁} {i₂ = i₂} r = source-⊏ {i₁ = i₁} {i₂ = i₂} (there (Ins y) r)
 
@@ -52,16 +48,12 @@ diff-⊏ₒ (Del x p) (here α q) with diff-⊏ₒ p (here α q)
 diff-⊏ₒ (Del x p) (here ._ q) | target-⊏ {o₁ = o₁} {o₂ = o₂} r = target-⊏ {o₁ = o₁} {o₂ = o₂} (there (Del x) r)
 diff-⊏ₒ (Upd α β p) (here .β q) with noEraseₒ p q
 diff-⊏ₒ (Upd α β p) (here .β q) | target-∈ {o = o} r = target-⊏ {o₂ = o} (here (Upd α β) r)
-diff-⊏ₒ (Cpy α p) (here .α q) with noEraseₒ p q
-diff-⊏ₒ (Cpy α p) (here .α q) | target-∈ {o = o} r = target-⊏ {o₂ = o} (here (Cpy α) r)
 diff-⊏ₒ (Ins α p) (here .α q) with noEraseₒ p q
 diff-⊏ₒ (Ins α p) (here .α q) | target-∈ {o = o} r = target-⊏ {o₂ = o} (here (Ins α) r)
 diff-⊏ₒ (Del x p) (there q) with diff-⊏ₒ p (there q)
 diff-⊏ₒ (Del x p) (there q) | target-⊏ {o₁ = o₁} {o₂ = o₂} r = target-⊏ {o₁ = o₁} {o₂ = o₂} (there (Del x) r)
 diff-⊏ₒ (Upd x y p) (there q) with diff-⊏ₒ p q
 diff-⊏ₒ (Upd x y p) (there q) | target-⊏ {o₁ = o₁} {o₂ = o₂} r = target-⊏ {o₁ = o₁} {o₂ = o₂} (there (Upd x y) r)
-diff-⊏ₒ (Cpy z p) (there q) with diff-⊏ₒ p q
-diff-⊏ₒ (Cpy z p) (there q) | target-⊏ {o₁ = o₁} {o₂ = o₂} r = target-⊏ {o₁ = o₁} {o₂ = o₂} (there (Cpy z) r)
 diff-⊏ₒ (Ins z p) (there q) with diff-⊏ₒ p q
 diff-⊏ₒ (Ins z p) (there q) | target-⊏ {o₁ = o₁} {o₂ = o₂} r = target-⊏ {o₁ = o₁} {o₂ = o₂} (there (Ins z) r)
 

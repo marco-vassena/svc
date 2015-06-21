@@ -12,8 +12,10 @@ open import Relation.Nullary
 open import Relation.Nullary.Decidable
 open import Relation.Binary.PropositionalEquality hiding ([_])
 
+open import Data.Empty 
+
 -- Similar statements are made on edits operation for diff3.
-noBackOutChanges₁ : ∀ {xs ys zs ws as bs cs ds} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} {d : Edit as bs cs ds} 
+noBackOutChanges₁ : ∀ {xs ys zs ws as bs cs ds} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} {d : Edit as bs cs ds}
                      {{c : change d}} -> d ∈ₑ e₁ -> (e : Diff₃ e₁ e₂ e₃) -> d ∈ₑ e₃
 noBackOutChanges₁ (here (Ins x)) (InsIns .x q) = here (Ins x)
 noBackOutChanges₁ (here (Ins x)) (Ins₁ .x q) = here (Ins x)
@@ -21,25 +23,20 @@ noBackOutChanges₁ (here (Ins x)) (Ins₂ y q) = there (Ins y) (noBackOutChange
 noBackOutChanges₁ (here (Del x)) (Ins₂ y q) = there (Ins y) (noBackOutChanges₁ (here (Del x)) q)
 noBackOutChanges₁ (here (Del x)) (DelDel .x q) = here (Del x)
 noBackOutChanges₁ (here (Del x)) (DelCpy .x q) = here (Del x)
-noBackOutChanges₁ {{c = ()}} (here (Cpy x)) q
 noBackOutChanges₁ (here (Upd x y)) (Ins₂ z q) = there (Ins z) (noBackOutChanges₁ (here (Upd x y)) q)
-noBackOutChanges₁ (here (Upd x y)) (UpdCpy .x .y q) = here (Upd x y)
+noBackOutChanges₁ (here (Upd x .x)) (CpyDel .x q) with x =?= x
+noBackOutChanges₁ {{()}} (here (Upd x .x)) (CpyDel .x q) | yes refl
+noBackOutChanges₁ (here (Upd x .x)) (CpyDel .x q) | no ¬p = ⊥-elim (¬p refl)
 noBackOutChanges₁ (here (Upd x y)) (UpdUpd .x .y q) = here (Upd x y)
-noBackOutChanges₁ {{c = ()}} (here End) q
 noBackOutChanges₁ (there (Ins x) p) (InsIns .x q) = there (Ins x) (noBackOutChanges₁ p q)
 noBackOutChanges₁ (there (Ins x) p) (Ins₁ .x q) = there (Ins x) (noBackOutChanges₁ p q)
 noBackOutChanges₁ (there (Ins x) p) (Ins₂ y q) = there (Ins y) (noBackOutChanges₁ (there (Ins x) p) q)
 noBackOutChanges₁ (there (Del x) p) (Ins₂ y q) = there (Ins y) (noBackOutChanges₁ (there (Del x) p) q)
 noBackOutChanges₁ (there (Del x) p) (DelDel .x q) = there (Del x) (noBackOutChanges₁ p q)
 noBackOutChanges₁ (there (Del x) p) (DelCpy .x q) = there (Del x) (noBackOutChanges₁ p q)
-noBackOutChanges₁ (there (Cpy x) p) (Ins₂ y q) = there (Ins y) (noBackOutChanges₁ (there (Cpy x) p) q)
-noBackOutChanges₁ (there (Cpy x) p) (CpyDel .x q) = there (Del x) (noBackOutChanges₁ p q)
-noBackOutChanges₁ (there (Cpy x) p) (CpyCpy .x q) = there (Cpy x) (noBackOutChanges₁ p q)
-noBackOutChanges₁ (there (Cpy x) p) (CpyUpd .x y q) = there (Upd x y) (noBackOutChanges₁ p q)
 noBackOutChanges₁ (there (Upd x y) p) (Ins₂ z q) = there (Ins z) (noBackOutChanges₁ (there (Upd x y) p) q)
-noBackOutChanges₁ (there (Upd x y) p) (UpdCpy .x .y q) = there (Upd x y) (noBackOutChanges₁ p q)
+noBackOutChanges₁ (there (Upd x .x) p) (CpyDel .x q) = there (Del x) (noBackOutChanges₁ p q)
 noBackOutChanges₁ (there (Upd x y) p) (UpdUpd .x .y q) = there (Upd x y) (noBackOutChanges₁ p q)
-noBackOutChanges₁ (there End p) q = noBackOutChanges₁ p q
 
 noBackOutChanges₂ : ∀ {xs ys zs ws as bs cs ds} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} {d : Edit as bs cs ds} 
                      {{c : change d}} -> d ∈ₑ e₂ -> (e : Diff₃ e₁ e₂ e₃) -> d ∈ₑ e₃
@@ -59,22 +56,14 @@ noEditMadeUp (here (Ins x)) (Ins₂ .x d₁) = inj₂ (here (Ins x))
 noEditMadeUp (here (Del x)) (DelDel .x d) = inj₁ (here (Del x))
 noEditMadeUp (here (Del x)) (DelCpy .x d) = inj₁ (here (Del x))
 noEditMadeUp (here (Del x)) (CpyDel .x d) = inj₂ (here (Del x))
-noEditMadeUp (here (Cpy x)) (CpyCpy .x d) = inj₁ (here (Cpy x))
-noEditMadeUp (here (Upd x y)) (CpyUpd .x .y d) = inj₂ (here (Upd x y))
-noEditMadeUp (here (Upd x y)) (UpdCpy .x .y d) = inj₁ (here (Upd x y))
 noEditMadeUp (here (Upd x y)) (UpdUpd .x .y d) = inj₁ (here (Upd x y))
-noEditMadeUp (here End) d = inj₁ (here End)
 noEditMadeUp (there (Ins x) p) (InsIns .x d) = S.map (there (Ins x)) (there (Ins x)) (noEditMadeUp p d)
 noEditMadeUp (there (Ins x) p) (Ins₁ .x d) = S.map (there (Ins x)) id (noEditMadeUp p d)
 noEditMadeUp (there (Ins x) p) (Ins₂ .x d) = S.map id (there (Ins x)) (noEditMadeUp p d)
 noEditMadeUp (there (Del x) p) (DelDel .x d) = S.map (there (Del x)) (there (Del x)) (noEditMadeUp p d)
-noEditMadeUp (there (Del x) p) (DelCpy .x d) = S.map (there (Del x)) (there (Cpy x)) (noEditMadeUp p d)
-noEditMadeUp (there (Del x) p) (CpyDel .x d) = S.map (there (Cpy x)) (there (Del x)) (noEditMadeUp p d)
-noEditMadeUp (there (Cpy x) p) (CpyCpy .x d) = S.map (there (Cpy x)) (there (Cpy x)) (noEditMadeUp p d)
-noEditMadeUp (there (Upd x y) p) (CpyUpd .x .y d) = S.map (there (Cpy x)) (there (Upd x y)) (noEditMadeUp p d)
-noEditMadeUp (there (Upd x y) p) (UpdCpy .x .y d) = S.map (there (Upd x y)) (there (Cpy x)) (noEditMadeUp p d)
+noEditMadeUp (there (Del x) p) (DelCpy .x d) = S.map (there (Del x)) (there (Upd x x)) (noEditMadeUp p d)
+noEditMadeUp (there (Del x) p) (CpyDel .x d) = S.map (there (Upd x x)) (there (Del x)) (noEditMadeUp p d)
 noEditMadeUp (there (Upd x y) p) (UpdUpd .x .y d) = S.map (there (Upd x y)) (there (Upd x y)) (noEditMadeUp p d)
-noEditMadeUp (there End p) d = noEditMadeUp p d
 
 --------------------------------------------------------------------------------
 
@@ -119,11 +108,5 @@ mixOf (DelCpy {e₂ = e₂} x d) rewrite
   typesOf⟦ e₂ ⟧ = drop₂ (mixOf d)
 mixOf (CpyDel {e₁ = e₁} x d) rewrite
   typesOf⟦ e₁ ⟧ = drop₁ (mixOf d)
-mixOf (CpyCpy {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} x d) rewrite
-  typesOf⟦ e₁ ⟧ | typesOf⟦ e₂ ⟧ | typesOf⟦ e₃ ⟧ = cons₁₂ (mixOf d)
-mixOf (CpyUpd {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} x y d) rewrite
-  typesOf⟦ e₁ ⟧ | typesOf⟦ e₂ ⟧ | typesOf⟦ e₃ ⟧ = cons₁₂ (mixOf d)
-mixOf (UpdCpy {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} x y d) rewrite
-  typesOf⟦ e₁ ⟧ | typesOf⟦ e₂ ⟧ | typesOf⟦ e₃ ⟧ = cons₁₂ (mixOf d)
 mixOf (UpdUpd {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} x y d) rewrite
   typesOf⟦ e₁ ⟧ | typesOf⟦ e₂ ⟧ | typesOf⟦ e₃ ⟧ = cons₁₂ (mixOf d)

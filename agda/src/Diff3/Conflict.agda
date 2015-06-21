@@ -62,19 +62,19 @@ conflict-suf (InsIns α β (here (Ins .α) (Ins .β)) α≠β) (conflict (InsIns
 conflict-suf (InsIns α β (cons x y q) α≠β) (merge m r) = there _ (conflict-suf (InsIns α β q α≠β) r)
 conflict-suf (InsIns α β (cons x y q) α≠β) (conflict u r) = thereᶜ _ (conflict-suf (InsIns α β q α≠β) r)
 
-conflict-suf (UpdUpd α γ (here f y) α≠β α≠γ β≠γ) (merge (Id₁ .f .y) r) = ⊥-elim (α≠β refl)
-conflict-suf (UpdUpd β α (here f y) α≠β α≠γ β≠γ) (merge (Id₂ .f .y) r) = ⊥-elim (α≠γ refl)
+conflict-suf (UpdUpd α γ (here f y) α≠β α≠γ β≠γ) (merge (Id₁ .f .y _) r) = ⊥-elim (α≠β refl)
+conflict-suf (UpdUpd β α (here f y) α≠β α≠γ β≠γ) (merge (Id₂ .f .y _) r) = ⊥-elim (α≠γ refl)
 conflict-suf (UpdUpd β .β (here y .y) α≠β α≠γ β≠γ) (merge (Idem .y) r) = ⊥-elim (β≠γ refl)
 conflict-suf (UpdUpd β γ (here x y) α≠β α≠γ β≠γ) (conflict (UpdUpd .x .y α≠β₁ α≠γ₁ β≠γ₁) r) = here (UpdUpd β γ)
 conflict-suf (UpdUpd β γ (cons x y q) α≠β α≠γ β≠γ) (merge m r) = there _ (conflict-suf (UpdUpd β γ q α≠β α≠γ β≠γ) r)
 conflict-suf (UpdUpd β γ (cons x y q) α≠β α≠γ β≠γ) (conflict u r) = thereᶜ _ (conflict-suf (UpdUpd β γ q α≠β α≠γ β≠γ) r)
 
-conflict-suf (UpdDel α .α (here f y) α≠β) (merge (Id₁ .f .y) r) = ⊥-elim (α≠β refl)
+conflict-suf (UpdDel α .α (here f y) α≠β) (merge (Id₁ .f .y _) r) = ⊥-elim (α≠β refl)
 conflict-suf (UpdDel α β (here x y) α≠β) (conflict (UpdDel .x .y α≠β₁) r) = here (UpdDel α β)
 conflict-suf (UpdDel α β (cons x y q) α≠β) (merge m r) = there _ (conflict-suf (UpdDel α β q α≠β) r)
 conflict-suf (UpdDel α β (cons x y q) α≠β) (conflict u r) = thereᶜ _ (conflict-suf (UpdDel α β q α≠β) r)
 
-conflict-suf (DelUpd α .α (here f y) α≠β) (merge (Id₂ .f .y) r) = ⊥-elim (α≠β refl)
+conflict-suf (DelUpd α .α (here f y) α≠β) (merge (Id₂ .f .y _) r) = ⊥-elim (α≠β refl)
 conflict-suf (DelUpd α β (here x y) α≠β) (conflict (DelUpd .x .y α≠β₁) r) = here (DelUpd α β)
 conflict-suf (DelUpd α β (cons x y q) α≠β) (merge m r) = there _ (conflict-suf (DelUpd α β q α≠β) r)
 conflict-suf (DelUpd α β (cons x y q) α≠β) (conflict u r) = thereᶜ _ (conflict-suf (DelUpd α β q α≠β) r)
@@ -88,9 +88,7 @@ fromRawMapping : RawMapping -> ES₃
 fromRawMapping [] = End
 fromRawMapping (Ins α ∷ r) = Ins α (fromRawMapping r)
 fromRawMapping (Del α ∷ r) = Del α (fromRawMapping r)
-fromRawMapping (Cpy α ∷ r) = Cpy α (fromRawMapping r)
 fromRawMapping (Upd α β ∷ r) = Upd α β (fromRawMapping r)
-fromRawMapping (End ∷ r) = fromRawMapping r
 fromRawMapping (x ∷ᶜ r) = Cnf x (fromRawMapping r)
 
 toRawMapping : ES₃ -> RawMapping
@@ -98,7 +96,6 @@ toRawMapping End = []
 toRawMapping (Ins x e) = Ins x ∷ toRawMapping e
 toRawMapping (Del x e) = Del x ∷ toRawMapping e
 toRawMapping (Upd x y e) = Upd x y ∷ toRawMapping e
-toRawMapping (Cpy x e) = Cpy x ∷ toRawMapping e
 toRawMapping (Cnf x e) = x ∷ᶜ toRawMapping e
 
 -- TODO conflict lemmas about edit scripts (proved showing connection with mapping)

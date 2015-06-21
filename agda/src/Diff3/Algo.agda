@@ -16,13 +16,12 @@ diff3 ._ ._ (DelDel x p) = Del x (diff3 _ _ p)
 diff3 ._ ._ (UpdUpd x y z p) with y =?= z
 diff3 ._ ._ (UpdUpd x y .y p) | yes refl = Upd x y (diff3 _ _ p)
 diff3 ._ ._ (UpdUpd x y z p) | no ¬p = Cnf (UpdUpd y z) (diff3 _ _ p)
-diff3 ._ ._ (CpyCpy x p) = Cpy x (diff3 _ _ p)
-diff3 ._ ._ (CpyDel x p) = Del x (diff3 _ _ p)
-diff3 ._ ._ (DelCpy x p) = Del x (diff3 _ _ p)
-diff3 ._ ._ (CpyUpd x y p) = Upd x y (diff3 _ _ p)
-diff3 ._ ._ (UpdCpy x y p) = Upd x y (diff3 _ _ p)
-diff3 ._ ._ (DelUpd x y p) = Cnf (DelUpd x y) (diff3 _ _ p)
-diff3 ._ ._ (UpdDel x y p) = Cnf (UpdDel x y) (diff3 _ _ p)
+diff3 ._ ._ (DelUpd x y p) with x =?= y
+diff3 ._ ._ (DelUpd x .x p) | yes refl = Del x (diff3 _ _ p)
+diff3 ._ ._ (DelUpd x y p) | no ¬p = Cnf (DelUpd x y) (diff3 _ _ p)
+diff3 ._ ._ (UpdDel x y p) with x =?= y 
+diff3 ._ ._ (UpdDel x .x p) | yes refl = Del x (diff3 _ _ p)
+diff3 ._ ._ (UpdDel x y p) | no ¬p = Cnf (UpdDel x y) (diff3 _ _ p)
 diff3 ._ ._ (InsIns {a = a} {b = b} x y p) with eq? a b
 diff3 ._ ._ (InsIns x y p) | yes refl with x =?= y
 diff3 ._ ._ (InsIns x .x p) | yes refl | yes refl = Ins x (diff3 _ _ p)
@@ -41,7 +40,6 @@ data _↓_ : ES₃ -> List Set -> Set where
   Ins : ∀ {xs ys a e} -> (x : View xs a) -> e ↓ (xs ++ ys) -> Ins x e ↓ (a ∷ ys)
   Del : ∀ {xs ys a e} -> (x : View xs a) -> e ↓ ys -> Del x e ↓ ys
   Upd : ∀ {xs ys zs a e} -> (x : View xs a) (y : View ys a) -> e ↓ (ys ++ zs) -> Upd x y e ↓ (a ∷ zs)
-  Cpy : ∀ {xs ys a e} -> (x : View xs a) -> e ↓ (xs ++ ys) -> Cpy x e ↓ (a ∷ ys)
 
 open import Data.Empty
 
@@ -58,12 +56,13 @@ mergeSuff (InsIns x q) | no ¬p = ⊥-elim (¬p refl)
 mergeSuff (UpdUpd x y q) with y =?= y
 mergeSuff (UpdUpd x y q) | yes refl = Upd x y (mergeSuff q)
 mergeSuff (UpdUpd x y q) | no ¬p = ⊥-elim (¬p refl)
-mergeSuff (CpyCpy x q) = Cpy x (mergeSuff q)
 mergeSuff (DelDel x q) = Del x (mergeSuff q)
-mergeSuff (DelCpy x q) = Del x (mergeSuff q)
-mergeSuff (CpyDel x q) = Del x (mergeSuff q)
-mergeSuff (CpyUpd x y q) = Upd x y (mergeSuff q)
-mergeSuff (UpdCpy x y q) = Upd x y (mergeSuff q)
+mergeSuff (DelCpy x q) with x =?= x
+mergeSuff (DelCpy x q) | yes refl = Del x (mergeSuff q)
+mergeSuff (DelCpy x q) | no ¬p = ⊥-elim (¬p refl)
+mergeSuff (CpyDel x q) with x =?= x
+mergeSuff (CpyDel x q) | yes refl = Del x (mergeSuff q)
+mergeSuff (CpyDel x q) | no ¬p = ⊥-elim (¬p refl)
 mergeSuff (Ins₁ x q) = Ins x (mergeSuff q)
 mergeSuff (Ins₂ x q) = Ins x (mergeSuff q)
 
@@ -75,13 +74,12 @@ mergeNec (DelDel x p) (Del .x q) = DelDel x (mergeNec p q)
 mergeNec (UpdUpd x y z p) q with y =?= z
 mergeNec (UpdUpd x y .y p) (Upd .x .y q) | yes refl = UpdUpd x y (mergeNec p q)
 mergeNec (UpdUpd x y z p) () | no ¬p
-mergeNec (CpyCpy x p) (Cpy .x q) = CpyCpy x (mergeNec p q)
-mergeNec (CpyDel x p) (Del .x q) = CpyDel x (mergeNec p q)
-mergeNec (DelCpy x p) (Del .x q) = DelCpy x (mergeNec p q)
-mergeNec (CpyUpd x y p) (Upd .x .y q) = CpyUpd x y (mergeNec p q)
-mergeNec (UpdCpy x y p) (Upd .x .y q) = UpdCpy x y (mergeNec p q)
-mergeNec (DelUpd x y p) ()
-mergeNec (UpdDel x y p) ()
+mergeNec (DelUpd x y p) q with x =?= y
+mergeNec (DelUpd x .x p) (Del .x q) | yes refl = DelCpy x (mergeNec p q)
+mergeNec (DelUpd x y p) () | no ¬p
+mergeNec (UpdDel x y p) q with x =?= y
+mergeNec (UpdDel x .x p) (Del .x q) | yes refl = CpyDel x (mergeNec p q)
+mergeNec (UpdDel x y p) () | no ¬p
 mergeNec (InsIns {a = a} {b = b} x y p) q with eq? a b
 mergeNec (InsIns x y p) q | yes refl with x =?= y
 mergeNec (InsIns x .x p) (Ins .x q) | yes refl | yes refl = InsIns x (mergeNec p q)
@@ -96,7 +94,6 @@ data NoCnf : ES₃ -> Set₁ where
   End : NoCnf End
   Ins : ∀ {e xs a} (x : View xs a) -> NoCnf e -> NoCnf (Ins x e)
   Del : ∀ {e xs a} (x : View xs a) -> NoCnf e -> NoCnf (Del x e)
-  Cpy : ∀ {e xs a} (x : View xs a) -> NoCnf e -> NoCnf (Cpy x e)
   Upd : ∀ {e xs ys a} (x : View xs a) (y : View ys a) -> NoCnf e -> NoCnf (Upd x y e) 
 
 -- Well-typed implies no conflicts
@@ -106,13 +103,12 @@ diff3-wt (DelDel x p) (Del .x q) = Del x (diff3-wt p q)
 diff3-wt (UpdUpd x y z p) q with y =?= z
 diff3-wt (UpdUpd x y .y p) (Upd .x .y q) | yes refl = Upd x y (diff3-wt p q)
 diff3-wt (UpdUpd x y z p) () | no ¬p
-diff3-wt (CpyCpy x p) (Cpy .x q) = Cpy x (diff3-wt p q)
-diff3-wt (CpyDel x p) (Del .x q) = Del x (diff3-wt p q)
-diff3-wt (DelCpy x p) (Del .x q) = Del x (diff3-wt p q)
-diff3-wt (CpyUpd x y p) (Upd .x .y q) = Upd x y (diff3-wt p q)
-diff3-wt (UpdCpy x y p) (Upd .x .y q) = Upd x y (diff3-wt p q)
-diff3-wt (DelUpd x y p) ()
-diff3-wt (UpdDel x y p) ()
+diff3-wt (DelUpd x y p) q with x =?= y
+diff3-wt (DelUpd x .x p) (Del .x q) | yes refl = Del x (diff3-wt p q)
+diff3-wt (DelUpd x y p) () | no ¬p
+diff3-wt (UpdDel x y p) q with x =?= y
+diff3-wt (UpdDel x .x p) (Del .x q) | yes refl = Del x (diff3-wt p q)
+diff3-wt (UpdDel x y p) () | no ¬p
 diff3-wt (InsIns {a = a} {b = b} x y p) q with eq? a b
 diff3-wt (InsIns x y p) q | yes refl with x =?= y
 diff3-wt (InsIns x .x p) (Ins .x q) | yes refl | yes refl = Ins x (diff3-wt p q)
@@ -129,13 +125,12 @@ toES (DelDel x p) (Del .x q) = Del x (toES p q)
 toES (UpdUpd x y z p) q with y =?= z
 toES (UpdUpd x y .y p) (Upd .x .y q) | yes refl = Upd x y (toES p q)
 toES (UpdUpd x y z p) () | no ¬p
-toES (CpyCpy x p) (Cpy .x q) = Cpy x (toES p q)
-toES (CpyDel x p) (Del .x q) = Del x (toES p q)
-toES (DelCpy x p) (Del .x q) = Del x (toES p q)
-toES (CpyUpd x y p) (Upd .x .y q) = Upd x y (toES p q)
-toES (UpdCpy x y p) (Upd .x .y q) = Upd x y (toES p q)
-toES (DelUpd x y p) ()
-toES (UpdDel x y p) ()
+toES (DelUpd x y p) q with x =?= y
+toES (DelUpd x .x p) (Del .x q) | yes refl = Del x (toES p q)
+toES (DelUpd x y p) () | no ¬p
+toES (UpdDel x y p) q with x =?= y
+toES (UpdDel x .x p) (Del .x q) | yes refl = Del x (toES p q)
+toES (UpdDel x y p) () | no ¬p
 toES (InsIns {a = a} {b = b} x y p) q with eq? a b
 toES (InsIns x y p) q | yes refl with x =?= y
 toES (InsIns x .x p) (Ins .x q) | yes refl | yes refl = Ins x (toES p q)
@@ -154,7 +149,6 @@ diff3-refl (Ins x e) | yes refl | yes refl = Ins x (diff3-refl e)
 diff3-refl (Ins x e) | yes refl | no ¬p = ⊥-elim (¬p refl)
 diff3-refl (Ins x e) | no ¬p = ⊥-elim (¬p refl)
 diff3-refl (Del x e) = Del x (diff3-refl e)
-diff3-refl (Cpy x e) = Cpy x (diff3-refl e)
 diff3-refl (Upd x y e) with y =?= y
 diff3-refl (Upd x y e) | yes refl = Upd x y (diff3-refl e)
 diff3-refl (Upd x y e) | no ¬p = ⊥-elim (¬p refl)
@@ -169,13 +163,12 @@ diff3-sym (UpdUpd x y .y p) q | yes refl with y =?= y
 diff3-sym (UpdUpd x y .y p) (Upd .x .y q) | yes refl | yes refl = cong (Upd x y) (diff3-sym p q)
 diff3-sym (UpdUpd x y .y p) q | yes refl | no ¬p = ⊥-elim (¬p refl)
 diff3-sym (UpdUpd x y z p) () | no ¬p
-diff3-sym (CpyCpy x p) (Cpy .x q) = cong (Cpy x) (diff3-sym p q)
-diff3-sym (CpyDel x p) (Del .x q) = cong (Del x) (diff3-sym p q)
-diff3-sym (DelCpy x p) (Del .x q) = cong (Del x) (diff3-sym p q)
-diff3-sym (CpyUpd x y p) (Upd .x .y q) = cong (Upd x y) (diff3-sym p q)
-diff3-sym (UpdCpy x y p) (Upd .x .y q) = cong (Upd x y) (diff3-sym p q)
-diff3-sym (DelUpd x y p) ()
-diff3-sym (UpdDel x y p) ()
+diff3-sym (DelUpd x y p) q with x =?= y
+diff3-sym (DelUpd x .x p) (Del .x q) | yes refl = cong (Del x) (diff3-sym p q)
+diff3-sym (DelUpd x y p) () | no ¬p
+diff3-sym (UpdDel x y p) q with x =?= y
+diff3-sym (UpdDel x .x p) (Del .x q) | yes refl = cong (Del x) (diff3-sym p q)
+diff3-sym (UpdDel x y p) () | no ¬p
 diff3-sym (InsIns {a = a} {b = b} x y p) q with eq? a b
 diff3-sym (InsIns x y p) q | yes refl with x =?= y
 diff3-sym (InsIns {a = a} x .x p) q | yes refl | yes refl with eq? a a
@@ -207,21 +200,22 @@ diff3-sym (Ins₂ x p) (Ins .x q) = cong (Ins x) (diff3-sym p q)
 
 --------------------------------------------------------------------------------
 
+-- aux : ∀ {xs ys 
+
 -- Shows that a well typed diff3 corresponds to Diff3
 diff₃-suf : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} -> (p : e₁ ~ e₂) ->
-        let e₁₂ = diff3 e₁ e₂ p in (q : e₁₂ ↓ ws) -> Diff₃ e₁ e₂ (toES p q)
+            (q : diff3 e₁ e₂ p ↓ ws) -> Diff₃ e₁ e₂ (toES p q)
 diff₃-suf End End = End
 diff₃-suf (DelDel x p) (Del .x q) = DelDel x (diff₃-suf p q)
 diff₃-suf (UpdUpd x y z p) q with y =?= z
 diff₃-suf (UpdUpd x y .y p) (Upd .x .y q) | yes refl = UpdUpd x y (diff₃-suf p q)
 diff₃-suf (UpdUpd x y z p) () | no ¬p
-diff₃-suf (CpyCpy x p) (Cpy .x q) = CpyCpy x (diff₃-suf p q)
-diff₃-suf (CpyDel x p) (Del .x q) = CpyDel x (diff₃-suf p q)
-diff₃-suf (DelCpy x p) (Del .x q) = DelCpy x (diff₃-suf p q)
-diff₃-suf (CpyUpd x y p) (Upd .x .y q) = CpyUpd x y (diff₃-suf p q)
-diff₃-suf (UpdCpy x y p) (Upd .x .y q) = UpdCpy x y (diff₃-suf p q)
-diff₃-suf (DelUpd x y p) ()
-diff₃-suf (UpdDel x y p) ()
+diff₃-suf (DelUpd x y p) q with x =?= y
+diff₃-suf (DelUpd x .x p) (Del .x q) | yes refl = DelCpy x (diff₃-suf p q)
+diff₃-suf (DelUpd x y p) () | no ¬p
+diff₃-suf (UpdDel x y p) q with x =?= y
+diff₃-suf (UpdDel x .x p) (Del .x q) | yes refl = CpyDel x (diff₃-suf p q)
+diff₃-suf (UpdDel x y p) () | no ¬p
 diff₃-suf (InsIns {a = a} {b = b} x y p) q with eq? a b
 diff₃-suf (InsIns x y p) q | yes refl with x =?= y
 diff₃-suf (InsIns x .x p) (Ins .x q) | yes refl | yes refl = InsIns x (diff₃-suf p q)
@@ -238,13 +232,12 @@ diff₃-nec (DelDel x p) (Del .x q) (DelDel .x d) = cong (Del x) (diff₃-nec p 
 diff₃-nec (UpdUpd x y z p) q d with y =?= z
 diff₃-nec (UpdUpd x y .y p) (Upd .x .y q) (UpdUpd .x .y d) | yes refl = cong (Upd x y) (diff₃-nec p q d)
 diff₃-nec (UpdUpd x y z p) () d | no ¬p
-diff₃-nec (CpyCpy x p) (Cpy .x q) (CpyCpy .x d) = cong (Cpy x) (diff₃-nec p q d)
-diff₃-nec (CpyDel x p) (Del .x q) (CpyDel .x d) = cong (Del x) (diff₃-nec p q d)
-diff₃-nec (DelCpy x p) (Del .x q) (DelCpy .x d) = cong (Del x) (diff₃-nec p q d)
-diff₃-nec (CpyUpd x y p) (Upd .x .y q) (CpyUpd .x .y d) = cong (Upd x y) (diff₃-nec p q d)
-diff₃-nec (UpdCpy x y p) (Upd .x .y q) (UpdCpy .x .y d) = cong (Upd x y) (diff₃-nec p q d)
-diff₃-nec (DelUpd x y p) () d
-diff₃-nec (UpdDel x y p) () d
+diff₃-nec (DelUpd x y p) q d with x =?= y
+diff₃-nec (DelUpd x .x p) (Del .x q) (DelCpy .x d) | yes refl = cong (Del x) (diff₃-nec p q d)
+diff₃-nec (DelUpd x y p) () d | no ¬p
+diff₃-nec (UpdDel x y p) q d with x =?= y
+diff₃-nec (UpdDel x .x p₁) (Del .x q) (CpyDel .x d) | yes refl = cong (Del x) (diff₃-nec p₁ q d)
+diff₃-nec (UpdDel x y p) () d | no ¬p
 diff₃-nec (InsIns {a = a} {b = b} x y p) q d with eq? a b
 diff₃-nec (InsIns x y p) q d | yes refl with x =?= y
 diff₃-nec (InsIns x .x p) (Ins .x q) (InsIns .x d) | yes refl | yes refl = cong (Ins x) (diff₃-nec p q d)
@@ -290,11 +283,12 @@ diff3↓ (InsIns x d) | no ¬p = ⊥-elim (¬p refl)
 diff3↓ (Ins₁ x d) = Ins x (diff3↓ d)
 diff3↓ (Ins₂ x d) = Ins x (diff3↓ d)
 diff3↓ (DelDel x d) = Del x (diff3↓ d)
-diff3↓ (DelCpy x d) = Del x (diff3↓ d)
-diff3↓ (CpyDel x d) = Del x (diff3↓ d)
-diff3↓ (CpyCpy x d) = Cpy x (diff3↓ d)
-diff3↓ (CpyUpd x y d) = Upd x y (diff3↓ d)
-diff3↓ (UpdCpy x y d) = Upd x y (diff3↓ d)
+diff3↓ (DelCpy x d) with x =?= x
+diff3↓ (DelCpy x d) | yes refl = Del x (diff3↓ d)
+diff3↓ (DelCpy x d) | no ¬p = ⊥-elim (¬p refl)
+diff3↓ (CpyDel x d) with x =?= x
+diff3↓ (CpyDel x d) | yes refl = Del x (diff3↓ d)
+diff3↓ (CpyDel x d) | no ¬p = ⊥-elim (¬p refl)
 diff3↓ (UpdUpd x y d) with y =?= y
 diff3↓ (UpdUpd x y d) | yes refl = Upd x y (diff3↓ d)
 diff3↓ (UpdUpd x y d) | no ¬p = ⊥-elim (¬p refl)

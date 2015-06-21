@@ -25,7 +25,6 @@ data ES₃ : Set₁ where
   Ins : ∀ {xs a} -> View xs a -> ES₃ -> ES₃
   Del : ∀ {xs a} -> View xs a -> ES₃ -> ES₃
   Upd : ∀ {xs ys a} -> View xs a -> View ys a -> ES₃ -> ES₃
-  Cpy : ∀ {xs a} -> View xs a -> ES₃ -> ES₃
   Cnf : Conflict -> ES₃ -> ES₃
 
 --------------------------------------------------------------------------------
@@ -42,15 +41,9 @@ data Diff₃ : ∀ {xs ys zs ws} -> ES xs ys -> ES xs zs -> ES xs ws -> Set wher
   DelDel : ∀ {xs ys zs ws as a} {e₁ : ES (as ++ xs) ys} {e₂ : ES (as ++ xs) zs} {e₃ : ES (as ++ xs) ws}
            -> (x : View as a) -> Diff₃ e₁ e₂ e₃ -> Diff₃ (Del x e₁) (Del x e₂) (Del x e₃)
   DelCpy : ∀ {xs ys zs ws as a} {e₁ : ES (as ++ xs) ys} {e₂ : ES (as ++ xs) (as ++ zs)} {e₃ : ES (as ++ xs) ws}
-           ->  (x : View as a) -> Diff₃ e₁ e₂ e₃ -> Diff₃ (Del x e₁) (Cpy x e₂) (Del x e₃)
+           ->  (x : View as a) -> Diff₃ e₁ e₂ e₃ -> Diff₃ (Del x e₁) (Upd x x e₂) (Del x e₃)
   CpyDel : ∀ {xs ys zs ws as a} {e₁ : ES (as ++ xs) (as ++ ys)} {e₂ : ES (as ++ xs) zs} {e₃ : ES (as ++ xs) ws}
-           ->  (x : View as a) -> Diff₃ e₁ e₂ e₃ -> Diff₃ (Cpy x e₁) (Del x e₂) (Del x e₃)
-  CpyCpy : ∀ {xs ys zs ws as a} {e₁ : ES (as ++ xs) (as ++ ys)} {e₂ : ES (as ++ xs) (as ++ zs)} {e₃ : ES (as ++ xs) (as ++ ws)}
-           -> (x : View as a) -> Diff₃ e₁ e₂ e₃ -> Diff₃ (Cpy x e₁) (Cpy x e₂) (Cpy x e₃)
-  CpyUpd : ∀ {xs ys zs ws as bs a} {e₁ : ES (as ++ xs) (as ++ ys)} {e₂ : ES (as ++ xs) (bs ++ zs)} {e₃ : ES (as ++ xs) (bs ++ ws)} 
-           -> (x : View as a) (y : View bs a) -> Diff₃ e₁ e₂ e₃ -> Diff₃ (Cpy x e₁) (Upd x y e₂) (Upd x y e₃)
-  UpdCpy : ∀ {xs ys zs ws as bs a} {e₁ : ES (as ++ xs) (bs ++ ys)} {e₂ : ES (as ++ xs) (as ++ zs)} {e₃ : ES (as ++ xs) (bs ++ ws)} 
-           -> (x : View as a) (y : View bs a) -> Diff₃ e₁ e₂ e₃ -> Diff₃ (Upd x y e₁) (Cpy x e₂) (Upd x y e₃)
+           ->  (x : View as a) -> Diff₃ e₁ e₂ e₃ -> Diff₃ (Upd x x e₁) (Del x e₂) (Del x e₃)
   UpdUpd : ∀ {xs ys zs ws as bs a} {e₁ : ES (as ++ xs) (bs ++ ys)} {e₂ : ES (as ++ xs) (bs ++ zs)} {e₃ : ES (as ++ xs) (bs ++ ws)} 
            -> (x : View as a) (y : View bs a) -> Diff₃ e₁ e₂ e₃ -> Diff₃ (Upd x y e₁) (Upd x y e₂) (Upd x y e₃)
 
@@ -63,9 +56,6 @@ Diff₃-sym (Ins₂ x d) = Ins₁ x (Diff₃-sym d)
 Diff₃-sym (DelDel x d) = DelDel x (Diff₃-sym d)
 Diff₃-sym (DelCpy x d) = CpyDel x (Diff₃-sym d)
 Diff₃-sym (CpyDel x d) = DelCpy x (Diff₃-sym d)
-Diff₃-sym (CpyCpy x d) = CpyCpy x (Diff₃-sym d)
-Diff₃-sym (CpyUpd x y d) = UpdCpy x y (Diff₃-sym d)
-Diff₃-sym (UpdCpy x y d) = CpyUpd x y (Diff₃-sym d)
 Diff₃-sym (UpdUpd x y d) = UpdUpd x y (Diff₃-sym d)
 
 --------------------------------------------------------------------------------
@@ -81,9 +71,6 @@ Diff₃⟪ Ins₂ x d ⟫ = Diff₃⟪ d ⟫
 Diff₃⟪ DelDel x d ⟫ rewrite Diff₃⟪ d ⟫ = refl
 Diff₃⟪ DelCpy x d ⟫ rewrite Diff₃⟪ d ⟫ = refl
 Diff₃⟪ CpyDel x d ⟫ rewrite Diff₃⟪ d ⟫ = refl
-Diff₃⟪ CpyCpy x d ⟫ rewrite Diff₃⟪ d ⟫ = refl
-Diff₃⟪ CpyUpd x y d ⟫ rewrite Diff₃⟪ d ⟫ = refl
-Diff₃⟪ UpdCpy x y d ⟫ rewrite Diff₃⟪ d ⟫ = refl
 Diff₃⟪ UpdUpd x y d ⟫ rewrite Diff₃⟪ d ⟫ = refl 
 
 Diff₃~ : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} 
@@ -93,11 +80,8 @@ Diff₃~ (InsIns x d) = InsIns x x (Diff₃~ d)
 Diff₃~ (Ins₁ x d) = Ins₁ x (Diff₃~ d)
 Diff₃~ (Ins₂ x d) = Ins₂ x (Diff₃~ d)
 Diff₃~ (DelDel x d) = DelDel x (Diff₃~ d)
-Diff₃~ (DelCpy x d) = DelCpy x (Diff₃~ d)
-Diff₃~ (CpyDel x d) = CpyDel x (Diff₃~ d)
-Diff₃~ (CpyCpy x d) = CpyCpy x (Diff₃~ d)
-Diff₃~ (CpyUpd x y d) = CpyUpd x y (Diff₃~ d)
-Diff₃~ (UpdCpy x y d) = UpdCpy x y (Diff₃~ d)
+Diff₃~ (DelCpy x d) = DelUpd x x (Diff₃~ d)
+Diff₃~ (CpyDel x d) = UpdDel x x (Diff₃~ d)
 Diff₃~ (UpdUpd x y d) = UpdUpd x y y (Diff₃~ d)
 
 -- I would like to prove symmetricity of Diff₃ reusing diff3-sym
@@ -183,30 +167,22 @@ mergeOrConflict (Ins α) (Ins β) | yes refl with α =?= β
 mergeOrConflict (Ins α) (Ins .α) | yes refl | yes refl = inj₁ (⟨ α ⟩ , Ins α , Idem (Ins α))
 mergeOrConflict (Ins α) (Ins β) | yes refl | no ¬p = inj₂ (InsIns α β , InsIns (Ins α) (Ins β) ¬p)
 mergeOrConflict (Ins α) (Ins β) | no ¬p = inj₂ (InsIns α β , InsIns (Ins α) (Ins β) (≡-⋍ ¬p))
-mergeOrConflict (Ins α) End = inj₁ (⟨ α ⟩ , Ins α , Id₂ (Ins α) End (λ ()))
 mergeOrConflict (Del α) (Del .α) = inj₁ (⊥ , Del α , Idem (Del α))
-mergeOrConflict (Del α) (Cpy .α) = inj₁ (⊥ , Del α , Id₂ (Del α) (Cpy α) (λ ()))
--- Implicitly with Upd we assume that α≠β however ~> is enough expressive to cover also this case.
 mergeOrConflict (Del α) (Upd .α β) with α =?= β
 mergeOrConflict (Del α) (Upd .α .α) | yes refl = inj₁ (⊥ , Del α , Id₂ (Del α) (Upd α α) (λ ()))
 mergeOrConflict (Del α) (Upd .α β) | no ¬p = inj₂ (DelUpd α β , DelUpd (Del α) (Upd α β) ¬p)
-mergeOrConflict (Cpy α) (Del .α) = inj₁ (⊥ , Del α , Id₁ (Cpy α) (Del α) (λ ()))
-mergeOrConflict (Cpy α) (Cpy .α) = inj₁ (⟨ α ⟩ , Cpy α , Idem (Cpy α))
-mergeOrConflict (Cpy α) (Upd .α β) with α =?= β
-mergeOrConflict (Cpy α) (Upd .α .α) | yes refl = inj₁ (⟨ α ⟩ , {!!} , {! !})
-mergeOrConflict (Cpy α) (Upd .α β) | no α≠β = inj₁ (⟨ β ⟩ , Upd α β , Id₁ (Cpy α) (Upd α β) (aux α≠β)) -- inj₁ (_ , g , Id₁ (Cpy α) g {!!})
 mergeOrConflict (Upd α β) (Del .α) with α =?= β
 mergeOrConflict (Upd α .α) (Del .α) | yes refl = inj₁ (⊥ , Del α , Id₁ (Upd α α) (Del α) (λ ()))
 mergeOrConflict (Upd α β) (Del .α) | no ¬p = inj₂ (UpdDel α β , UpdDel (Upd α β) (Del α) ¬p)
-mergeOrConflict (Upd α β) (Cpy .α) = inj₁ (⟨ β ⟩ , Upd α β , Id₂ (Upd α β) (Cpy α) {!!})
 mergeOrConflict (Upd α β) (Upd .α γ) with β =?= γ
 mergeOrConflict (Upd α β) (Upd .α .β) | yes refl = inj₁ (⟨ β ⟩ , Upd α β , Idem (Upd α β))
-mergeOrConflict (Upd α β) (Upd .α γ) | no ¬p with α =?= β
-mergeOrConflict (Upd β .β) (Upd .β γ) | no ¬p | yes refl = inj₁ (⟨ γ ⟩ , Upd β γ , Id₁ (Upd β β) (Upd β γ) (aux ¬p))
-mergeOrConflict (Upd α β) (Upd .α γ) | no ¬p₁ | no ¬p with α =?= γ
-mergeOrConflict (Upd α β) (Upd .α .α) | no ¬p₁ | no ¬p | yes refl = inj₁ (⟨ β ⟩ , Upd α β , Id₂ (Upd α β) (Upd α α) (aux ¬p))
+mergeOrConflict (Upd α β) (Upd .α γ) | no β≠γ with α =?= β
+mergeOrConflict (Upd β .β) (Upd .β γ) | no β≠γ | yes refl with β =?= γ
+mergeOrConflict (Upd β .β) (Upd .β .β) | no β≠γ | yes refl | yes refl = inj₁ (⟨ β ⟩ , Upd β β , Idem (Upd β β))
+mergeOrConflict (Upd β .β) (Upd .β γ) | no β≠γ | yes refl | no ¬p = inj₁ (⟨ γ ⟩ , Upd β γ , Id₁ (Upd β β) (Upd β γ) (aux β≠γ)) 
+mergeOrConflict (Upd α β) (Upd .α γ) | no β≠γ | no α≠β with α =?= γ
+mergeOrConflict (Upd α β) (Upd .α .α) | no β≠γ | no α≠β | yes refl = inj₁ (⟨ β ⟩ , Upd α β , Id₂ (Upd α β) (Upd α α) (aux α≠β))
 mergeOrConflict (Upd α β) (Upd .α γ) | no β≠γ | no α≠β | no α≠γ = inj₂ (UpdUpd β γ , UpdUpd (Upd α β) (Upd α γ) α≠β α≠γ β≠γ)
-mergeOrConflict End g = inj₁ (_ , g , Id₁ End g {!!})
 
 --------------------------------------------------------------------------------
 -- RawMapping
@@ -261,17 +237,26 @@ data _≅_ {a b} (x : a ~> b) : ∀ {c d} (y : c ~> d) → Set where
    refl : x ≅ x
 
 mergeConflictExclusive : ∀ {c s u v w} {x : s ~> u} {y : s ~> v} {z : s ~> w} -> z ≔ x ⊔ y -> ¬ (x ⊔ y ↥ c)
-mergeConflictExclusive p q = {!!}
--- mergeConflictExclusive (Id₁ f y _) (UpdUpd .f .y α≠β α≠γ β≠γ) = α≠β refl
--- mergeConflictExclusive (Id₁ f y _) (UpdDel .f .y α≠β) = α≠β refl
--- mergeConflictExclusive (Id₂ f y) (UpdUpd .f .y α≠β α≠γ β≠γ) = α≠γ refl
--- mergeConflictExclusive (Id₂ f y) (DelUpd .f .y α≠β) = α≠β refl
--- mergeConflictExclusive (Idem x) (InsIns .x .x α≠β) = α≠β refl
--- mergeConflictExclusive (Idem x) (UpdUpd .x .x α≠β α≠γ β≠γ) = β≠γ refl
+mergeConflictExclusive (Id₁ f y _) (UpdUpd .f .y α≠β α≠γ β≠γ) = α≠β refl
+mergeConflictExclusive (Id₁ f y _) (UpdDel .f .y α≠β) = α≠β refl
+mergeConflictExclusive (Id₂ f y _) (UpdUpd .f .y α≠β α≠γ β≠γ) = α≠γ refl
+mergeConflictExclusive (Id₂ f y _) (DelUpd .f .y α≠β) = α≠β refl
+mergeConflictExclusive (Idem x) (InsIns .x .x α≠β) = α≠β refl
+mergeConflictExclusive (Idem x) (UpdUpd .x .x α≠β α≠γ β≠γ) = β≠γ refl
+
+open import Data.Empty using (⊥-elim)
 
 mergeDeterministic : ∀ {a b c d e} {x : a ~> b} {y : a ~> c} {z₁ : a ~> d} {z₂ : a ~> e} ->
                        z₁ ≔ x ⊔ y -> z₂ ≔ x ⊔ y -> z₁ ≅ z₂
-mergeDeterministic p q = {!!}
+mergeDeterministic (Id₁ f g v≠w) (Id₁ .f .g v≠w₁) = refl
+mergeDeterministic (Id₁ f g v≠w) (Id₂ .f .g v≠w₁) = ⊥-elim (v≠w₁ refl)
+mergeDeterministic (Id₁ z₂ .z₂ v≠w) (Idem .z₂) = ⊥-elim (v≠w refl)
+mergeDeterministic (Id₂ f g v≠w) (Id₁ .f .g v≠w₁) = ⊥-elim (v≠w₁ refl)
+mergeDeterministic (Id₂ f g v≠w) (Id₂ .f .g v≠w₁) = refl
+mergeDeterministic (Id₂ z₂ .z₂ v≠w) (Idem .z₂) = ⊥-elim (v≠w refl)
+mergeDeterministic (Idem f) (Id₁ .f .f v≠w) = ⊥-elim (v≠w refl)
+mergeDeterministic (Idem f) (Id₂ .f .f v≠w) = ⊥-elim (v≠w refl)
+mergeDeterministic (Idem z₂) (Idem .z₂) = refl
 
 conflictDeterministic : ∀ {u v w c₁ c₂} {x : u ~> v} {y : u ~> w} -> x ⊔ y ↥ c₁ -> x ⊔ y ↥ c₂ -> c₁ ≡ c₂
 conflictDeterministic (InsIns x y α≠β) (InsIns .x .y α≠β₁) = refl

@@ -4,12 +4,11 @@ open import Data.DTree hiding ([_])
 open Data.DTree public hiding ([_])
 open import Data.List
 open import Data.Product
-
+open import Relation.Nullary
 
 data ES : (xs : List Set) (ys : List Set) -> Set₁ where
   Ins : ∀ {xs ys zs a} -> View xs a -> ES ys (xs ++ zs) -> ES ys (a ∷ zs)
   Del : ∀ {xs ys zs a} -> View xs a -> ES (xs ++ ys) zs -> ES (a ∷ ys) zs
-  Cpy : ∀ {xs ys zs a} -> View xs a -> ES (xs ++ ys) (xs ++ zs) -> ES (a ∷ ys) (a ∷ zs)
   Upd : ∀ {xs ys ws zs a} -> (x : View xs a) -> (y : View ys a) -> ES (xs ++ zs) (ys ++ ws) -> ES (a ∷ zs) (a ∷ ws)
   End : ES [] []
 
@@ -18,8 +17,6 @@ data ES : (xs : List Set) (ys : List Set) -> Set₁ where
 ⟦ Ins {xs} {zs = zs} x e ⟧ with dsplit ⟦ e ⟧
 ... | ds₁ , ds₂ = (Node x ds₁) ∷ ds₂
 ⟦ Del x e ⟧ = ⟦ e ⟧
-⟦ Cpy {xs} {zs = zs} x e ⟧ with dsplit ⟦ e ⟧
-... | ds₁ , ds₂ = (Node x ds₁) ∷ ds₂
 ⟦ Upd {ys = ys} {ws = ws} x y e ⟧ with dsplit ⟦ e ⟧
 ... | ds₁ , ds₂ = (Node y ds₁) ∷ ds₂
 ⟦ End ⟧ = []
@@ -28,8 +25,6 @@ data ES : (xs : List Set) (ys : List Set) -> Set₁ where
 ⟪_⟫ : ∀ {xs ys} -> ES xs ys -> DList xs
 ⟪ Ins x e ⟫ = ⟪ e ⟫
 ⟪ Del x e ⟫ with dsplit ⟪ e ⟫
-... | ds₁ , ds₂ = (Node x ds₁) ∷ ds₂
-⟪ Cpy x e ⟫ with dsplit ⟪ e ⟫
 ... | ds₁ , ds₂ = (Node x ds₁) ∷ ds₂
 ⟪ Upd x y e ⟫ with dsplit ⟪ e ⟫
 ... | ds₁ , ds₂ = Node x ds₁ ∷ ds₂
@@ -43,9 +38,7 @@ data ES : (xs : List Set) (ys : List Set) -> Set₁ where
 data Edit : List Set -> List Set -> List Set -> List Set -> Set₁ where
   Ins : ∀ {as a} -> View as a -> Edit [] as [] [ a ]
   Del : ∀ {as a} -> View as a -> Edit as [] [ a ] []
-  Cpy : ∀ {as a} -> View as a -> Edit as as [ a ] [ a ]
   Upd : ∀ {xs ys a} -> (x : View xs a) -> (y : View ys a) -> Edit xs ys [ a ] [ a ]
-  End : Edit [] [] [] []
 
 -- Adds an edit in a well-typed script.
 -- Well-typedness of ES is preserved 
@@ -53,9 +46,7 @@ data Edit : List Set -> List Set -> List Set -> List Set -> Set₁ where
 _∻_ : ∀ {as bs cs ds xs ys} -> Edit as bs cs ds -> ES (as ++ xs) (bs ++ ys) -> ES (cs ++ xs) (ds ++ ys) 
 (Ins x) ∻ es = Ins x es
 (Del x) ∻ es = Del x es
-(Cpy x) ∻ es = Cpy x es
 (Upd x y) ∻ es = Upd x y es
-End ∻ es = es
 
 infixr 7 _∻_
 
@@ -68,61 +59,45 @@ open import Data.Unit hiding (_≤_ ; _≤?_)
 output : ∀ {as bs cs ds} -> Edit as bs cs ds -> Set
 output (Ins x) = ⊤
 output (Del x) = ⊥
-output (Cpy x) = ⊤
 output (Upd x x₁) = ⊤
-output End = ⊥
 
 outputArgs : ∀ {as bs cs ds} -> (e : Edit as bs cs ds) -> {{p : output e}} -> List Set
 outputArgs {bs = bs} (Ins x) = bs
 outputArgs (Del x) {{()}}
-outputArgs {as = as} (Cpy x) = as
 outputArgs {bs = bs} (Upd x y) = bs
-outputArgs End {{()}}
 
 outputTy : ∀ {as bs cs ds} -> (e : Edit as bs cs ds) -> {{o : output e}} -> Set
 outputTy (Ins {a = a} x) = a
 outputTy (Del x) {{()}}
-outputTy (Cpy {a = a} x) = a
 outputTy (Upd {a = a} x y) = a
-outputTy End {{()}}
 
 -- Returns the output View object
 ⌜_⌝ : ∀ {as bs cs ds} (e : Edit as bs cs ds) -> {{p : output e}} -> View (outputArgs e) (outputTy e)
 ⌜ Ins x ⌝ = x
 ⌜_⌝ (Del x) {{()}}
-⌜ Cpy x ⌝ = x
 ⌜ Upd x y ⌝ = y
-⌜_⌝ End {{()}}
 
 --------------------------------------------------------------------------------
 
 input : ∀ {as bs cs ds} -> Edit as bs cs ds -> Set
 input (Ins x) = ⊥
 input (Del x) = ⊤
-input (Cpy x) = ⊤
 input (Upd x y) = ⊤
-input End = ⊥ 
 
 inputTy : ∀ {as bs cs ds} -> (e : Edit as bs cs ds) -> {{p : input e}} -> Set
 inputTy (Ins x) {{()}}
 inputTy (Del {a = a} x) = a
-inputTy (Cpy {a = a} x) = a
 inputTy (Upd {a = a} x y) = a
-inputTy End {{()}}
 
 inputArgs : ∀ {as bs cs ds} -> (e : Edit as bs cs ds) -> {{p : input e}} -> List Set
 inputArgs (Ins x) {{()}}
 inputArgs (Del {as = as} x) = as
-inputArgs (Cpy {as = as} x) = as
 inputArgs (Upd {xs = xs} x y) = xs
-inputArgs End {{()}}
 
 ⌞_⌟ : ∀ {as bs cs ds} -> (e : Edit as bs cs ds) -> {{p : input e}} -> View (inputArgs e) (inputTy e)
 ⌞_⌟ (Ins x) {{()}}
 ⌞ Del x ⌟ = x
-⌞ Cpy x ⌟ = x
 ⌞ Upd x y ⌟ = x
-⌞_⌟ End {{()}}
 
 --------------------------------------------------------------------------------
 
@@ -130,9 +105,9 @@ inputArgs End {{()}}
 change : ∀ {as bs cs ds} -> Edit as bs cs ds -> Set
 change (Ins x) = ⊤
 change (Del x) = ⊤
-change (Cpy x) = ⊥
-change (Upd x y) = ⊤
-change End = ⊥
+change (Upd x y) with x =?= y
+change (Upd x .x) | yes refl = ⊥
+change (Upd x y) | no ¬p = ⊤
 
 --------------------------------------------------------------------------------
 -- Membership
@@ -170,17 +145,13 @@ infixl 3 _⊢ₑ_⊏_
 ∈-here-⟪⟫ : ∀ {as bs cs ds xs ys} {e : ES (as ++ xs) (bs ++ ys)} (c : Edit as bs cs ds) {{i : input c}} -> ⌞ c ⌟ ∈ ⟪ c ∻ e ⟫
 ∈-here-⟪⟫ (Ins x) {{()}}
 ∈-here-⟪⟫ (Del x) = ∈-here x
-∈-here-⟪⟫ (Cpy x) = ∈-here x
 ∈-here-⟪⟫ (Upd x y) = ∈-here x
-∈-here-⟪⟫ End {{()}}
 
 ∈-there-⟪⟫ : ∀ {as bs cs ds ms m xs ys} {e : ES (as ++ xs) (bs ++ ys)} {α : View ms m} -> 
                (d : Edit as bs cs ds) -> α ∈ ⟪ e ⟫ -> α ∈ ⟪ d ∻ e ⟫
 ∈-there-⟪⟫ (Ins x) p = p
 ∈-there-⟪⟫ (Del x) p = ∈-there (∈-dsplit _ p)
-∈-there-⟪⟫ (Cpy x) p = ∈-there (∈-dsplit _ p)
 ∈-there-⟪⟫ (Upd x y) p = ∈-there (∈-dsplit _ p)
-∈-there-⟪⟫ End p = p
 
 --------------------------------------------------------------------------------
 
@@ -188,15 +159,11 @@ infixl 3 _⊢ₑ_⊏_
                (d : Edit as bs cs ds) -> α ∈ ⟦ e ⟧ -> α ∈ ⟦ d ∻ e ⟧
 ∈-there-⟦⟧ (Ins x) p = ∈-there (∈-dsplit _ p)
 ∈-there-⟦⟧ (Del x) p = p
-∈-there-⟦⟧ (Cpy x) p = ∈-there (∈-dsplit _ p)
 ∈-there-⟦⟧ (Upd x y) p = ∈-there (∈-dsplit _ p)
-∈-there-⟦⟧ End p = p
 
 ∈-here-⟦⟧ : ∀ {as bs cs ds xs ys} {e : ES (as ++ xs) (bs ++ ys)} (c : Edit as bs cs ds) {{o : output c}} -> ⌜ c ⌝ ∈ ⟦ c ∻ e ⟧
 ∈-here-⟦⟧ (Ins x) = ∈-here x
 ∈-here-⟦⟧ (Del x) {{()}}
-∈-here-⟦⟧ (Cpy x) = ∈-here x
 ∈-here-⟦⟧ (Upd x y) = ∈-here y
-∈-here-⟦⟧ End {{()}}
 
 --------------------------------------------------------------------------------

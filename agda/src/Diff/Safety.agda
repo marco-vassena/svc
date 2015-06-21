@@ -36,11 +36,9 @@ noTargetErase : ∀ {xs ys as a} {α : View as a} {x : DList xs} {y : DList ys} 
             -> Diff x y e -> α ∈ y -> ∃ λ v -> e ⊢ₑ v ~> ⟨ α ⟩
 noTargetErase (Del x p) (∈-here α) = P.map id (there~> (Del x)) (noTargetErase p (∈-here α))
 noTargetErase (Upd α β p) (∈-here .β) = ⟨ α ⟩ , Upd α β (here (Upd α β))
-noTargetErase (Cpy α p) (∈-here .α) = ⟨ α ⟩ , (Cpy α (here (Cpy α)))
 noTargetErase (Ins α p) (∈-here .α) = ⊥ , Ins α (here (Ins α))
 noTargetErase (Del x p) (∈-there q) = P.map id (there~> (Del x)) (noTargetErase p (∈-there q))
 noTargetErase (Upd x y p) (∈-there q) = P.map id (there~> (Upd x y)) (noTargetErase p q)
-noTargetErase (Cpy y p) (∈-there q) = P.map id (there~> (Cpy y)) (noTargetErase p q)
 noTargetErase (Ins y p) (∈-there q) = P.map id (there~> (Ins y)) (noTargetErase p q)
 
 -- Let e be the edit script that maps the source tree x in the target tree y (Diff x y e).
@@ -57,11 +55,9 @@ noSourceErase : ∀ {xs ys as a} {α : View as a} {x : DList xs} {y : DList ys} 
                   Diff x y e -> α ∈ x -> ∃ λ v -> e ⊢ₑ ⟨ α ⟩ ~> v
 noSourceErase (Del α p) (∈-here .α) = ⊥ , Del α (here (Del α))
 noSourceErase (Upd α β p) (∈-here .α) = ⟨ β ⟩ , (Upd α β (here (Upd α β)))
-noSourceErase (Cpy α p) (∈-here .α) = ⟨ α ⟩ , (Cpy α (here (Cpy α)))
 noSourceErase (Ins y p) (∈-here α) = P.map id (there~> (Ins y)) (noSourceErase p (∈-here α))
 noSourceErase (Del y p) (∈-there q) = P.map id (there~> (Del y)) (noSourceErase p q)
 noSourceErase (Upd x y p) (∈-there q) = P.map id (there~> (Upd x y)) (noSourceErase p q)
-noSourceErase (Cpy y p) (∈-there q) = P.map id (there~> (Cpy y)) (noSourceErase p q)
 noSourceErase (Ins y p) (∈-there q) = P.map id (there~> (Ins y)) (noSourceErase p (∈-there q))
 
 --------------------------------------------------------------------------------
@@ -77,7 +73,6 @@ data _∈ˢ_ : ∀ {xs ys as a} -> View as a -> ES xs ys -> Set₁ where
 noEraseˢ : ∀ {xs ys as a} {α : View as a} {x : DList xs} {y : DList ys} {e : ES xs ys}
             -> Diff x y e -> α ∈ x -> α ∈ˢ e
 noEraseˢ p q with noSourceErase p q
-noEraseˢ p q | .(⟨ α ⟩) , Cpy α x = source-∈ x
 noEraseˢ p q | .(⟨ β ⟩) , Upd α β x = source-∈ x
 noEraseˢ p q | .⊥ , Del α x = source-∈ x
 
@@ -103,7 +98,6 @@ noMadeUpₒ (target-∈ x) q rewrite mkDiff⟦ q ⟧ = ∈-⟦⟧ x
 noEraseₒ : ∀ {xs ys as a} {α : View as a} {x : DList xs} {y : DList ys} {e : ES xs ys} ->
              Diff x y e -> α ∈ y -> α ∈ₒ e
 noEraseₒ p q with noTargetErase p q
-noEraseₒ p q | .(⟨ α ⟩) , Cpy α x = target-∈ x
 noEraseₒ p q | .(⟨ α ⟩) , Upd α β x = target-∈ x
 noEraseₒ p q | .⊥ , Ins α x = target-∈ x
 

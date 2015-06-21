@@ -13,7 +13,6 @@ data Val : Set₁ where
  
 
 data _⊢ₑ_~>_  {xs ys} (e : ES xs ys) : Val -> Val -> Set₁ where
-  Cpy : ∀ {as a} (α : View as a) -> Cpy α ∈ₑ e -> e ⊢ₑ ⟨ α ⟩ ~> ⟨ α ⟩
   Upd : ∀ {as bs a} (α : View as a) (β : View bs a) -> Upd α β ∈ₑ e -> e ⊢ₑ ⟨ α ⟩ ~> ⟨ β ⟩ 
   Del : ∀ {as a} (α : View as a) -> Del α ∈ₑ e -> e ⊢ₑ ⟨ α ⟩ ~> ⊥
   Ins : ∀ {as a} (α : View as a) -> Ins α ∈ₑ e -> e ⊢ₑ ⊥ ~> ⟨ α ⟩
@@ -27,32 +26,24 @@ infixr 3 _⊢ₑ_~>_
 data _~>_ : Val -> Val -> Set where
   Ins : ∀ {as a} -> (α : View as a) -> ⊥ ~> ⟨ α ⟩
   Del : ∀ {as a} -> (α : View as a) -> ⟨ α ⟩ ~> ⊥
-  Cpy : ∀ {as a} -> (α : View as a) -> ⟨ α ⟩ ~> ⟨ α ⟩
   Upd : ∀ {as a bs} -> (α : View as a) (β : View bs a) -> ⟨ α ⟩ ~> ⟨ β ⟩
-  End : ⊥ ~> ⊥
 
 infixr 3 _~>_
 
 source : ∀ {as bs cs ds} -> Edit as bs cs ds -> Val
 source (Ins x) = ⊥
 source (Del x) = ⟨ x ⟩
-source (Cpy x) = ⟨ x ⟩
 source (Upd x y) = ⟨ x ⟩
-source End = ⊥
 
 target : ∀ {as bs cs ds} -> Edit as bs cs ds -> Val
 target (Ins x) = ⟨ x ⟩
 target (Del x) = ⊥
-target (Cpy x) = ⟨ x ⟩
 target (Upd x y) = ⟨ y ⟩
-target End = ⊥
 
 toMap : ∀ {as bs cs ds} -> (c : Edit as bs cs ds) -> source c ~> target c
 toMap (Ins x) = Ins x
 toMap (Del x) = Del x
-toMap (Cpy x) = Cpy x
 toMap (Upd x y) = Upd x y
-toMap End = End
 
 --------------------------------------------------------------------------------
 
@@ -67,7 +58,6 @@ infixr 3 _∷_
 mapping : ∀ {xs ys} -> ES xs ys -> Mapping
 mapping (Ins x e) = Ins x ∷ mapping e
 mapping (Del x e) = Del x ∷ mapping e
-mapping (Cpy x e) = Cpy x ∷ mapping e
 mapping (Upd x y e) = Upd x y ∷ mapping e
 mapping End = []
 
@@ -78,9 +68,7 @@ import Data.Empty
 ¬Insᵐ [] = ⊤
 ¬Insᵐ (Ins α ∷ m) = Data.Empty.⊥
 ¬Insᵐ (Del α ∷ m) = ⊤
-¬Insᵐ (Cpy α ∷ m) = ⊤
 ¬Insᵐ (Upd α β ∷ m) = ⊤
-¬Insᵐ (End ∷ m) = ⊤
 
 --------------------------------------------------------------------------------
 
@@ -96,7 +84,6 @@ data Mapˢ {xs ys as a bs cs ds es} (e : ES xs ys) (α : View as a) (c : Edit bs
 
 there~> : ∀ {xs ys as bs cs ds} {v₁ v₂ : Val} (c : Edit as bs cs ds) {e : ES (as ++ xs) (bs ++ ys)}
                 -> e ⊢ₑ v₁ ~> v₂ -> c ∻ e ⊢ₑ v₁ ~> v₂
-there~> c (Cpy α x) = Cpy α (there c x)
 there~> c (Upd α β x) = Upd α β (there c x)
 there~> c (Del α x) = Del α (there c x)
 there~> c (Ins α x) = Ins α (there c x)
@@ -118,9 +105,7 @@ thereMapˢ d (source~> x) = source~> (there~> d x)
          -> d ∈ₑ e -> (e ⊢ₑ ⟨ ⌞ d ⌟ ⟩ ~> ⊥) ⊎ (Mapˢ e ⌞ d ⌟ d)
 ∈⟨⟩~> {{i = ()}} (here (Ins x))
 ∈⟨⟩~> (here (Del x)) = inj₁ (Del x (here (Del x)))
-∈⟨⟩~> (here (Cpy x)) = inj₂ (source~> (Cpy x (here (Cpy x))))
 ∈⟨⟩~> (here (Upd x y)) = inj₂ (source~> (Upd x y (here (Upd x y))))
-∈⟨⟩~> {{i = ()}} (here End)
 ∈⟨⟩~> (there d p) = S.map (there~> d) (thereMapˢ d) (∈⟨⟩~> p)
 
 --------------------------------------------------------------------------------
@@ -145,9 +130,7 @@ thereMapₒ d (target~> x) = target~> (there~> d x)
          -> d ∈ₑ e -> (e ⊢ₑ ⊥ ~> ⟨ ⌜ d ⌝ ⟩) ⊎ (Mapₒ e ⌜ d ⌝ d)
 ∈~>⟨⟩ (here (Ins x)) = inj₁ (Ins x (here (Ins x)))
 ∈~>⟨⟩ {{o = ()}} (here (Del x))
-∈~>⟨⟩ (here (Cpy x)) = inj₂ (target~> (Cpy x (here (Cpy x))))
 ∈~>⟨⟩ (here (Upd x y)) = inj₂ (target~> (Upd x y (here (Upd x y))))
-∈~>⟨⟩ {{o = ()}} (here End)
 ∈~>⟨⟩ (there d p) = S.map (there~> d) (thereMapₒ d) (∈~>⟨⟩ p)
 
 --------------------------------------------------------------------------------
