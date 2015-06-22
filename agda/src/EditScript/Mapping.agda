@@ -27,7 +27,6 @@ data _~>_ : Val -> Val -> Set where
   Ins : ∀ {as a} -> (α : View as a) -> ⊥ ~> ⟨ α ⟩
   Del : ∀ {as a} -> (α : View as a) -> ⟨ α ⟩ ~> ⊥
   Upd : ∀ {as a bs} -> (α : View as a) (β : View bs a) -> ⟨ α ⟩ ~> ⟨ β ⟩
-  Nop : ⊥ ~> ⊥
 
 infixr 3 _~>_
 
