@@ -1,169 +1,120 @@
 module EditScript.Core where
 
-open import Data.DTree hiding ([_])
-open Data.DTree public hiding ([_])
 open import Data.List
 open import Data.Product
-open import Relation.Nullary
+open import Data.DTree public hiding ([_])
 
-data ES : (xs : List Set) (ys : List Set) -> Set₁ where
-  Ins : ∀ {xs ys zs a} -> View xs a -> ES ys (xs ++ zs) -> ES ys (a ∷ zs)
-  Del : ∀ {xs ys zs a} -> View xs a -> ES (xs ++ ys) zs -> ES (a ∷ ys) zs
-  Upd : ∀ {xs ys ws zs a} -> (x : View xs a) -> (y : View ys a) -> ES (xs ++ zs) (ys ++ ws) -> ES (a ∷ zs) (a ∷ ws)
-  End : ES [] []
+data Val : List Set -> List Set -> Set₁ where
+  ⊥ : Val [] []
+  ⟨_⟩ : ∀ {as a} (α : View as a) -> Val as [ a ] 
 
--- Patch
+data _~>_ : ∀ {as bs cs ds} -> Val as bs -> Val cs ds -> Set where
+  Ins : ∀ {as a} (α : View as a) -> ⊥ ~> ⟨ α ⟩
+  Del : ∀ {as a} (α : View as a) -> ⟨ α ⟩ ~> ⊥
+  Upd : ∀ {as bs a} (α : View as a) (β : View bs a) -> ⟨ α ⟩ ~> ⟨ β ⟩
+  Nop : ⊥ ~> ⊥
+
+data ES : List Set -> List Set -> Set₁ where
+  _∷_ : ∀ {xs ys as bs cs ds} {v : Val as bs} {w : Val cs ds} -> 
+          (x : v ~> w) -> (e : ES (as ++ xs) (cs ++ ys)) -> ES (bs ++ xs) (ds ++ ys)
+  [] : ES [] []
+  
+--------------------------------------------------------------------------------
+
 ⟦_⟧ : ∀ {xs ys} -> ES xs ys -> DList ys
-⟦ Ins {xs} {zs = zs} x e ⟧ with dsplit ⟦ e ⟧
-... | ds₁ , ds₂ = (Node x ds₁) ∷ ds₂
-⟦ Del x e ⟧ = ⟦ e ⟧
-⟦ Upd {ys = ys} {ws = ws} x y e ⟧ with dsplit ⟦ e ⟧
-... | ds₁ , ds₂ = (Node y ds₁) ∷ ds₂
-⟦ End ⟧ = []
+⟦ Ins α ∷ e ⟧ with dsplit ⟦ e ⟧
+... | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
+⟦ Del α ∷ e ⟧ = ⟦ e ⟧
+⟦ Upd α β ∷ e ⟧ with dsplit ⟦ e ⟧
+... | ds₁ , ds₂ = Node β ds₁ ∷ ds₂
+⟦ Nop ∷ e ⟧ = ⟦ e ⟧
+⟦ [] ⟧ = []
 
--- Retrieves the source from the edit script
 ⟪_⟫ : ∀ {xs ys} -> ES xs ys -> DList xs
-⟪ Ins x e ⟫ = ⟪ e ⟫
-⟪ Del x e ⟫ with dsplit ⟪ e ⟫
-... | ds₁ , ds₂ = (Node x ds₁) ∷ ds₂
-⟪ Upd x y e ⟫ with dsplit ⟪ e ⟫
-... | ds₁ , ds₂ = Node x ds₁ ∷ ds₂
-⟪ End ⟫ = []
-
---------------------------------------------------------------------------------
--- Edit abstracts over the concret edit operation
-
--- TODO consider removing the End from edits: it is not an acutal edit operation
--- and probably complicates unification with ∻
-data Edit : List Set -> List Set -> List Set -> List Set -> Set₁ where
-  Ins : ∀ {as a} -> View as a -> Edit [] as [] [ a ]
-  Del : ∀ {as a} -> View as a -> Edit as [] [ a ] []
-  Upd : ∀ {xs ys a} -> (x : View xs a) -> (y : View ys a) -> Edit xs ys [ a ] [ a ]
-
--- Adds an edit in a well-typed script.
--- Well-typedness of ES is preserved 
-
-_∻_ : ∀ {as bs cs ds xs ys} -> Edit as bs cs ds -> ES (as ++ xs) (bs ++ ys) -> ES (cs ++ xs) (ds ++ ys) 
-(Ins x) ∻ es = Ins x es
-(Del x) ∻ es = Del x es
-(Upd x y) ∻ es = Upd x y es
-
-infixr 7 _∻_
-
---------------------------------------------------------------------------------
--- Classification of edits using types
-
-open import Data.Empty
-open import Data.Unit hiding (_≤_ ; _≤?_)
-
-output : ∀ {as bs cs ds} -> Edit as bs cs ds -> Set
-output (Ins x) = ⊤
-output (Del x) = ⊥
-output (Upd x x₁) = ⊤
-
-outputArgs : ∀ {as bs cs ds} -> (e : Edit as bs cs ds) -> {{p : output e}} -> List Set
-outputArgs {bs = bs} (Ins x) = bs
-outputArgs (Del x) {{()}}
-outputArgs {bs = bs} (Upd x y) = bs
-
-outputTy : ∀ {as bs cs ds} -> (e : Edit as bs cs ds) -> {{o : output e}} -> Set
-outputTy (Ins {a = a} x) = a
-outputTy (Del x) {{()}}
-outputTy (Upd {a = a} x y) = a
-
--- Returns the output View object
-⌜_⌝ : ∀ {as bs cs ds} (e : Edit as bs cs ds) -> {{p : output e}} -> View (outputArgs e) (outputTy e)
-⌜ Ins x ⌝ = x
-⌜_⌝ (Del x) {{()}}
-⌜ Upd x y ⌝ = y
+⟪ Ins α ∷ e ⟫ = ⟪ e ⟫
+⟪ Del α ∷ e ⟫ with dsplit ⟪ e ⟫
+... | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
+⟪ Upd α β ∷ e ⟫ with dsplit ⟪ e ⟫
+... | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
+⟪ Nop ∷ e ⟫ = ⟪ e ⟫
+⟪ [] ⟫ = []
 
 --------------------------------------------------------------------------------
 
-input : ∀ {as bs cs ds} -> Edit as bs cs ds -> Set
-input (Ins x) = ⊥
-input (Del x) = ⊤
-input (Upd x y) = ⊤
+open import Relation.Nullary
+open import Data.Unit
+import Data.Empty as E
 
-inputTy : ∀ {as bs cs ds} -> (e : Edit as bs cs ds) -> {{p : input e}} -> Set
-inputTy (Ins x) {{()}}
-inputTy (Del {a = a} x) = a
-inputTy (Upd {a = a} x y) = a
-
-inputArgs : ∀ {as bs cs ds} -> (e : Edit as bs cs ds) -> {{p : input e}} -> List Set
-inputArgs (Ins x) {{()}}
-inputArgs (Del {as = as} x) = as
-inputArgs (Upd {xs = xs} x y) = xs
-
-⌞_⌟ : ∀ {as bs cs ds} -> (e : Edit as bs cs ds) -> {{p : input e}} -> View (inputArgs e) (inputTy e)
-⌞_⌟ (Ins x) {{()}}
-⌞ Del x ⌟ = x
-⌞ Upd x y ⌟ = x
-
---------------------------------------------------------------------------------
-
--- The edit performs a change?
-change : ∀ {as bs cs ds} -> Edit as bs cs ds -> Set
-change (Ins x) = ⊤
-change (Del x) = ⊤
-change (Upd x y) with x =?= y
-change (Upd x .x) | yes refl = ⊥
-change (Upd x y) | no ¬p = ⊤
+-- Does the transformation perform a change?
+change : ∀ {as bs cs ds} {v : Val as bs} {w : Val cs ds} -> v ~> w -> Set
+change (Ins α) = ⊤
+change (Del α) = ⊤
+change (Upd α β) with α =?= β
+change (Upd α .α) | yes refl = E.⊥
+change (Upd α β) | no ¬p = ⊤
+change Nop = E.⊥
 
 --------------------------------------------------------------------------------
 -- Membership
 
-data _∈ₑ_ : ∀ {as bs cs ds xs ys} -> Edit as bs cs ds -> ES xs ys -> Set₁ where
-  here : ∀ {as bs cs ds xs ys} {e : ES (as ++ xs) (bs ++ ys)} -> (c : Edit as bs cs ds) -> c ∈ₑ c ∻ e
-  there : ∀ {as bs cs ds es fs gs hs xs ys} {c : Edit as bs cs ds} {e : ES (es ++ xs) (fs ++ ys)} (d : Edit es fs gs hs)
-          -> c ∈ₑ e -> c ∈ₑ d ∻ e
+data _∈ₑ_ : ∀ {as bs cs ds xs ys} {v : Val as bs} {w : Val cs ds} -> v ~> w -> ES xs ys -> Set₁ where
+  here : ∀ {as bs cs ds xs ys} {v : Val as bs} {w : Val cs ds} {e : ES (as ++ xs) (cs ++ ys)} -> (c : v ~> w) -> c ∈ₑ c ∷ e
+  there : ∀ {as bs cs ds es fs gs hs xs ys} {u : Val as bs} {v : Val cs ds} {w : Val es fs} {z : Val gs hs} {c : u ~> v} 
+            {e : ES (es ++ xs) (gs ++ ys)} (d : w ~> z) -> c ∈ₑ e -> c ∈ₑ d ∷ e
 
 infixl 3 _∈ₑ_
 
 --------------------------------------------------------------------------------
+
 -- Comes-before relation for edit scripts
 
-data _⊢ₑ_⊏_ : ∀ {xs ys as bs cs ds es fs gs hs} -> ES xs ys -> Edit as bs cs ds -> Edit es fs gs hs -> Set₁ where
-  here : ∀ {as bs cs ds es fs gs hs xs ys} {d : Edit es fs gs hs} {e : ES (as ++ xs) (bs ++ ys)} 
-         -> (c : Edit as bs cs ds) -> (o : d ∈ₑ e) -> c ∻ e ⊢ₑ c ⊏ d 
-  there : ∀ {as bs cs ds es fs gs hs is ls ms ns xs ys} {d : Edit es fs gs hs} {c : Edit as bs cs ds} {e : ES (is ++ xs) (ls ++ ys)}
-          (a : Edit is ls ms ns) -> (o : e ⊢ₑ c ⊏ d) -> a ∻ e ⊢ₑ c ⊏ d 
+data _⊢ₑ_⊏_ : ∀ {xs ys as bs cs ds es fs gs hs} {u : Val as cs} {v : Val bs ds} {w : Val es gs} {z : Val fs hs} -> 
+                ES xs ys -> u ~> v -> w ~> z -> Set₁ where
+  here : ∀ {as bs cs ds es fs gs hs xs ys} {u : Val es fs} {v : Val gs hs} {d : u ~> v} 
+           {w : Val as bs} {z : Val cs ds} {e : ES (as ++ xs) (cs ++ ys)} 
+           (c : w ~> z) -> (o : d ∈ₑ e) -> c ∷ e ⊢ₑ c ⊏ d 
+  there : ∀ {as bs cs ds es fs gs hs is ls ms ns xs ys} {u : Val es fs} {v : Val gs hs} {d : u ~> v} {w : Val as bs} 
+          {z : Val cs ds} {c : w ~> z} {e : ES (is ++ xs) (ms ++ ys)} {s : Val is ls} {t : Val ms ns} -> (a : s ~> t)
+          (o : e ⊢ₑ c ⊏ d) -> a ∷ e ⊢ₑ c ⊏ d 
 
 infixl 3 _⊢ₑ_⊏_
 
-⊏ₑ-∈₁ : ∀ {xs ys as bs cs ds es fs gs hs} {e : ES xs ys} {c : Edit as bs cs ds} {d : Edit es fs gs hs} 
-          -> e ⊢ₑ c ⊏ d -> c ∈ₑ e
+⊏ₑ-∈₁ : ∀ {xs ys as bs cs ds es fs gs hs} {e : ES xs ys} 
+          {u : Val as cs} {v : Val bs ds} {w : Val es gs} {z : Val fs hs}
+          {d : w ~> z} {c : u ~> v} -> e ⊢ₑ c ⊏ d -> c ∈ₑ e
 ⊏ₑ-∈₁ (here c o) = here c
 ⊏ₑ-∈₁ (there e p) = there e (⊏ₑ-∈₁ p)
 
-⊏ₑ-∈₂ : ∀ {xs ys as bs cs ds es fs gs hs} {e : ES xs ys} {c : Edit as bs cs ds} {d : Edit es fs gs hs} 
-          -> e ⊢ₑ c ⊏ d -> d ∈ₑ e
+⊏ₑ-∈₂ : ∀ {xs ys as bs cs ds es fs gs hs} {e : ES xs ys} 
+          {u : Val as cs} {v : Val bs ds} {w : Val es gs} {z : Val fs hs}
+          {d : w ~> z} {c : u ~> v} -> e ⊢ₑ c ⊏ d -> d ∈ₑ e
 ⊏ₑ-∈₂ (here c o) = there c o
 ⊏ₑ-∈₂ (there e p) = there e (⊏ₑ-∈₂ p)
 
 --------------------------------------------------------------------------------
 
-∈-here-⟪⟫ : ∀ {as bs cs ds xs ys} {e : ES (as ++ xs) (bs ++ ys)} (c : Edit as bs cs ds) {{i : input c}} -> ⌞ c ⌟ ∈ ⟪ c ∻ e ⟫
-∈-here-⟪⟫ (Ins x) {{()}}
-∈-here-⟪⟫ (Del x) = ∈-here x
-∈-here-⟪⟫ (Upd x y) = ∈-here x
+∈-here-⟪⟫ : ∀ {a as bs cs xs ys} {α : View as a} {v : Val bs cs} {e : ES (as ++ xs) (bs ++ ys)} (c : ⟨ α ⟩ ~> v) -> α ∈ ⟪ c ∷ e ⟫
+∈-here-⟪⟫ (Del α) = ∈-here α
+∈-here-⟪⟫ (Upd α β) = ∈-here α
 
-∈-there-⟪⟫ : ∀ {as bs cs ds ms m xs ys} {e : ES (as ++ xs) (bs ++ ys)} {α : View ms m} -> 
-               (d : Edit as bs cs ds) -> α ∈ ⟪ e ⟫ -> α ∈ ⟪ d ∻ e ⟫
-∈-there-⟪⟫ (Ins x) p = p
-∈-there-⟪⟫ (Del x) p = ∈-there (∈-dsplit _ p)
-∈-there-⟪⟫ (Upd x y) p = ∈-there (∈-dsplit _ p)
+∈-there-⟪⟫ :  ∀ {as bs cs ds ms m xs ys} {v : Val as bs} {w : Val cs ds} {e : ES (as ++ xs) (cs ++ ys)} {α : View ms m} -> 
+               (d : v ~> w) -> α ∈ ⟪ e ⟫ -> α ∈ ⟪ d ∷ e ⟫
+∈-there-⟪⟫ (Ins α) p = p
+∈-there-⟪⟫ (Del α) p = ∈-there (∈-dsplit _ p)
+∈-there-⟪⟫ (Upd α β) p = ∈-there (∈-dsplit _ p)
+∈-there-⟪⟫ Nop p = p
 
 --------------------------------------------------------------------------------
 
-∈-there-⟦⟧ :  ∀ {as bs cs ds ms m xs ys} {e : ES (as ++ xs) (bs ++ ys)} {α : View ms m} -> 
-               (d : Edit as bs cs ds) -> α ∈ ⟦ e ⟧ -> α ∈ ⟦ d ∻ e ⟧
-∈-there-⟦⟧ (Ins x) p = ∈-there (∈-dsplit _ p)
-∈-there-⟦⟧ (Del x) p = p
-∈-there-⟦⟧ (Upd x y) p = ∈-there (∈-dsplit _ p)
+∈-there-⟦⟧ :  ∀ {as bs cs ds ms m xs ys} {v : Val as bs} {w : Val cs ds} {e : ES (as ++ xs) (cs ++ ys)} {α : View ms m} -> 
+               (d : v ~> w) -> α ∈ ⟦ e ⟧ -> α ∈ ⟦ d ∷ e ⟧
+∈-there-⟦⟧ (Ins α) p = ∈-there (∈-dsplit _ p)
+∈-there-⟦⟧ (Del α) p = p
+∈-there-⟦⟧ (Upd α β) p = ∈-there (∈-dsplit _ p)
+∈-there-⟦⟧ Nop p = p
 
-∈-here-⟦⟧ : ∀ {as bs cs ds xs ys} {e : ES (as ++ xs) (bs ++ ys)} (c : Edit as bs cs ds) {{o : output c}} -> ⌜ c ⌝ ∈ ⟦ c ∻ e ⟧
-∈-here-⟦⟧ (Ins x) = ∈-here x
-∈-here-⟦⟧ (Del x) {{()}}
-∈-here-⟦⟧ (Upd x y) = ∈-here y
+∈-here-⟦⟧ : ∀ {a as bs cs xs ys} {α : View cs a} {v : Val as bs} {e : ES (as ++ xs) (cs ++ ys)} (c : v ~> ⟨ α ⟩) -> α ∈ ⟦ c ∷ e ⟧
+∈-here-⟦⟧ (Ins α) = ∈-here α
+∈-here-⟦⟧ (Upd α β) = ∈-here β
 
 --------------------------------------------------------------------------------
