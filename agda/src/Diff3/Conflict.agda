@@ -34,18 +34,6 @@ cons↥ (UpdUpd β γ q α≠β α≠γ β≠γ) = UpdUpd β γ (cons _ _ q) α�
 cons↥ (UpdDel α β q α≠β) = UpdDel α β (cons _ _ q) α≠β
 cons↥ (DelUpd α β q α≠β) = DelUpd α β (cons _ _ q) α≠β
 
--- ins₁↥ : ∀ {xs ys w c} {p : xs ⋎ ys} {x : ⊥ ~> w} {{i : ¬Insᵐ ys}}  -> p ↥ c -> ins₁ x p ↥ c
--- ins₁↥ (InsIns α β q α≠β) = InsIns α β (ins₁ _ q) α≠β
--- ins₁↥ (UpdUpd β γ q α≠β α≠γ β≠γ) = UpdUpd β γ (ins₁ _ q) α≠β α≠γ β≠γ
--- ins₁↥ (UpdDel α β q α≠β) = UpdDel α β (ins₁ _ q) α≠β
--- ins₁↥ (DelUpd α β q α≠β) = DelUpd α β (ins₁ _ q) α≠β
-
--- ins₂↥ : ∀ {xs ys w c} {p : xs ⋎ ys}{y : ⊥ ~> w} {{i : ¬Insᵐ xs}}  -> p ↥ c -> ins₂ y p ↥ c
--- ins₂↥ (InsIns α β q α≠β) = InsIns α β (ins₂ _ q) α≠β
--- ins₂↥ (UpdUpd β γ q α≠β α≠γ β≠γ) = UpdUpd β γ (ins₂ _ q) α≠β α≠γ β≠γ
--- ins₂↥ (UpdDel α β q α≠β) = UpdDel α β (ins₂ _ q) α≠β
--- ins₂↥ (DelUpd α β q α≠β) = DelUpd α β (ins₂ _ q) α≠β
-
 conflict-nec : ∀ {xs ys zs c} {p : xs ⋎ ys} -> c ∈ᶜ zs -> p ⇓ zs -> p ↥ c
 conflict-nec (here .(InsIns α β)) (conflict (InsIns (Ins α) (Ins β) α≠β) r) = InsIns α β (here (Ins α) (Ins β)) α≠β
 conflict-nec (here ._) (conflict (UpdUpd x y α≠β α≠γ β≠γ) r) = UpdUpd _ _ (here x y) α≠β α≠γ β≠γ
@@ -101,3 +89,9 @@ toRawMapping (Cnf x e) = x ∷ᶜ toRawMapping e
 -- TODO conflict lemmas about edit scripts (proved showing connection with mapping)
 -- I would like to avoid to define a RawDiff₃ e₁ e₂ e₃ data-type to match ⇓, but instead
 -- I'd prove the connection between diff3 and ⨆.
+
+-- If I want to avoid ins₁ and ins₂ I need to insert Nop when ~ is Ins₁ and Ins₂.
+-- Then I would need to prove that Nop don't change the meaning of the edit script
+-- with respect to ⟪⟫ and ⟦⟧, however Mapping are not typed, so they are not defined.
+-- ~=>⋎ : ∀ {xs ys} {e₁ : ES xs ys} {e₂ : ES xs zs} -> e₁ ~ e₂ -> ?
+-- ~=>⋎ = ?

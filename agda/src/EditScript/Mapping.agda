@@ -27,6 +27,7 @@ data _~>_ : Val -> Val -> Set where
   Ins : ∀ {as a} -> (α : View as a) -> ⊥ ~> ⟨ α ⟩
   Del : ∀ {as a} -> (α : View as a) -> ⟨ α ⟩ ~> ⊥
   Upd : ∀ {as a bs} -> (α : View as a) (β : View bs a) -> ⟨ α ⟩ ~> ⟨ β ⟩
+  Nop : ⊥ ~> ⊥
 
 infixr 3 _~>_
 
@@ -60,15 +61,6 @@ mapping (Ins x e) = Ins x ∷ mapping e
 mapping (Del x e) = Del x ∷ mapping e
 mapping (Upd x y e) = Upd x y ∷ mapping e
 mapping End = []
-
-open import Data.Unit
-import Data.Empty
-
-¬Insᵐ : Mapping -> Set
-¬Insᵐ [] = ⊤
-¬Insᵐ (Ins α ∷ m) = Data.Empty.⊥
-¬Insᵐ (Del α ∷ m) = ⊤
-¬Insᵐ (Upd α β ∷ m) = ⊤
 
 --------------------------------------------------------------------------------
 
