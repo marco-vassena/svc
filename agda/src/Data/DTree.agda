@@ -9,7 +9,7 @@ open import Relation.Binary.PropositionalEquality hiding ([_])
 import Relation.Binary.PropositionalEquality as P
 open import Relation.Nullary
 
-open import Data.Nat hiding (eq?)
+open import Data.Nat hiding (eq? ; _≟_)
 open import Lemmas
 
 --------------------------------------------------------------------------------
@@ -24,11 +24,18 @@ postulate View : List Set -> Set -> Set
 data _⋍_ : ∀ {xs ys a b} -> View xs a -> View ys b -> Set where
   refl : ∀ {xs a} {x : View xs a} -> x ⋍ x
 
+⋍-sym : ∀ {as bs a b} {α : View as a} {β : View bs b} -> α ⋍ β -> β ⋍ α
+⋍-sym refl = refl
+
+¬⋍-sym : ∀ {as bs a b} {α : View as a} {β : View bs b} -> ¬ (α ⋍ β) -> ¬ (β ⋍ α)
+¬⋍-sym ¬p refl = ¬p refl
+
 ty=>⋍ : ∀ {a b as bs} {x : View as a} {y : View bs b} -> ¬ (a ≡ b) -> ¬ (x ⋍ y)
 ty=>⋍ ¬p refl = ¬p refl
 
 postulate eq? : (a b : Set) -> Dec (a ≡ b)
-postulate _=?=_ : ∀ {a xs ys} -> (x : View xs a) (y : View ys a) -> Dec (x ⋍ y)
+postulate _=?=_ : ∀ {a as bs} (α : View as a) (β : View bs a) -> Dec (α ⋍ β)
+postulate _≟_ : ∀ {a b as bs} (α : View as a) (β : View bs b) -> Dec (α ⋍ β)
 
 --------------------------------------------------------------------------------
 -- Even though it would be more convenient to work using a single 

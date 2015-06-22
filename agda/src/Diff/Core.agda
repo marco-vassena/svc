@@ -10,14 +10,15 @@ open import Data.Product
 open import Relation.Binary.PropositionalEquality
 
 data Diff : ∀ {xs ys} ->  DList xs -> DList ys -> ES xs ys -> Set₁ where
-  End : Diff [] [] End
+  End : Diff [] [] []
   Del : ∀ {as a xs ys} {e : ES (as ++ xs) ys} {ts₁ : DList as} {ts₂ : DList xs} {ts : DList ys}
-        ->  (x : View as a) -> Diff (ts₁ +++ ts₂) ts e -> Diff (Node x ts₁ ∷ ts₂ ) ts (Del x e)
-  Upd : ∀ {as bs a xs ys} {e : ES (as ++ xs) (bs ++ ys)} {ts₁ : DList as} {ts₂ : DList xs} {ts₃ : DList bs} {ts₄ : DList ys}
-      -> (x : View as a) (y : View bs a) -> Diff (ts₁ +++ ts₂) (ts₃ +++ ts₄) e 
-      -> Diff (Node x ts₁ ∷ ts₂) (Node y ts₃ ∷ ts₄) (Upd x y e)
+        ->  (α : View as a) -> Diff (ts₁ +++ ts₂) ts e -> Diff (Node α ts₁ ∷ ts₂ ) ts (Del α ∷ e)
+  Upd : ∀ {bs xs ys as a} {e : ES (as ++ xs) (bs ++ ys)} {ts₁ : DList as} {ts₂ : DList xs} {ts₃ : DList bs} {ts₄ : DList ys}
+      -> (α : View as a) (β : View bs a) -> Diff (ts₁ +++ ts₂) (ts₃ +++ ts₄) e 
+      -> Diff (Node α ts₁ ∷ ts₂) (Node β ts₃ ∷ ts₄) (Upd α β ∷ e)
   Ins : ∀ {bs b xs ys} {e : ES xs (bs ++ ys)} {ts₁ : DList xs} {ts₂ : DList bs} {ts₃ : DList ys}   
-        -> (y : View bs b) -> Diff ts₁ (ts₂ +++ ts₃) e -> Diff ts₁ (Node y ts₂ ∷ ts₃) (Ins y e)
+        -> (β : View bs b) -> Diff ts₁ (ts₂ +++ ts₃) e -> Diff ts₁ (Node β ts₂ ∷ ts₃) (Ins β ∷ e)
+  Nop : ∀ {xs ys} {ts₁ : DList xs} {ts₂ : DList ys} {e : ES xs ys} -> Diff ts₁ ts₂ e -> Diff ts₁ ts₂ (Nop ∷ e)
 
 -- Once more we need to have an explicit mapping with dsplit.
 -- Simple rewriting fails because (probably), the underlying with clause becomes ill-typed.
@@ -33,12 +34,11 @@ Diff-⟪⟫ e d
 
 -- Relation between Diff, ⟦_⟧ and ⟪_⟫
 mkDiff : ∀ {xs ys} (e : ES xs ys) -> Diff ⟪ e ⟫ ⟦ e ⟧ e
-mkDiff (Ins x e) = Ins x (Diff-⟦⟧ e (mkDiff e))
-mkDiff (Del x e) = Del x (Diff-⟪⟫ e (mkDiff e))
-mkDiff (Upd x y e) = Upd x y (Diff-⟦⟧ e (Diff-⟪⟫ e (mkDiff e)))
-mkDiff End = End
-
-
+mkDiff (Ins α ∷ e) = Ins α (Diff-⟦⟧ e (mkDiff e))
+mkDiff (Del α ∷ e) = Del α (Diff-⟪⟫ e (mkDiff e))
+mkDiff (Upd α β ∷ e) = Upd α β (Diff-⟦⟧ e (Diff-⟪⟫ e (mkDiff e)))
+mkDiff (Nop ∷ e) = Nop (mkDiff e)
+mkDiff [] = End
 
 open import Function
 
@@ -51,40 +51,111 @@ open import Function
 -- Necessary condition of mkDiff for ⟪_⟫
 mkDiff⟪_⟫ : ∀ {xs ys} {t₀ : DList xs} {t₁ : DList ys} {e : ES xs ys} -> Diff t₀ t₁ e -> t₀ ≡ ⟪ e ⟫
 mkDiff⟪ End ⟫ = refl
-mkDiff⟪ Del {e = e} {ts₁ = ts₁} {ts₂ = ts₂} x d ⟫ with ≡-split ts₁ ts₂ ⟪ e ⟫ mkDiff⟪ d ⟫
-mkDiff⟪ Del x d ⟫ | refl , refl = refl
-mkDiff⟪ Upd {e = e} {ts₁ = ts₁} {ts₂ = ts₂} x y d ⟫ with ≡-split ts₁ ts₂ ⟪ e ⟫ mkDiff⟪ d ⟫
-mkDiff⟪ Upd x y d ⟫ | refl , refl = refl
-mkDiff⟪ Ins y d ⟫ = mkDiff⟪ d ⟫
+mkDiff⟪ Del {e = e} {ts₁ = ts₁} {ts₂ = ts₂} α d ⟫ with ≡-split ts₁ ts₂ ⟪ e ⟫ mkDiff⟪ d ⟫
+mkDiff⟪ Del α d ⟫ | refl , refl = refl
+mkDiff⟪ Upd {e = e} {ts₁ = ts₁} {ts₂ = ts₂} α β d ⟫ with ≡-split ts₁ ts₂ ⟪ e ⟫ mkDiff⟪ d ⟫
+mkDiff⟪ Upd α β d ⟫ | refl , refl = refl
+mkDiff⟪ Ins β d ⟫ = mkDiff⟪ d ⟫
+mkDiff⟪ Nop d ⟫ = mkDiff⟪ d ⟫
 
 -- Necessary condition of mkDiff for ⟦_⟧
 mkDiff⟦_⟧ : ∀ {xs ys} {t₀ : DList xs} {t₁ : DList ys} {e : ES xs ys} -> Diff t₀ t₁ e -> t₁ ≡ ⟦ e ⟧
 mkDiff⟦ End ⟧ = refl
-mkDiff⟦ Del x d ⟧ = mkDiff⟦ d ⟧
-mkDiff⟦ Upd {e = e} {ts₃ = ts₃} {ts₄ = ts₄} x y d ⟧ with ≡-split ts₃ ts₄ ⟦ e ⟧ mkDiff⟦ d ⟧
-mkDiff⟦ Upd x y d ⟧ | refl , refl = refl
-mkDiff⟦ Ins {e = e} {ts₂ = ts₂} {ts₃ = ts₃} y d ⟧ with ≡-split ts₂ ts₃ ⟦ e ⟧ mkDiff⟦ d ⟧
-mkDiff⟦ Ins x d ⟧ | refl , refl = refl
+mkDiff⟦ Del α d ⟧ = mkDiff⟦ d ⟧
+mkDiff⟦ Upd {e = e} {ts₃ = ts₃} {ts₄ = ts₄} α β d ⟧  with ≡-split ts₃ ts₄ ⟦ e ⟧ mkDiff⟦ d ⟧
+mkDiff⟦ Upd α β d ⟧ | refl , refl = refl
+mkDiff⟦ Ins {e = e} {ts₂ = ts₂} {ts₃ = ts₃} β d ⟧ with ≡-split ts₂ ts₃ ⟦ e ⟧ mkDiff⟦ d ⟧
+mkDiff⟦ Ins β d ⟧ | refl , refl = refl
+mkDiff⟦ Nop d ⟧ = mkDiff⟦ d ⟧
 
 -- Now that we have Diff-suf we can use Diff x y e as an approximation of diff x y 
 
-Diff~ : ∀ {xs ys zs} {x : DList xs} {y : DList ys} {z : DList zs} {e₁ : ES xs ys} {e₂ : ES xs zs} 
+--------------------------------------------------------------------------------
+
+-- The second edit script extends the first, adding a finite number of Nop.
+data _⊆_ : ∀ {xs ys} -> ES xs ys -> ES xs ys -> Set where
+  stop : [] ⊆ []
+  cons : ∀ {xs ys as bs cs ds} {v : Val as bs} {w : Val cs ds} {e₁ e₂ : ES (as ++ xs) (cs ++ ys)} -> 
+          (x : v ~> w) -> e₁ ⊆ e₂ -> x ∷ e₁ ⊆ x ∷ e₂
+  nop : ∀ {xs ys} {e₁ e₂ : ES xs ys} -> e₁ ⊆ e₂ -> e₁ ⊆ Nop ∷ e₂
+
+infixr 3 _⊆_
+
+-- ≈ is the equivalence relation for edit scripts.
+-- e₁ ≈ e₂ if the source and target tree of e₁ and e₂ are the same.
+data _≈_ {xs ys} (e₁ e₂ : ES xs ys) : Set₁ where
+  eq : ⟪ e₁ ⟫ ≡ ⟪ e₂ ⟫ -> ⟦ e₁ ⟧ ≡ ⟦ e₂ ⟧ -> e₁ ≈ e₂
+
+safe⟪_⟫ : ∀ {xs ys} {e₁ e₂ : ES xs ys} -> e₁ ⊆ e₂ -> ⟪ e₁ ⟫ ≡ ⟪ e₂ ⟫
+safe⟪ stop ⟫ = refl
+safe⟪ cons (Ins α) p ⟫ = safe⟪ p ⟫
+safe⟪ cons (Del α) p ⟫ rewrite safe⟪ p ⟫ = refl
+safe⟪ cons (Upd α β) p ⟫ rewrite safe⟪ p ⟫ = refl
+safe⟪ cons Nop p ⟫ = safe⟪ p ⟫
+safe⟪ nop p ⟫ = safe⟪ p ⟫
+
+safe⟦_⟧ : ∀ {xs ys} {e₁ e₂ : ES xs ys} -> e₁ ⊆ e₂ -> ⟦ e₁ ⟧ ≡ ⟦ e₂ ⟧
+safe⟦ stop ⟧ = refl
+safe⟦ cons (Ins α) p ⟧ rewrite safe⟦ p ⟧ = refl
+safe⟦ cons (Del α) p ⟧ = safe⟦ p ⟧
+safe⟦ cons (Upd α β) p ⟧ rewrite safe⟦ p ⟧ = refl
+safe⟦ cons Nop p ⟧ = safe⟦ p ⟧
+safe⟦ nop p ⟧ = safe⟦ p ⟧
+
+-- Any e₁ and e₂ for which e₁ ⊆ e₂ is always a SafeExtension 
+⊆-safe : ∀ {xs ys} {e₁ e₂ : ES xs ys} (p : e₁ ⊆ e₂) -> e₁ ≈ e₂
+⊆-safe p = eq safe⟪ p ⟫ safe⟦ p ⟧
+
+--------------------------------------------------------------------------------
+
+data _~_ {xs ys zs : List Set} (e₁ : ES xs ys) (e₂ : ES xs zs) : Set₁ where
+  Align : ∀ {e₁' : ES xs ys} {e₂' : ES xs zs} -> (a : e₁ ⊆ e₁')(b : e₂ ⊆ e₂')(p : e₁' ⋎ e₂') -> e₁ ~ e₂
+
+Diff⋎ : ∀ {xs ys zs} {x : DList xs} {y : DList ys} {z : DList zs} {e₁ : ES xs ys} {e₂ : ES xs zs} 
         -> Diff x y e₁ -> Diff x z e₂ -> e₁ ~ e₂
-Diff~ End End = End
-Diff~ End (Ins y q) = Ins₂ {{i = tt}} y (Diff~ End q)
-Diff~ (Del x p) (Del .x q) = DelDel x (Diff~ p q)
-Diff~ (Del x p) (Upd .x y q) = DelUpd x y (Diff~ p q)
-Diff~ (Del x p) (Ins y q) = Ins₂ {{i = tt}} y (Diff~ (Del x p) q)
-Diff~ (Upd x y p) (Del .x q) = UpdDel x y (Diff~ p q)
-Diff~ (Upd x y p) (Upd .x z q) = UpdUpd x y z (Diff~ p q)
-Diff~ (Upd {ts₃ = ts₃} {ts₄ = ts₄} x y p) (Ins z q) = Ins₂ {{i = tt}} z (Diff~ (Upd {ts₃ = ts₃} {ts₄ = ts₄} x y p) q)
-Diff~ (Ins y p) End = Ins₁ {{i = tt}} y (Diff~ p End)
-Diff~ (Ins y p) (Del x q) = Ins₁ {{i = tt}} y (Diff~ p (Del x q))
-Diff~ (Ins y p) (Upd {ts₃ = ts₃} {ts₄ = ts₄} x z q) = Ins₁ {{i = tt}} y (Diff~ p (Upd {ts₃ = ts₃} {ts₄ = ts₄} x z q))
-Diff~ (Ins y p) (Ins z q) = InsIns y z (Diff~ p q)
+Diff⋎ End End = Align stop stop nil
+Diff⋎ End (Ins β d₂) with Diff⋎ End d₂
+Diff⋎ End (Ins β d₂) | Align a b p = Align (nop a) (cons (Ins β) b) (cons Nop (Ins β) p)
+Diff⋎ End (Nop d₂) with Diff⋎ End d₂
+Diff⋎ End (Nop d₂) | Align a b p = Align (nop a) (cons Nop b) (cons Nop Nop p)
+Diff⋎ (Del α d₁) (Del .α d₂) with Diff⋎ d₁ d₂
+Diff⋎ (Del α d₁) (Del .α d₂) | Align a b p = Align (cons (Del α) a) (cons (Del α) b) (cons (Del α) (Del α) p)
+Diff⋎ (Del α d₁) (Upd .α β d₂) with Diff⋎ d₁ d₂
+Diff⋎ (Del α d₁) (Upd .α β d₂) | Align a b p = Align (cons (Del α) a) (cons (Upd α β) b) (cons (Del α) (Upd α β) p)
+Diff⋎ (Del α d₁) (Ins β d₂) with Diff⋎ (Del α d₁) d₂
+Diff⋎ (Del α d₁) (Ins β d₂) | Align a b p = Align (nop a) (cons (Ins β) b) (cons Nop (Ins β) p)
+Diff⋎ (Del α d₁) (Nop d₂) with Diff⋎ (Del α d₁) d₂
+Diff⋎ (Del α d₁) (Nop d₂) | Align a b p = Align (nop a) (cons Nop b) (cons Nop Nop p)
+Diff⋎ (Upd α β d₁) (Del .α d₂) with Diff⋎ d₁ d₂
+Diff⋎ (Upd α β d₁) (Del .α d₂) | Align a b p = Align (cons (Upd α β) a) (cons (Del α) b) (cons (Upd α β) (Del α) p)
+Diff⋎ (Upd α β d₁) (Upd .α γ d₂) with Diff⋎ d₁ d₂
+Diff⋎ (Upd α β d₁) (Upd .α γ d₂) | Align a b p = Align (cons (Upd α β) a) (cons (Upd α γ) b) (cons (Upd α β) (Upd α γ) p)
+Diff⋎ (Upd {ts₃ = ts₃} {ts₄ = ts₄} α β d₁) (Ins γ d₂) with Diff⋎ (Upd {ts₃ = ts₃} {ts₄ = ts₄} α β d₁) d₂
+Diff⋎ (Upd α β d₁) (Ins γ d₂) | Align a b p = Align (nop a) (cons (Ins γ) b) (cons Nop (Ins γ) p)
+Diff⋎ (Upd {ts₃ = ts₃} {ts₄ = ts₄} α β d₁) (Nop d₂) with Diff⋎ (Upd {ts₃ = ts₃} {ts₄ = ts₄} α β d₁) d₂
+Diff⋎ (Upd α β d₁) (Nop d₂) | Align a b p = Align (nop a) (cons Nop b) (cons Nop Nop p)
+Diff⋎ (Ins β d₁) End with Diff⋎ d₁ End
+Diff⋎ (Ins β d₁) End | Align a b p = Align (cons (Ins β) a) (nop b) (cons (Ins β) Nop p)
+Diff⋎ (Ins β d₁) (Del α d₂) with Diff⋎ d₁ (Del α d₂) 
+Diff⋎ (Ins β d₁) (Del α d₂) | Align a b p = Align (cons (Ins β) a) (nop b) (cons (Ins β) Nop p)
+Diff⋎ (Ins β d₁) (Upd {ts₃ = ts₃} {ts₄ = ts₄} α γ d₂) with Diff⋎ d₁ (Upd {ts₃ = ts₃} {ts₄ = ts₄} α γ d₂)
+Diff⋎ (Ins β d₁) (Upd α γ d₂) | Align a b p = Align (cons (Ins β) a) (nop b) (cons (Ins β) Nop p)
+Diff⋎ (Ins β d₁) (Ins γ d₂) with Diff⋎ d₁ d₂
+Diff⋎ (Ins β d₁) (Ins γ d₂) | Align a b p = Align (cons (Ins β) a) (cons (Ins γ) b) (cons (Ins β) (Ins γ) p)
+Diff⋎ (Ins β d₁) (Nop d₂) with Diff⋎ d₁ d₂
+Diff⋎ (Ins β d₁) (Nop d₂) | Align a b p = Align (cons (Ins β) a) (cons Nop b) (cons (Ins β) Nop p)
+Diff⋎ (Nop d₁) End with Diff⋎ d₁ End
+Diff⋎ (Nop d₁) End | Align a b p = Align (cons Nop a) (nop b) (cons Nop Nop p)
+Diff⋎ (Nop d₁) (Del α d₂) with Diff⋎ d₁ (Del α d₂)
+Diff⋎ (Nop d₁) (Del α d₂) | Align a b p = Align (cons Nop a) (nop b) (cons Nop Nop p)
+Diff⋎ (Nop d₁) (Upd {ts₃ = ts₃} {ts₄ = ts₄} α β d₂) with Diff⋎ d₁ (Upd {ts₃ = ts₃} {ts₄ = ts₄} α β d₂)
+Diff⋎ (Nop d₁) (Upd α β d₂) | Align a b p = Align (cons Nop a) (nop b) (cons Nop Nop p)
+Diff⋎ (Nop d₁) (Ins β d₂) with Diff⋎ d₁ d₂
+Diff⋎ (Nop d₁) (Ins β d₂) | Align a b p = Align (cons Nop a) (cons (Ins β) b) (cons Nop (Ins β) p)
+Diff⋎ (Nop d₁) (Nop d₂) with Diff⋎ d₁ d₂
+Diff⋎ (Nop d₁) (Nop d₂) | Align a b p = Align (cons Nop a) (cons Nop b) (cons Nop Nop p)
 
-
-Diff~nec : ∀ {xs ys zs} {x₁ x₂ : DList xs} {y : DList ys} {z : DList zs} {e₁ : ES xs ys} {e₂ : ES xs zs} 
-        -> Diff x₁ y e₁ -> Diff x₂ z e₂ -> e₁ ~ e₂ -> x₁ ≡ x₂
-Diff~nec d₁ d₂ p rewrite
-  mkDiff⟪ d₁ ⟫ | mkDiff⟪ d₂ ⟫ = ~-⟪⟫ p
+Diff⋎nec : ∀ {xs ys zs} {x₁ x₂ : DList xs} {y : DList ys} {z : DList zs} {e₁ : ES xs ys} {e₂ : ES xs zs} 
+        -> Diff x₁ y e₁ -> Diff x₂ z e₂ -> e₁ ⋎ e₂ -> x₁ ≡ x₂
+Diff⋎nec d₁ d₂ p rewrite
+  mkDiff⟪ d₁ ⟫ | mkDiff⟪ d₂ ⟫ = ⋎-⟪⟫ p
