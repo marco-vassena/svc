@@ -26,32 +26,32 @@ swap (DelUpd α β) = UpdDel α β
 swap (UpdDel α β) = DelUpd α β
 swap (InsIns α β) = InsIns β α
 
-data ES₃ : Set₁ where
-  [] : ES₃
-  _∷_ : ∀ {as bs cs ds} {v : Val as bs} {w : Val cs ds} -> v ~> w -> ES₃ -> ES₃
-  _∷ᶜ_ : ∀ {as bs cs ds es fs} {u : Val as bs} {v : Val cs ds} {w : Val es fs} -> 
-           (c : Conflict u v w) -> ES₃ -> ES₃
+data ES₃ : List Set -> Set₁ where
+  [] : ES₃ []
+  _∷_ : ∀ {as bs cs ds xs} {v : Val as bs} {w : Val cs ds} -> v ~> w -> ES₃ (as ++ xs) -> ES₃ (bs ++ xs)
+  _∷ᶜ_ : ∀ {as bs cs ds es fs xs} {u : Val as bs} {v : Val cs ds} {w : Val es fs} -> 
+           (c : Conflict u v w) -> ES₃ (as ++ xs) -> ES₃ (bs ++ xs)
 
-sym₃ : ES₃ -> ES₃
+sym₃ : ∀ {xs} -> ES₃ xs -> ES₃ xs
 sym₃ [] = []
 sym₃ (x ∷ e) = x ∷ sym₃ e
 sym₃ (c ∷ᶜ e) = swap c ∷ᶜ sym₃ e
 
--- ⟪_⟫₃ : ∀ {xs} -> ES₃ xs -> DList xs
--- ⟪ [] ⟫₃ = []
--- ⟪ Ins α ∷ e ⟫₃ = ⟪ e ⟫₃
--- ⟪ Del α ∷ e ⟫₃ with dsplit ⟪ e ⟫₃
--- ⟪ Del α ∷ e ⟫₃ | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
--- ⟪ Upd α β ∷ e ⟫₃ with dsplit ⟪ e ⟫₃
--- ⟪ Upd α β ∷ e ⟫₃ | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
--- ⟪ Nop ∷ e ⟫₃ = ⟪ e ⟫₃
--- ⟪ UpdUpd α β γ ∷ᶜ e ⟫₃ with dsplit ⟪ e ⟫₃
--- ⟪ UpdUpd α β γ ∷ᶜ e ⟫₃ | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
--- ⟪ DelUpd α β ∷ᶜ e ⟫₃ with dsplit ⟪ e ⟫₃
--- ⟪ DelUpd α β ∷ᶜ e ⟫₃ | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
--- ⟪ UpdDel α β ∷ᶜ e ⟫₃ with dsplit ⟪ e ⟫₃
--- ⟪ UpdDel α β ∷ᶜ e ⟫₃ | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
--- ⟪ InsIns α β ∷ᶜ e ⟫₃ = ⟪ e ⟫₃
+⟪_⟫₃ : ∀ {xs} -> ES₃ xs -> DList xs
+⟪ [] ⟫₃ = []
+⟪ Ins α ∷ e ⟫₃ = ⟪ e ⟫₃
+⟪ Del α ∷ e ⟫₃ with dsplit ⟪ e ⟫₃
+⟪ Del α ∷ e ⟫₃ | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
+⟪ Upd α β ∷ e ⟫₃ with dsplit ⟪ e ⟫₃
+⟪ Upd α β ∷ e ⟫₃ | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
+⟪ Nop ∷ e ⟫₃ = ⟪ e ⟫₃
+⟪ UpdUpd α β γ ∷ᶜ e ⟫₃ with dsplit ⟪ e ⟫₃
+⟪ UpdUpd α β γ ∷ᶜ e ⟫₃ | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
+⟪ DelUpd α β ∷ᶜ e ⟫₃ with dsplit ⟪ e ⟫₃
+⟪ DelUpd α β ∷ᶜ e ⟫₃ | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
+⟪ UpdDel α β ∷ᶜ e ⟫₃ with dsplit ⟪ e ⟫₃
+⟪ UpdDel α β ∷ᶜ e ⟫₃ | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
+⟪ InsIns α β ∷ᶜ e ⟫₃ = ⟪ e ⟫₃
 
 --------------------------------------------------------------------------------
 -- Merge datatypes
@@ -103,43 +103,45 @@ infixl 2 _⊔_↥_
 --------------------------------------------------------------------------------
 
 -- Refifies result of diff3
--- TODO use ⇓ and define Diff₃ as a type-syn 
-data Diff₃ : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} -> e₁ ⋎ e₂ -> ES₃ -> Set₁ where
-  nil : Diff₃ nil []
+data _⇓_ : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} -> e₁ ⋎ e₂ -> ES₃ xs -> Set₁ where
+  nil : nil ⇓ []
   merge : ∀ {xs ys zs as bs cs ds es fs gs hs} 
-            {e₁ : ES (as ++ xs) (cs ++ ys)} {e₂ : ES (as ++ xs) (es ++ zs)} {e₃ : ES₃} 
+            {e₁ : ES (as ++ xs) (cs ++ ys)} {e₂ : ES (as ++ xs) (es ++ zs)} {e₃ : ES₃ (as ++ xs)} 
             {p : e₁ ⋎ e₂} {u : Val as bs} {v : Val cs ds} {w : Val es fs} {z : Val gs hs} 
             {f : u ~> v} {g : u ~> w} {h : u ~> z} -> 
-            (m : f ⊔ g ↧ h) -> Diff₃ p e₃ -> Diff₃ (cons f g p) (h ∷ e₃)
+            (m : f ⊔ g ↧ h) -> p ⇓ e₃ -> (cons f g p) ⇓ (h ∷ e₃)
   conflict : ∀ {xs ys zs as bs cs ds es fs} 
-               {e₁ : ES (as ++ xs) (cs ++ ys)} {e₂ : ES (as ++ xs) (es ++ zs)} {e₃ : ES₃}
+               {e₁ : ES (as ++ xs) (cs ++ ys)} {e₂ : ES (as ++ xs) (es ++ zs)} {e₃ : ES₃ (as ++ xs)}
                {v : Val as bs} {w : Val cs ds} {z : Val es fs} {c : Conflict v w z}
                {f : v ~> w} {g : v ~> z} {p : e₁ ⋎ e₂} -> 
-               (u : f ⊔ g ↥ c) -> Diff₃ p e₃ -> Diff₃ (cons f g p) (c ∷ᶜ e₃)
+               (u : f ⊔ g ↥ c) -> p ⇓ e₃ -> (cons f g p) ⇓ (c ∷ᶜ e₃)
 
-Diff₃-sym : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES₃} {p : e₁ ⋎ e₂} 
-            -> Diff₃ p e₃ -> Diff₃ (⋎-sym p) (sym₃ e₃)
-Diff₃-sym nil = nil
-Diff₃-sym (merge m d) = merge (↧-sym m) (Diff₃-sym d)
-Diff₃-sym (conflict u d) = conflict (↥-sym u) (Diff₃-sym d)
+⇓-sym : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES₃ xs} {p : e₁ ⋎ e₂} 
+            -> p ⇓ e₃ -> (⋎-sym p) ⇓ (sym₃ e₃)
+⇓-sym nil = nil
+⇓-sym (merge m d) = merge (↧-sym m) (⇓-sym d)
+⇓-sym (conflict u d) = conflict (↥-sym u) (⇓-sym d)
 
 --------------------------------------------------------------------------------
 
--- Diff₃⟪_⟫ : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs} {e₃ : ES₃ xs} {p : e₁ ⋎ e₂} ->
---             Diff₃ p e₃ -> ⟪ e₁ ⟫ ≡ ⟪ e₃ ⟫₃
--- Diff₃⟪ nil ⟫ = refl
--- Diff₃⟪ merge {f = Ins α} {h = Ins α₁} m e ⟫ = Diff₃⟪ e ⟫
--- Diff₃⟪ merge {f = Ins α} {h = Nop} m e ⟫ = Diff₃⟪ e ⟫
--- Diff₃⟪ merge {f = Del α} {h = Del .α} m e ⟫ rewrite Diff₃⟪ e ⟫ = refl
--- Diff₃⟪ merge {f = Del α} {h = Upd .α β} m e ⟫ rewrite Diff₃⟪ e ⟫ = refl
--- Diff₃⟪ merge {f = Upd α β} {h = Del .α} m e ⟫ rewrite Diff₃⟪ e ⟫ = refl
--- Diff₃⟪ merge {f = Upd α β} {h = Upd .α γ} m e ⟫ rewrite Diff₃⟪ e ⟫ = refl
--- Diff₃⟪ merge {f = Nop} {h = Ins α} m e ⟫ = Diff₃⟪ e ⟫
--- Diff₃⟪ merge {f = Nop} {h = Nop} m e ⟫ = Diff₃⟪ e ⟫
--- Diff₃⟪ conflict (InsIns (Ins α) y α≠β) e ⟫ = Diff₃⟪ e ⟫
--- Diff₃⟪ conflict (UpdUpd (Upd α β) y α≠β α≠γ β≠γ) e ⟫ rewrite Diff₃⟪ e ⟫ = refl
--- Diff₃⟪ conflict (UpdDel (Upd α β) y α≠β) e ⟫ rewrite Diff₃⟪ e ⟫ = refl
--- Diff₃⟪ conflict (DelUpd (Del α) y α≠β) e ⟫ rewrite Diff₃⟪ e ⟫ = refl
+Diff₃ : ∀ {xs ys zs} (e₁ : ES xs ys) (e₂ : ES xs zs) {{p : e₁ ⋎ e₂}} -> ES₃ xs -> Set₁
+Diff₃ _ _ {{p}} e₃ = p ⇓ e₃
+
+Diff₃⟪_⟫ : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES₃ xs} {p : e₁ ⋎ e₂} ->
+            Diff₃ e₁ e₂ e₃ -> ⟪ e₁ ⟫ ≡ ⟪ e₃ ⟫₃
+Diff₃⟪ nil ⟫ = refl
+Diff₃⟪ merge {f = Ins α} {h = Ins α₁} m e ⟫ = Diff₃⟪ e ⟫
+Diff₃⟪ merge {f = Ins α} {h = Nop} m e ⟫ = Diff₃⟪ e ⟫
+Diff₃⟪ merge {f = Del α} {h = Del .α} m e ⟫ rewrite Diff₃⟪ e ⟫ = refl
+Diff₃⟪ merge {f = Del α} {h = Upd .α β} m e ⟫ rewrite Diff₃⟪ e ⟫ = refl
+Diff₃⟪ merge {f = Upd α β} {h = Del .α} m e ⟫ rewrite Diff₃⟪ e ⟫ = refl
+Diff₃⟪ merge {f = Upd α β} {h = Upd .α γ} m e ⟫ rewrite Diff₃⟪ e ⟫ = refl
+Diff₃⟪ merge {f = Nop} {h = Ins α} m e ⟫ = Diff₃⟪ e ⟫
+Diff₃⟪ merge {f = Nop} {h = Nop} m e ⟫ = Diff₃⟪ e ⟫
+Diff₃⟪ conflict (InsIns (Ins α) y α≠β) e ⟫ = Diff₃⟪ e ⟫
+Diff₃⟪ conflict (UpdUpd (Upd α β) y α≠β α≠γ β≠γ) e ⟫ rewrite Diff₃⟪ e ⟫ = refl
+Diff₃⟪ conflict (UpdDel (Upd α β) y α≠β) e ⟫ rewrite Diff₃⟪ e ⟫ = refl
+Diff₃⟪ conflict (DelUpd (Del α) y α≠β) e ⟫ rewrite Diff₃⟪ e ⟫ = refl
 
 --------------------------------------------------------------------------------
 
@@ -183,18 +185,19 @@ mergeOrConflict Nop Nop = inj₂ (Nop , Idem Nop)
 
 --------------------------------------------------------------------------------
 
-data _∈ᶜ_ {as bs cs ds es fs} {u : Val as bs} {v : Val cs ds} {w : Val es fs} 
-          : Conflict u v w -> ES₃ -> Set₁ where
-  here : ∀  {e : ES₃} (c : Conflict u v w) -> c ∈ᶜ (c ∷ᶜ e)
-  there : ∀ {c : Conflict u v w} {e : ES₃} (x : v ~> w) -> c ∈ᶜ e -> c ∈ᶜ x ∷ e
-  thereᶜ : ∀ {as' bs' cs' ds' es' fs'} {u' : Val as' bs'} {v' : Val cs' ds'} {w' : Val es' fs'} {c : Conflict u v w} 
-             {e : ES₃} (c' : Conflict u' v' w') -> c ∈ᶜ e -> c ∈ᶜ (c' ∷ᶜ e)
+data _∈ᶜ_ {as bs cs ds es fs } {u : Val as bs} {v : Val cs ds} {w : Val es fs} 
+          : ∀ {xs} -> Conflict u v w -> ES₃ xs -> Set₁ where
+  here : ∀ {xs} {e : ES₃ (as ++ xs)} (c : Conflict u v w) -> c ∈ᶜ (c ∷ᶜ e)
+  there : ∀ {as' bs' cs' ds' xs} {u' : Val as' bs'} {v' : Val cs' ds'} {c : Conflict u v w} 
+              {e : ES₃ (as' ++ xs)} (x : u' ~> v' ) -> c ∈ᶜ e -> c ∈ᶜ x ∷ e
+  thereᶜ : ∀ {as' bs' cs' ds' es' fs' xs} {u' : Val as' bs'} {v' : Val cs' ds'} {w' : Val es' fs'} {c : Conflict u v w} 
+             {e : ES₃ (as' ++ xs)} (c' : Conflict u' v' w') -> c ∈ᶜ e -> c ∈ᶜ (c' ∷ᶜ e)
 
 infixr 3 _∈ᶜ_ 
 
 --------------------------------------------------------------------------------
 -- Diff₃
-_⨆_ : ∀ {xs ys zs} (e₁ : ES xs ys) (e₂ : ES xs zs) -> {{ p : e₁ ⋎ e₂ }} -> ES₃
+_⨆_ : ∀ {xs ys zs} (e₁ : ES xs ys) (e₂ : ES xs zs) -> {{ p : e₁ ⋎ e₂ }} -> ES₃ xs
 _⨆_ .[] .[] {{nil}} = []
 _⨆_ ._ ._ {{cons x y p}} with mergeOrConflict x y
 _⨆_ ._ ._ {{cons x y p}} | inj₁ (c , _) = c ∷ᶜ _⨆_ _ _ {{p}}
@@ -203,7 +206,7 @@ _⨆_ ._ ._ {{cons x y p}} | inj₂ (z , _) = z ∷ _⨆_ _ _ {{p}}
 -- Diff₃ : ∀ {xs ys zs} -> ES xs ys -> ES xs zs -> Set₁
 -- Diff₃ = ?
 
-Diff₃-suf : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} -> (p : e₁ ⋎ e₂) -> Diff₃ p (e₁ ⨆ e₂)
+Diff₃-suf : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} -> (p : e₁ ⋎ e₂) -> Diff₃ e₁ e₂ (e₁ ⨆ e₂)
 Diff₃-suf (cons x y p) with mergeOrConflict x y
 Diff₃-suf (cons x y p) | inj₁ (c , u) = conflict u (Diff₃-suf p)
 Diff₃-suf (cons x y p) | inj₂ (z , m) = merge m (Diff₃-suf p)
@@ -239,13 +242,13 @@ conflictDeterministic (UpdUpd x y α≠β α≠γ β≠γ) (UpdUpd .x .y α≠β
 conflictDeterministic (UpdDel x y α≠β) (UpdDel .x .y α≠β₁) = refl
 conflictDeterministic (DelUpd x y α≠β) (DelUpd .x .y α≠β₁) = refl
 
-nec-⇓ : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES₃} {p : e₁ ⋎ e₂} -> Diff₃ p e₃ -> e₃ ≡ e₁ ⨆ e₂
-nec-⇓ nil = refl
-nec-⇓ (merge {f = f} {g = g} m q) with mergeOrConflict f g
-nec-⇓ (merge m q) | inj₁ (c , u) = ⊥-elim (mergeConflictExclusive m u)
-nec-⇓ (merge m q) | inj₂ (h , m') with mergeDeterministic m m'
-nec-⇓ (merge m q) | inj₂ (h , m') | refl = cong (_∷_ h) (nec-⇓ q)
-nec-⇓ (conflict {f = f} {g = g} u q) with mergeOrConflict f g
-nec-⇓ (conflict u q) | inj₁ (c , u') with conflictDeterministic u u'
-nec-⇓ (conflict u q) | inj₁ (c , u') | refl = cong (_∷ᶜ_ c) (nec-⇓ q)
-nec-⇓ (conflict u q) | inj₂ (h , m) = ⊥-elim (mergeConflictExclusive m u)
+Diff₃-nec : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES₃ xs} {p : e₁ ⋎ e₂} -> Diff₃ e₁ e₂ e₃ -> e₃ ≡ e₁ ⨆ e₂
+Diff₃-nec nil = refl
+Diff₃-nec (merge {f = f} {g = g} m q) with mergeOrConflict f g
+Diff₃-nec (merge m q) | inj₁ (c , u) = ⊥-elim (mergeConflictExclusive m u)
+Diff₃-nec (merge m q) | inj₂ (h , m') with mergeDeterministic m m'
+Diff₃-nec (merge m q) | inj₂ (h , m') | refl = cong (_∷_ h) (Diff₃-nec q)
+Diff₃-nec (conflict {f = f} {g = g} u q) with mergeOrConflict f g
+Diff₃-nec (conflict u q) | inj₁ (c , u') with conflictDeterministic u u'
+Diff₃-nec (conflict u q) | inj₁ (c , u') | refl = cong (_∷ᶜ_ c) (Diff₃-nec q)
+Diff₃-nec (conflict u q) | inj₂ (h , m) = ⊥-elim (mergeConflictExclusive m u)
