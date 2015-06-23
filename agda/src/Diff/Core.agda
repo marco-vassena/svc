@@ -109,7 +109,7 @@ safe⟦ nop p ⟧ = safe⟦ p ⟧
 --------------------------------------------------------------------------------
 
 data _~_ {xs ys zs : List Set} (e₁ : ES xs ys) (e₂ : ES xs zs) : Set₁ where
-  Align : ∀ {e₁' : ES xs ys} {e₂' : ES xs zs} -> (a : e₁ ⊆ e₁')(b : e₂ ⊆ e₂')(p : e₁' ⋎ e₂') -> e₁ ~ e₂
+  Align : ∀ {e₁' : ES xs ys} {e₂' : ES xs zs} -> (a : e₁ ⊆ e₁') (b : e₂ ⊆ e₂')(p : e₁' ⋎ e₂') -> e₁ ~ e₂
 
 Diff⋎ : ∀ {xs ys zs} {x : DList xs} {y : DList ys} {z : DList zs} {e₁ : ES xs ys} {e₂ : ES xs zs} 
         -> Diff x y e₁ -> Diff x z e₂ -> e₁ ~ e₂
