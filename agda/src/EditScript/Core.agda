@@ -42,7 +42,7 @@ data ES : List Set -> List Set -> Set₁ where
 --------------------------------------------------------------------------------
 
 open import Relation.Nullary
-open import Data.Unit
+open import Data.Unit hiding (_≟_)
 import Data.Empty as E
 
 -- Does the transformation perform a change?
@@ -118,3 +118,49 @@ infixl 3 _⊢ₑ_⊏_
 ∈-here-⟦⟧ (Upd α β) = ∈-here β
 
 --------------------------------------------------------------------------------
+-- Auxiliary functions about Val and ~> equality
+
+-- Heterogeneous equality for Val
+data _≃_ {as bs} (v : Val as bs) : ∀ {cs ds} (w : Val cs ds) -> Set where
+  refl : v ≃ v
+
+-- Heterogeneous equality tailored for transformations
+data _≅_ {as bs cs ds} {u : Val as bs} {v : Val cs ds} (x : u ~> v) 
+         : ∀ {es fs gs hs} {w : Val es fs} {z : Val gs hs} (y : w ~> z) → Set where
+   refl : x ≅ x
+
+≃-⋍ : ∀ {as bs} {a b : Set} {α : View as a} {β : View bs b} -> ¬ (⟨ α ⟩ ≃ ⟨ β ⟩) -> ¬ (α ⋍ β)
+≃-⋍ ¬p refl = ¬p refl
+
+_≟ⱽ_ : ∀ {as bs cs ds} (v : Val as bs) (w : Val cs ds) -> Dec (v ≃ w)
+⊥ ≟ⱽ ⊥ = yes refl
+⊥ ≟ⱽ ⟨ α ⟩ = no (λ ())
+⟨ α ⟩ ≟ⱽ ⊥ = no (λ ())
+⟨ α ⟩ ≟ⱽ ⟨ β ⟩ with α ≟ β
+⟨ α ⟩ ≟ⱽ ⟨ .α ⟩ | yes refl = yes refl
+⟨ α ⟩ ≟ⱽ ⟨ β ⟩ | no α≠β = no (aux α≠β) 
+  where aux : ∀ {as bs a b} {α : View as a} {β : View bs b} -> ¬ (α ⋍ β) -> ¬ (⟨ α ⟩ ≃ ⟨ β ⟩)
+        aux α≠β₁ refl = α≠β₁ refl
+
+------------------------------------------------------------------------------------------
+-- Tailored existential
+
+open import Level as L
+
+data ∃ⱽ {a} : (∀ {as bs} -> Val as bs -> Set a) -> Set (a ⊔ (L.suc (L.zero))) where
+  _,_ : ∀ {cs ds} {P : ∀ {as bs} -> Val as bs -> Set a} -> (v : Val cs ds) -> P v -> ∃ⱽ P
+
+data ∃ᴹ {a} {as bs} {u : Val as bs} : (∀ {cs ds} {w : Val cs ds} -> u ~> w -> Set a) -> Set (a ⊔ (L.suc (L.zero))) where
+  _,_ : ∀ {es fs} {w : Val es fs} {P : ∀ {cs ds} {v : Val cs ds} -> u ~> v -> Set a} 
+          (f : u ~> w) -> P f -> ∃ᴹ P 
+
+infixr 3 _,_
+
+
+-- Identity on Val, and maps the function on the proof P v.
+map∃ⱽ : ∀ {a b} {P : ∀ {as bs} -> Val as bs -> Set a} {Q : ∀ {as bs} -> Val as bs -> Set b} ->
+         (∀ {as bs} {v : Val as bs} -> P v -> Q v) -> ∃ⱽ P -> ∃ⱽ Q
+map∃ⱽ f (v , p) = v , f p
+
+∃ⱽ₂ : ∀ {a} -> (∀ {as bs cs ds} -> Val as bs -> Val cs ds -> Set a) -> Set _
+∃ⱽ₂ P = ∃ⱽ (λ v → ∃ⱽ (λ w → P v w))

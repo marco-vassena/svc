@@ -14,29 +14,6 @@ open import Relation.Nullary.Decidable
 open import Relation.Binary.PropositionalEquality hiding ([_])
 
 --------------------------------------------------------------------------------
--- TODO move to EditScript.Core
-
-open import Level as L
-
-data ∃ⱽ {a} : (∀ {as bs} -> Val as bs -> Set a) -> Set (a ⊔ (L.suc (L.zero))) where
-  _,_ : ∀ {cs ds} {P : ∀ {as bs} -> Val as bs -> Set a} -> (v : Val cs ds) -> P v -> ∃ⱽ P
-
-data ∃ᴹ {a} {as bs} {u : Val as bs} : (∀ {cs ds} {w : Val cs ds} -> u ~> w -> Set a) -> Set (a ⊔ (L.suc (L.zero))) where
-  _,_ : ∀ {es fs} {w : Val es fs} {P : ∀ {cs ds} {v : Val cs ds} -> u ~> v -> Set a} 
-          (f : u ~> w) -> P f -> ∃ᴹ P 
-
-infixr 3 _,_
-
-
--- Identity on Val, and maps the function on the proof P v.
-mapV : ∀ {a b} {P : ∀ {as bs} -> Val as bs -> Set a} {Q : ∀ {as bs} -> Val as bs -> Set b} ->
-         (∀ {as bs} {v : Val as bs} -> P v -> Q v) -> ∃ⱽ P -> ∃ⱽ Q
-mapV f (v , p) = v , f p
-
-∃ⱽ₂ : ∀ {a} -> (∀ {as bs cs ds} -> Val as bs -> Val cs ds -> Set a) -> Set _
-∃ⱽ₂ P = ∃ⱽ (λ v → ∃ⱽ (λ w → P v w))
-
---------------------------------------------------------------------------------
 -- Safety properties
 --------------------------------------------------------------------------------
 
@@ -57,14 +34,14 @@ noTargetMadeUp p q rewrite mkDiff⟦ q ⟧ = targetOrigin p
 -- in e.
 noTargetErase : ∀ {xs ys as a} {α : View as a} {x : DList xs} {y : DList ys} {e : ES xs ys}
             -> Diff x y e -> α ∈ y -> ∃ⱽ (λ v → e ⊢ₑ v ~> ⟨ α ⟩) 
-noTargetErase (Del β d) (∈-here α) = mapV (there~> (Del β)) (noTargetErase d (∈-here α))
+noTargetErase (Del β d) (∈-here α) = map∃ⱽ (there~> (Del β)) (noTargetErase d (∈-here α))
 noTargetErase (Upd α β d) (∈-here .β) = ⟨ α ⟩ , Upd α β (here (Upd α β))
 noTargetErase (Ins α d) (∈-here .α) = ⊥ , Ins α (here (Ins α))
-noTargetErase (Nop d) (∈-here α) = mapV (there~> Nop) (noTargetErase d (∈-here α))
-noTargetErase (Del α d) (∈-there p) = mapV (there~> (Del α)) (noTargetErase d (∈-there p))
-noTargetErase (Upd α y d) (∈-there p) = mapV (there~> (Upd α y)) (noTargetErase d p)
-noTargetErase (Ins β d) (∈-there p) = mapV (there~> (Ins β)) (noTargetErase d p)
-noTargetErase (Nop d) (∈-there p) = mapV (there~> Nop) (noTargetErase d (∈-there p))
+noTargetErase (Nop d) (∈-here α) = map∃ⱽ (there~> Nop) (noTargetErase d (∈-here α))
+noTargetErase (Del α d) (∈-there p) = map∃ⱽ (there~> (Del α)) (noTargetErase d (∈-there p))
+noTargetErase (Upd α y d) (∈-there p) = map∃ⱽ (there~> (Upd α y)) (noTargetErase d p)
+noTargetErase (Ins β d) (∈-there p) = map∃ⱽ (there~> (Ins β)) (noTargetErase d p)
+noTargetErase (Nop d) (∈-there p) = map∃ⱽ (there~> Nop) (noTargetErase d (∈-there p))
 
 --------------------------------------------------------------------------------
 
@@ -82,12 +59,12 @@ noSourceErase : ∀ {xs ys as a} {α : View as a} {x : DList xs} {y : DList ys} 
                   Diff x y e -> α ∈ x -> ∃ⱽ λ v -> e ⊢ₑ ⟨ α ⟩ ~> v
 noSourceErase (Del α d) (∈-here .α) = ⊥ , Del α (here (Del α))
 noSourceErase (Upd α β d) (∈-here .α) = ⟨ β ⟩ , Upd α β (here (Upd α β))
-noSourceErase (Ins β d) (∈-here α) = mapV (there~> (Ins β)) (noSourceErase d (∈-here α))
-noSourceErase (Nop d) (∈-here α) = mapV (there~> Nop) (noSourceErase d (∈-here α))
-noSourceErase (Del α d) (∈-there p) = mapV (there~> (Del α)) (noSourceErase d p)
-noSourceErase (Upd α β d) (∈-there p) = mapV (there~> (Upd α β)) (noSourceErase d p)
-noSourceErase (Ins β d) (∈-there p) = mapV (there~> (Ins β)) (noSourceErase d (∈-there p))
-noSourceErase (Nop d) (∈-there p) = mapV (there~> Nop) (noSourceErase d (∈-there p))
+noSourceErase (Ins β d) (∈-here α) = map∃ⱽ (there~> (Ins β)) (noSourceErase d (∈-here α))
+noSourceErase (Nop d) (∈-here α) = map∃ⱽ (there~> Nop) (noSourceErase d (∈-here α))
+noSourceErase (Del α d) (∈-there p) = map∃ⱽ (there~> (Del α)) (noSourceErase d p)
+noSourceErase (Upd α β d) (∈-there p) = map∃ⱽ (there~> (Upd α β)) (noSourceErase d p)
+noSourceErase (Ins β d) (∈-there p) = map∃ⱽ (there~> (Ins β)) (noSourceErase d (∈-there p))
+noSourceErase (Nop d) (∈-there p) = map∃ⱽ (there~> Nop) (noSourceErase d (∈-there p))
 
 --------------------------------------------------------------------------------
 
