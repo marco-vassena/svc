@@ -3,6 +3,7 @@ module EditScript.Core where
 open import Data.List
 open import Data.Product
 open import Data.DTree public hiding ([_])
+open import Relation.Nullary
 
 data Val : List Set -> List Set -> Set₁ where
   ⊥ : Val [] []
@@ -38,21 +39,6 @@ data ES : List Set -> List Set -> Set₁ where
 ... | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
 ⟪ Nop ∷ e ⟫ = ⟪ e ⟫
 ⟪ [] ⟫ = []
-
---------------------------------------------------------------------------------
-
-open import Relation.Nullary
-open import Data.Unit hiding (_≟_)
-import Data.Empty as E
-
--- Does the transformation perform a change?
-change : ∀ {as bs cs ds} {v : Val as bs} {w : Val cs ds} -> v ~> w -> Set
-change (Ins α) = ⊤
-change (Del α) = ⊤
-change (Upd α β) with α =?= β
-change (Upd α .α) | yes refl = E.⊥
-change (Upd α β) | no ¬p = ⊤
-change Nop = E.⊥
 
 --------------------------------------------------------------------------------
 -- Membership
@@ -142,6 +128,12 @@ _≟ⱽ_ : ∀ {as bs cs ds} (v : Val as bs) (w : Val cs ds) -> Dec (v ≃ w)
   where aux : ∀ {as bs a b} {α : View as a} {β : View bs b} -> ¬ (α ⋍ β) -> ¬ (⟨ α ⟩ ≃ ⟨ β ⟩)
         aux α≠β₁ refl = α≠β₁ refl
 
+--------------------------------------------------------------------------------
+
+-- Does the transformation perform a change?
+data Change {as bs cs ds} {v : Val as bs} {w : Val cs ds} (f : v ~> w) : Set₁ where
+  IsChange : (v≠w : ¬ (v ≃ w)) -> Change f
+
 ------------------------------------------------------------------------------------------
 -- Tailored existential
 
@@ -164,3 +156,4 @@ map∃ⱽ f (v , p) = v , f p
 
 ∃ⱽ₂ : ∀ {a} -> (∀ {as bs cs ds} -> Val as bs -> Val cs ds -> Set a) -> Set _
 ∃ⱽ₂ P = ∃ⱽ (λ v → ∃ⱽ (λ w → P v w))
+

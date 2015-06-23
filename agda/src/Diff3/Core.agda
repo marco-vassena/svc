@@ -158,7 +158,6 @@ Diff₃⟪ conflict (DelUpd (Del α) y α≠β) e ⟫ rewrite Diff₃⟪ e ⟫ =
 
 -- For any two mapping from the same source u, either there is a third mapping h from u that merges them
 -- or the merge fails with some conflict c. 
--- TODO swap inj₁ and inj₂
 mergeOrConflict : ∀ {as bs cs ds es fs} {u : Val as bs} {v : Val cs ds} {w : Val es fs} 
                     (f : u ~> v) (g : u ~> w) -> (∃ λ c -> f ⊔ g ↥ c) ⊎ ∃ᴹ (λ h → f ⊔ g ↧ h)
 mergeOrConflict (Ins {a = a} α) (Ins {a = b} β) with α ≟ β
@@ -195,16 +194,25 @@ data _∈ᶜ_ {as bs cs ds es fs } {u : Val as bs} {v : Val cs ds} {w : Val es f
 
 infixr 3 _∈ᶜ_ 
 
+data _∈₃_ {as bs cs ds} {u : Val as bs} {v : Val cs ds} : ∀ {xs} -> u ~> v -> ES₃ xs -> Set₁ where
+  here : ∀ {xs} {e : ES₃ (as ++ xs)} (f : u ~> v) -> f ∈₃ (f ∷ e)
+  there : ∀ {as' bs' cs' ds' xs} {u' : Val as' bs'} {v' : Val cs' ds'} {f : u ~> v} 
+              {e : ES₃ (as' ++ xs)} (g : u' ~> v') -> f ∈₃ e -> f ∈₃ g ∷ e
+  thereᶜ : ∀ {as' bs' cs' ds' es' fs' xs} {u' : Val as' bs'} {v' : Val cs' ds'} {w' : Val es' fs'} {c : Conflict u' v' w'} 
+             {e : ES₃ (as' ++ xs)} {f : u ~> v} (c : Conflict u' v' w') -> f ∈₃ e -> f ∈₃ (c ∷ᶜ e)
+
+infixr 3 _∈₃_ 
+
+
 --------------------------------------------------------------------------------
+
+-- TODO move to Diff3.Algo
 -- Diff₃
 _⨆_ : ∀ {xs ys zs} (e₁ : ES xs ys) (e₂ : ES xs zs) -> {{ p : e₁ ⋎ e₂ }} -> ES₃ xs
 _⨆_ .[] .[] {{nil}} = []
 _⨆_ ._ ._ {{cons x y p}} with mergeOrConflict x y
 _⨆_ ._ ._ {{cons x y p}} | inj₁ (c , _) = c ∷ᶜ _⨆_ _ _ {{p}}
 _⨆_ ._ ._ {{cons x y p}} | inj₂ (z , _) = z ∷ _⨆_ _ _ {{p}}
-
--- Diff₃ : ∀ {xs ys zs} -> ES xs ys -> ES xs zs -> Set₁
--- Diff₃ = ?
 
 Diff₃-suf : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} -> (p : e₁ ⋎ e₂) -> Diff₃ e₁ e₂ (e₁ ⨆ e₂)
 Diff₃-suf (cons x y p) with mergeOrConflict x y
