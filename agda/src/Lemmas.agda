@@ -1,5 +1,7 @@
 module Lemmas where
 
+open import Relation.Nullary
+open import Data.List
 open import Data.Nat hiding (eq?)
 open import Relation.Binary.PropositionalEquality
 
@@ -32,3 +34,15 @@ open import Data.List
 ++-assoc : ∀ (a b c : List Set) -> (a ++ b) ++ c ≡ a ++ b ++ c
 ++-assoc [] b c = refl
 ++-assoc (x ∷ a) b c = cong (_∷_ x) (++-assoc a b c)
+
+open import Data.Maybe
+open import Data.Product
+
+isPrefixOf : ∀ {a} {A : Set a} {_≟_ : (x y : A) -> Dec (x ≡ y)} -> (as bs : List A) -> Maybe (∃ (λ cs → bs ≡ as ++ cs))
+isPrefixOf [] bs = just (bs , refl)
+isPrefixOf (a ∷ as) [] = nothing
+isPrefixOf {_≟_ = _≟_} (b ∷ bs) (a ∷ as) with a ≟ b
+isPrefixOf {_≟_ = _≟_} (a ∷ as)  (.a ∷ bs) | yes refl with isPrefixOf {_≟_ = _≟_} as bs
+isPrefixOf (a ∷ as)  (.a ∷ .(as ++ cs)) | yes refl | just (cs , refl) = just (cs , refl)
+isPrefixOf (a ∷ as) (.a ∷ bs) | yes refl | nothing = nothing
+isPrefixOf (a ∷ as) (b ∷ bs) | no ¬p = nothing

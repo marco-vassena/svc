@@ -1,9 +1,6 @@
 module Diff3.Core where
 
-open import Diff.Core public
-open import EditScript.Core public
-open import EditScript.Aligned public
-open import EditScript.Mapping
+open import Diff3.ES3 public 
 
 open import Relation.Nullary
 open import Data.Product hiding (swap)
@@ -11,68 +8,6 @@ open import Data.Sum
 open import Data.List
 open import Data.Empty using (⊥-elim)
 open import Relation.Binary.PropositionalEquality
-
---------------------------------------------------------------------------------
-
--- Technical remark
--- Note that we do not want to store inequalities here, otherwise proving that c₁ ≡ c₂
--- would require extensionality. 
-data Conflict : ∀ {as bs cs ds es fs} (u : Val as bs) (v : Val cs ds) (w : Val es fs) -> Set₁ where
-  UpdUpd : ∀ {as bs cs a} (α : View as a) (β : View bs a) (γ : View cs a) -> Conflict ⟨ α ⟩ ⟨ β ⟩ ⟨ γ ⟩
-  DelUpd : ∀ {as bs a} (α : View as a) (β : View bs a) -> Conflict ⟨ α ⟩ ⊥ ⟨ β ⟩
-  UpdDel : ∀ {as bs a} (α : View as a) (β : View bs a) -> Conflict ⟨ α ⟩ ⟨ β ⟩ ⊥ 
-  InsIns : ∀ {a b as bs} -> (α : View as a) (β : View bs b) -> Conflict ⊥ ⟨ α ⟩ ⟨ β ⟩
-
-swap : ∀ {as bs cs ds es fs} {u : Val as bs} {v : Val cs ds} {w : Val es fs} -> Conflict u v w -> Conflict u w v
-swap (UpdUpd α β γ) = UpdUpd α γ β
-swap (DelUpd α β) = UpdDel α β
-swap (UpdDel α β) = DelUpd α β
-swap (InsIns α β) = InsIns β α
-
-data ES₃ : List Set -> Set₁ where
-  [] : ES₃ []
-  _∷_ : ∀ {as bs cs ds xs} {v : Val as bs} {w : Val cs ds} -> v ~> w -> ES₃ (as ++ xs) -> ES₃ (bs ++ xs)
-  _∷ᶜ_ : ∀ {as bs cs ds es fs xs} {u : Val as bs} {v : Val cs ds} {w : Val es fs} -> 
-           (c : Conflict u v w) -> ES₃ (as ++ xs) -> ES₃ (bs ++ xs)
-
-sym₃ : ∀ {xs} -> ES₃ xs -> ES₃ xs
-sym₃ [] = []
-sym₃ (x ∷ e) = x ∷ sym₃ e
-sym₃ (c ∷ᶜ e) = swap c ∷ᶜ sym₃ e
-
-⟪_⟫₃ : ∀ {xs} -> ES₃ xs -> DList xs
-⟪ [] ⟫₃ = []
-⟪ Ins α ∷ e ⟫₃ = ⟪ e ⟫₃
-⟪ Del α ∷ e ⟫₃ with dsplit ⟪ e ⟫₃
-⟪ Del α ∷ e ⟫₃ | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
-⟪ Upd α β ∷ e ⟫₃ with dsplit ⟪ e ⟫₃
-⟪ Upd α β ∷ e ⟫₃ | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
-⟪ Nop ∷ e ⟫₃ = ⟪ e ⟫₃
-⟪ UpdUpd α β γ ∷ᶜ e ⟫₃ with dsplit ⟪ e ⟫₃
-⟪ UpdUpd α β γ ∷ᶜ e ⟫₃ | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
-⟪ DelUpd α β ∷ᶜ e ⟫₃ with dsplit ⟪ e ⟫₃
-⟪ DelUpd α β ∷ᶜ e ⟫₃ | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
-⟪ UpdDel α β ∷ᶜ e ⟫₃ with dsplit ⟪ e ⟫₃
-⟪ UpdDel α β ∷ᶜ e ⟫₃ | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
-⟪ InsIns α β ∷ᶜ e ⟫₃ = ⟪ e ⟫₃
-
---------------------------------------------------------------------------------
-
--- The proof that an ES₃ does not contain any conflict
-data NoCnf : ∀ {xs} -> ES₃ xs -> Set where
-  [] : NoCnf []
-  _∷_ : ∀ {as bs cs ds xs} {v : Val as bs} {w : Val cs ds} {e : ES₃ (as ++ xs)} 
-          (f : v ~> w) -> NoCnf e -> NoCnf (f ∷ e)
-
--- NoCnf is preserved by sym₃
-NoCnf-sym : ∀ {xs} {e : ES₃ xs} -> NoCnf e -> NoCnf (sym₃ e)
-NoCnf-sym [] = []
-NoCnf-sym (f ∷ p) = f ∷ (NoCnf-sym p)
-
--- When no conflict occurs an ES₃ corresponds to its symmetric
-NoCnf-≡ : ∀ {xs} {e : ES₃ xs} -> NoCnf e -> e ≡ sym₃ e
-NoCnf-≡ [] = refl
-NoCnf-≡ (f ∷ p) = cong (_∷_ f) (NoCnf-≡ p)
 
 --------------------------------------------------------------------------------
 -- Merge datatypes.
@@ -126,78 +61,6 @@ infixl 2 _⊔_↥_
 ↥-sym (UpdDel f g α≠β) = DelUpd g f α≠β
 ↥-sym (DelUpd f g α≠β) = UpdDel g f α≠β
 
--- If both transformations perform a change and they are merged then they are all the same transformation.
-changeAll-≡ : ∀ {as bs cs ds es fs gs hs} {u : Val as bs} {v : Val cs ds} {w : Val es fs} {z : Val gs hs}
-                {f : u ~> v} {g : u ~> w} {h : u ~> z} -> Change f -> Change g -> f ⊔ g ↧ h -> f ≅ g × f ≅ h
-changeAll-≡ (IsChange v≠w) q (Id₁ f g v≠w₁) = ⊥-elim (v≠w refl)
-changeAll-≡ p (IsChange v≠w) (Id₂ f g v≠w₁) = ⊥-elim (v≠w refl)
-changeAll-≡ p q (Idem f) = refl , refl
-
--- An id transformation can never raise a conflict
-⊥-IdConflict : ∀ {as bs cs ds} {v : Val as bs} {w : Val cs ds} 
-                  {f : v ~> v} {g : v ~> w} {c : Conflict v v w} -> ¬ (f ⊔ g ↥ c)
-⊥-IdConflict (UpdUpd f g α≠β α≠γ β≠γ) = α≠β refl
-⊥-IdConflict (UpdDel f g α≠β) = α≠β refl
-
---------------------------------------------------------------------------------
-
--- Refifies result of diff3
-data _⇓_ : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} -> e₁ ⋎ e₂ -> ES₃ xs -> Set₁ where
-  nil : nil ⇓ []
-  merge : ∀ {xs ys zs as bs cs ds es fs gs hs} 
-            {e₁ : ES (as ++ xs) (cs ++ ys)} {e₂ : ES (as ++ xs) (es ++ zs)} {e₃ : ES₃ (as ++ xs)} 
-            {p : e₁ ⋎ e₂} {u : Val as bs} {v : Val cs ds} {w : Val es fs} {z : Val gs hs} 
-            {f : u ~> v} {g : u ~> w} {h : u ~> z} -> 
-            (m : f ⊔ g ↧ h) -> p ⇓ e₃ -> (cons f g p) ⇓ (h ∷ e₃)
-  conflict : ∀ {xs ys zs as bs cs ds es fs} 
-               {e₁ : ES (as ++ xs) (cs ++ ys)} {e₂ : ES (as ++ xs) (es ++ zs)} {e₃ : ES₃ (as ++ xs)}
-               {v : Val as bs} {w : Val cs ds} {z : Val es fs} {c : Conflict v w z}
-               {f : v ~> w} {g : v ~> z} {p : e₁ ⋎ e₂} -> 
-               (u : f ⊔ g ↥ c) -> p ⇓ e₃ -> (cons f g p) ⇓ (c ∷ᶜ e₃)
-
-⇓-sym : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES₃ xs} {p : e₁ ⋎ e₂} 
-            -> p ⇓ e₃ -> (⋎-sym p) ⇓ (sym₃ e₃)
-⇓-sym nil = nil
-⇓-sym (merge m d) = merge (↧-sym m) (⇓-sym d)
-⇓-sym (conflict u d) = conflict (↥-sym u) (⇓-sym d)
-
---------------------------------------------------------------------------------
-
--- A simple type synonym more readable than ⇓:
--- Diff₃ e₁ e₂ e₃ is more intuitive than p ⇓ e₃
-Diff₃ : ∀ {xs ys zs} (e₁ : ES xs ys) (e₂ : ES xs zs) {{p : e₁ ⋎ e₂}} -> ES₃ xs -> Set₁
-Diff₃ _ _ {{p}} e₃ = p ⇓ e₃
-
--- Diff₃ e₁ e₂ e₃ implies that the three editscripts originated from the same source.
-Diff₃⟪_⟫ : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES₃ xs} {p : e₁ ⋎ e₂} ->
-            Diff₃ e₁ e₂ e₃ -> ⟪ e₁ ⟫ ≡ ⟪ e₃ ⟫₃
-Diff₃⟪ nil ⟫ = refl
-Diff₃⟪ merge {f = Ins α} {h = Ins α₁} m e ⟫ = Diff₃⟪ e ⟫
-Diff₃⟪ merge {f = Ins α} {h = Nop} m e ⟫ = Diff₃⟪ e ⟫
-Diff₃⟪ merge {f = Del α} {h = Del .α} m e ⟫ rewrite Diff₃⟪ e ⟫ = refl
-Diff₃⟪ merge {f = Del α} {h = Upd .α β} m e ⟫ rewrite Diff₃⟪ e ⟫ = refl
-Diff₃⟪ merge {f = Upd α β} {h = Del .α} m e ⟫ rewrite Diff₃⟪ e ⟫ = refl
-Diff₃⟪ merge {f = Upd α β} {h = Upd .α γ} m e ⟫ rewrite Diff₃⟪ e ⟫ = refl
-Diff₃⟪ merge {f = Nop} {h = Ins α} m e ⟫ = Diff₃⟪ e ⟫
-Diff₃⟪ merge {f = Nop} {h = Nop} m e ⟫ = Diff₃⟪ e ⟫
-Diff₃⟪ conflict (InsIns (Ins α) y α≠β) e ⟫ = Diff₃⟪ e ⟫
-Diff₃⟪ conflict (UpdUpd (Upd α β) y α≠β α≠γ β≠γ) e ⟫ rewrite Diff₃⟪ e ⟫ = refl
-Diff₃⟪ conflict (UpdDel (Upd α β) y α≠β) e ⟫ rewrite Diff₃⟪ e ⟫ = refl
-Diff₃⟪ conflict (DelUpd (Del α) y α≠β) e ⟫ rewrite Diff₃⟪ e ⟫ = refl
-
---------------------------------------------------------------------------------
-
--- Relation between Diff and Diff₃
--- Note that implicitly says that the edit scripts all originated from the 
--- same source object
--- getDiff : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} ->
---             Diff₃ e₁ e₂ e₃ -> Diff ⟪ e₃ ⟫ ⟦ e₁ ⟧ e₁ × Diff ⟪ e₃ ⟫ ⟦ e₂ ⟧ e₂
--- getDiff {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} d₃
---   rewrite Diff₃⟪ d₃ ⟫ with mkDiff e₁ | mkDiff e₂ | (Diff₃~ d₃)
--- ... | d₁ | d₂ | p = d₁ , aux d₂ (Diff~nec d₁ d₂ p)
---   where aux : Diff ⟪ e₂ ⟫ ⟦ e₂ ⟧ e₂ -> ⟪ e₁ ⟫ ≡ ⟪ e₂ ⟫ -> Diff ⟪ e₁ ⟫ ⟦ e₂ ⟧ e₂
---         aux d p rewrite p = d
-
 -- For any two mapping from the same source u, either there is a third mapping h from u that merges them
 -- or the merge fails with some conflict c. 
 mergeOrConflict : ∀ {as bs cs ds es fs} {u : Val as bs} {v : Val cs ds} {w : Val es fs} 
@@ -225,55 +88,6 @@ mergeOrConflict Nop (Ins α) = inj₂ (Ins α , Id₁ Nop (Ins α) (λ ()))
 mergeOrConflict Nop Nop = inj₂ (Nop , Idem Nop)
 
 --------------------------------------------------------------------------------
-
--- The proof that a conflict is present in ES₃
-data _∈ᶜ_ {as bs cs ds es fs } {u : Val as bs} {v : Val cs ds} {w : Val es fs} 
-          : ∀ {xs} -> Conflict u v w -> ES₃ xs -> Set₁ where
-  here : ∀ {xs} {e : ES₃ (as ++ xs)} (c : Conflict u v w) -> c ∈ᶜ (c ∷ᶜ e)
-  there : ∀ {as' bs' cs' ds' xs} {u' : Val as' bs'} {v' : Val cs' ds'} {c : Conflict u v w} 
-              {e : ES₃ (as' ++ xs)} (x : u' ~> v' ) -> c ∈ᶜ e -> c ∈ᶜ x ∷ e
-  thereᶜ : ∀ {as' bs' cs' ds' es' fs' xs} {u' : Val as' bs'} {v' : Val cs' ds'} {w' : Val es' fs'} {c : Conflict u v w} 
-             {e : ES₃ (as' ++ xs)} (c' : Conflict u' v' w') -> c ∈ᶜ e -> c ∈ᶜ (c' ∷ᶜ e)
-
-infixr 3 _∈ᶜ_ 
-
--- NoCnf and ∈ᶜ are contradictory.
-⊥-NoCnf : ∀ {xs as bs cs ds es fs} {e : ES₃ xs} {u : Val as bs} {v : Val cs ds} {w : Val es fs}
-                 {c : Conflict u v w} -> NoCnf e -> ¬ (c ∈ᶜ e)
-⊥-NoCnf () (here c)
-⊥-NoCnf (x ∷ p) (there .x q) = ⊥-NoCnf p q
-⊥-NoCnf () (thereᶜ c' q)
-
--- The proof that a transformation is present in ES₃
-data _∈₃_ {as bs cs ds} {u : Val as bs} {v : Val cs ds} : ∀ {xs} -> u ~> v -> ES₃ xs -> Set₁ where
-  here : ∀ {xs} {e : ES₃ (as ++ xs)} (f : u ~> v) -> f ∈₃ (f ∷ e)
-  there : ∀ {as' bs' cs' ds' xs} {u' : Val as' bs'} {v' : Val cs' ds'} {f : u ~> v} 
-              {e : ES₃ (as' ++ xs)} (g : u' ~> v') -> f ∈₃ e -> f ∈₃ g ∷ e
-  thereᶜ : ∀ {as' bs' cs' ds' es' fs' xs} {u' : Val as' bs'} {v' : Val cs' ds'} {w' : Val es' fs'} 
-             {e : ES₃ (as' ++ xs)} {f : u ~> v} (c : Conflict u' v' w') -> f ∈₃ e -> f ∈₃ (c ∷ᶜ e)
-
-infixr 3 _∈₃_
-
---------------------------------------------------------------------------------
-
--- TODO move to Diff3.Algo
--- The diff₃ algorithm
-_⨆_ : ∀ {xs ys zs} (e₁ : ES xs ys) (e₂ : ES xs zs) -> {{ p : e₁ ⋎ e₂ }} -> ES₃ xs
-_⨆_ .[] .[] {{nil}} = []
-_⨆_ ._ ._ {{cons x y p}} with mergeOrConflict x y
-_⨆_ ._ ._ {{cons x y p}} | inj₁ (c , _) = c ∷ᶜ _⨆_ _ _ {{p}}
-_⨆_ ._ ._ {{cons x y p}} | inj₂ (z , _) = z ∷ _⨆_ _ _ {{p}}
-
---------------------------------------------------------------------------------
--- Relation between Diff₃ and ⨆
-
--- Sufficient condition: ⨆ => Diff₃
--- It shows that Diff₃ can safely represent the outcome of ⨆. 
-Diff₃-suf : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} -> (p : e₁ ⋎ e₂) -> Diff₃ e₁ e₂ (e₁ ⨆ e₂)
-Diff₃-suf (cons x y p) with mergeOrConflict x y
-Diff₃-suf (cons x y p) | inj₁ (c , u) = conflict u (Diff₃-suf p)
-Diff₃-suf (cons x y p) | inj₂ (z , m) = merge m (Diff₃-suf p)
-Diff₃-suf nil = nil 
 
 -- Merge and conficts are exclusive:
 -- For any pair of transformations either they are merged or raise a conflict
@@ -312,18 +126,92 @@ conflictDeterministic (UpdUpd x y α≠β α≠γ β≠γ) (UpdUpd .x .y α≠β
 conflictDeterministic (UpdDel x y α≠β) (UpdDel .x .y α≠β₁) = refl
 conflictDeterministic (DelUpd x y α≠β) (DelUpd .x .y α≠β₁) = refl
 
--- Necessary conditions : Diff₃ => ⨆ 
--- Given Diff₃ e₁ e₂ e₃, e₃ is the result of e₁ ⨆ e₂
-Diff₃-nec : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES₃ xs} {p : e₁ ⋎ e₂} -> 
-              Diff₃ e₁ e₂ e₃ -> e₃ ≡ e₁ ⨆ e₂
-Diff₃-nec nil = refl
-Diff₃-nec (merge {f = f} {g = g} m q) with mergeOrConflict f g
-Diff₃-nec (merge m q) | inj₁ (c , u) = ⊥-elim (mergeConflictExclusive m u)
-Diff₃-nec (merge m q) | inj₂ (h , m') with mergeDeterministic m m'
-Diff₃-nec (merge m q) | inj₂ (h , m') | refl = cong (_∷_ h) (Diff₃-nec q)
-Diff₃-nec (conflict {f = f} {g = g} u q) with mergeOrConflict f g
-Diff₃-nec (conflict u q) | inj₁ (c , u') with conflictDeterministic u u'
-Diff₃-nec (conflict u q) | inj₁ (c , u') | refl = cong (_∷ᶜ_ c) (Diff₃-nec q)
-Diff₃-nec (conflict u q) | inj₂ (h , m) = ⊥-elim (mergeConflictExclusive m u)
+--------------------------------------------------------------------------------
+-- Minors proofs about the merge data-types
 
--- Diff₃ <=> ⨆ , therefore all the properties that hold for Diff₃ hold also for ⨆.
+-- If both transformations perform a change and they are merged then they are all the same transformation.
+changeAll-≡ : ∀ {as bs cs ds es fs gs hs} {u : Val as bs} {v : Val cs ds} {w : Val es fs} {z : Val gs hs}
+                {f : u ~> v} {g : u ~> w} {h : u ~> z} -> Change f -> Change g -> f ⊔ g ↧ h -> f ≅ g × f ≅ h
+changeAll-≡ (IsChange v≠w) q (Id₁ f g v≠w₁) = ⊥-elim (v≠w refl)
+changeAll-≡ p (IsChange v≠w) (Id₂ f g v≠w₁) = ⊥-elim (v≠w refl)
+changeAll-≡ p q (Idem f) = refl , refl
+
+-- An id transformation can never raise a conflict
+⊥-IdConflict : ∀ {as bs cs ds} {v : Val as bs} {w : Val cs ds} 
+                  {f : v ~> v} {g : v ~> w} {c : Conflict v v w} -> ¬ (f ⊔ g ↥ c)
+⊥-IdConflict (UpdUpd f g α≠β α≠γ β≠γ) = α≠β refl
+⊥-IdConflict (UpdDel f g α≠β) = α≠β refl
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+-- Refifies result of Diff3
+data _⇓_ : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} -> e₁ ⋎ e₂ -> ES₃ xs -> Set₁ where
+  nil : nil ⇓ []
+  merge : ∀ {xs ys zs as bs cs ds es fs gs hs} 
+            {e₁ : ES (as ++ xs) (cs ++ ys)} {e₂ : ES (as ++ xs) (es ++ zs)} {e₃ : ES₃ (as ++ xs)} 
+            {p : e₁ ⋎ e₂} {u : Val as bs} {v : Val cs ds} {w : Val es fs} {z : Val gs hs} 
+            {f : u ~> v} {g : u ~> w} {h : u ~> z} -> 
+            (m : f ⊔ g ↧ h) -> p ⇓ e₃ -> (cons f g p) ⇓ (h ∷ e₃)
+  conflict : ∀ {xs ys zs as bs cs ds es fs} 
+               {e₁ : ES (as ++ xs) (cs ++ ys)} {e₂ : ES (as ++ xs) (es ++ zs)} {e₃ : ES₃ (as ++ xs)}
+               {v : Val as bs} {w : Val cs ds} {z : Val es fs} {c : Conflict v w z}
+               {f : v ~> w} {g : v ~> z} {p : e₁ ⋎ e₂} -> 
+               (u : f ⊔ g ↥ c) -> p ⇓ e₃ -> (cons f g p) ⇓ (c ∷ᶜ e₃)
+
+⇓-sym : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES₃ xs} {p : e₁ ⋎ e₂} 
+            -> p ⇓ e₃ -> (⋎-sym p) ⇓ (sym₃ e₃)
+⇓-sym nil = nil
+⇓-sym (merge m d) = merge (↧-sym m) (⇓-sym d)
+⇓-sym (conflict u d) = conflict (↥-sym u) (⇓-sym d)
+
+-- A simple type synonym more readable than ⇓:
+-- Diff₃ e₁ e₂ e₃ is more intuitive than p ⇓ e₃
+Diff₃ : ∀ {xs ys zs} (e₁ : ES xs ys) (e₂ : ES xs zs) {{p : e₁ ⋎ e₂}} -> ES₃ xs -> Set₁
+Diff₃ _ _ {{p}} e₃ = p ⇓ e₃
+
+-- Diff₃ e₁ e₂ e₃ implies that the three editscripts originated from the same source.
+Diff₃⟪_⟫ : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES₃ xs} {p : e₁ ⋎ e₂} ->
+            Diff₃ e₁ e₂ e₃ -> ⟪ e₁ ⟫ ≡ ⟪ e₃ ⟫₃
+Diff₃⟪ nil ⟫ = refl
+Diff₃⟪ merge {f = Ins α} {h = Ins α₁} m e ⟫ = Diff₃⟪ e ⟫
+Diff₃⟪ merge {f = Ins α} {h = Nop} m e ⟫ = Diff₃⟪ e ⟫
+Diff₃⟪ merge {f = Del α} {h = Del .α} m e ⟫ rewrite Diff₃⟪ e ⟫ = refl
+Diff₃⟪ merge {f = Del α} {h = Upd .α β} m e ⟫ rewrite Diff₃⟪ e ⟫ = refl
+Diff₃⟪ merge {f = Upd α β} {h = Del .α} m e ⟫ rewrite Diff₃⟪ e ⟫ = refl
+Diff₃⟪ merge {f = Upd α β} {h = Upd .α γ} m e ⟫ rewrite Diff₃⟪ e ⟫ = refl
+Diff₃⟪ merge {f = Nop} {h = Ins α} m e ⟫ = Diff₃⟪ e ⟫
+Diff₃⟪ merge {f = Nop} {h = Nop} m e ⟫ = Diff₃⟪ e ⟫
+Diff₃⟪ conflict (InsIns (Ins α) y α≠β) e ⟫ = Diff₃⟪ e ⟫
+Diff₃⟪ conflict (UpdUpd (Upd α β) y α≠β α≠γ β≠γ) e ⟫ rewrite Diff₃⟪ e ⟫ = refl
+Diff₃⟪ conflict (UpdDel (Upd α β) y α≠β) e ⟫ rewrite Diff₃⟪ e ⟫ = refl
+Diff₃⟪ conflict (DelUpd (Del α) y α≠β) e ⟫ rewrite Diff₃⟪ e ⟫ = refl
+
+--------------------------------------------------------------------------------
+
+-- Relation between Diff and Diff₃
+-- Note that implicitly says that the edit scripts all originated from the 
+-- same source object
+-- getDiff : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} ->
+--             Diff₃ e₁ e₂ e₃ -> Diff ⟪ e₃ ⟫ ⟦ e₁ ⟧ e₁ × Diff ⟪ e₃ ⟫ ⟦ e₂ ⟧ e₂
+-- getDiff {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} d₃
+--   rewrite Diff₃⟪ d₃ ⟫ with mkDiff e₁ | mkDiff e₂ | (Diff₃~ d₃)
+-- ... | d₁ | d₂ | p = d₁ , aux d₂ (Diff~nec d₁ d₂ p)
+--   where aux : Diff ⟪ e₂ ⟫ ⟦ e₂ ⟧ e₂ -> ⟪ e₁ ⟫ ≡ ⟪ e₂ ⟫ -> Diff ⟪ e₁ ⟫ ⟦ e₂ ⟧ e₂
+--         aux d p rewrite p = d
+
+--------------------------------------------------------------------------------
+
+-- Merged₃ e₁ e₂ e₃ is the proof that e₃ is well-typed edit script
+-- obtained succesfully merging e₁ and e₂.
+-- The absence of conflicts and the fact that it is well-typed 
+-- are implicit in the fact that e₃ is a ES, and not an ES₃
+-- as it happens for Diff₃.
+data Merged₃ : ∀ {xs ys zs ws} -> ES xs ys -> ES xs zs -> ES xs ws -> Set₁ where  
+  nil : Merged₃ [] [] []
+  cons : ∀ {xs ys zs ws as bs cs ds es fs gs hs} 
+            {e₁ : ES (as ++ xs) (cs ++ ys)} {e₂ : ES (as ++ xs) (es ++ zs)} {e₃ : ES (as ++ xs) (gs ++ ws)} 
+            {u : Val as bs} {v : Val cs ds} {w : Val es fs} {z : Val gs hs} 
+            {f : u ~> v} {g : u ~> w} {h : u ~> z} -> 
+            (m : f ⊔ g ↧ h) -> Merged₃ e₁ e₂ e₃ -> Merged₃ (f ∷ e₁) (g ∷ e₂) (h ∷ e₃)

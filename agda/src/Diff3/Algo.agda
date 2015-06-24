@@ -1,12 +1,25 @@
 module Diff3.Algo where
 
+open import Lemmas
 open import Diff3.Core
 
+open import Data.Sum
 open import Data.List
 open import Data.Empty
+open import Data.Maybe
+open import Data.Product
 open import Relation.Nullary
 open import Relation.Nullary.Decidable
 open import Relation.Binary.PropositionalEquality hiding ([_])
+
+--------------------------------------------------------------------------------
+
+-- The diff₃ algorithm
+_⨆_ : ∀ {xs ys zs} (e₁ : ES xs ys) (e₂ : ES xs zs) -> {{ p : e₁ ⋎ e₂ }} -> ES₃ xs
+_⨆_ .[] .[] {{nil}} = []
+_⨆_ ._ ._ {{cons x y p}} with mergeOrConflict x y
+_⨆_ ._ ._ {{cons x y p}} | inj₁ (c , _) = c ∷ᶜ _⨆_ _ _ {{p}}
+_⨆_ ._ ._ {{cons x y p}} | inj₂ (z , _) = z ∷ _⨆_ _ _ {{p}}
 
 --------------------------------------------------------------------------------
 -- When ES₃ is well typed ?
@@ -21,9 +34,9 @@ data _⇒_ : ∀ {xs} -> ES₃ xs -> List Set -> Set₁ where
 
 infixr 3 _⇒_
 
-∥_∥  : ∀ {xs ys} {e : ES₃ xs} -> e ⇒ ys -> ES xs ys
-∥ [] ∥ = []
-∥ f ∷ p ∥ = f ∷ ∥ p ∥
+∥_∥  : ∀ {xs ys} (e : ES₃ xs) -> {{q : e ⇒ ys }}-> ES xs ys
+∥_∥ .[] {{[]}} = []
+∥_∥ (.f ∷ e) {{f ∷ q}} = f ∷ ∥ e ∥
 
 data _↦_ : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} -> e₁ ⋎ e₂ -> List Set -> Set₁ where
   nil : nil ↦ []
@@ -49,49 +62,14 @@ _,_↣_ e₁ e₂ {{p}} ws = p ↦ ws
 ⇒-↣ nil [] = nil
 ⇒-↣ (merge {f = f} {g = g} m d) (h ∷ q) = cons f g h m (⇒-↣ d q)
 
-open import Data.Product
-
-⊥ᶜ-⇒ : ∀ {as bs cs ds es fs xs ws} {e : ES₃ (as ++ xs)} 
-               {u : Val as bs} {v : Val cs ds} {w : Val es fs} {c : Conflict u v w} -> 
-               ¬ (c ∷ᶜ e ⇒ ws)
-⊥ᶜ-⇒ ()
-
-_isPrefixOf_ : ∀ (as bs : List Set) -> Dec (∃ λ cs -> bs ≡ as ++ cs)   
-[] isPrefixOf [] = yes ([] , refl)
-(x ∷ as) isPrefixOf [] = no {!!}
-[] isPrefixOf (x ∷ bs) = no {!!}
-(a ∷ as) isPrefixOf (b ∷ bs) with eq? a b 
-(a ∷ as) isPrefixOf (.a ∷ bs) | yes refl with as isPrefixOf bs
-(a ∷ as) isPrefixOf (.a ∷ bs) | yes refl | yes (proj₁ , proj₂) = {!!}
-(a ∷ as) isPrefixOf (.a ∷ bs) | yes refl | no ¬p = no {!!}
-(a ∷ as) isPrefixOf (b ∷ bs) | no ¬p = {!!}
-
-aux : ∀ {xs as bs cs ds} {e : ES₃ (as ++ xs)} {v : Val as bs} {w : Val cs ds} {x : v ~> w} -> 
-         ¬ (∃ λ ws -> e ⇒ ws) -> ¬ (∃ λ ws -> x ∷ e ⇒ ws)
-aux ¬p (._ , (x ∷ p)) = ¬p (_ , p)
-
--- aux₂ : ∀ {xs as bs cs ds} {v : Val as bs} {w : Val cs ds} {x : v ~> w} {e : ES₃ (as ++ xs)} ->
---          (∃ λ ws -> e ⇒ ws) -> (∀ ws -> ¬ ∃ λ ys -> ws ≡ cs ++ ys) -> ¬ (∃ λ ws -> x ∷ e ⇒ ws)
--- aux₂ (ws , p) ¬p (._ , (_∷_ {cs = cs} {ds = ds} {ys = ys} x e)) = ¬p (cs ++ ys) (ys , refl)
-
-aux₃ : ∀ {xs as bs cs ds ws} {v : Val as bs} {w : Val cs ds} {x : v ~> w} {e : ES₃ (as ++ xs)} ->
-         x ∷ e ⇒ ws -> ∃ λ ys -> ws ≡ ds ++ ys × e ⇒ (cs ++ ys)
-aux₃ (_∷_ {ys = ys} x p) = ys , (refl , p) 
-
-aux₂ : ∀ {xs as bs cs ds ws} {v : Val as bs} {w : Val cs ds} {x : v ~> w} {e : ES₃ (as ++ xs)} ->
-         ¬ (∃ λ ys -> ws ≡ cs ++ ys) -> ¬ (∃ λ us -> x ∷ e ⇒ us)
-aux₂ ¬p (_ , p) with aux₃ p
-aux₂ {x = x} ¬p (._ , p) | ys , (refl , p') = {!!}
-
-lemma : ∀ {xs} (e : ES₃ xs) -> Dec (∃ λ ws -> e ⇒ ws)
-lemma [] = yes ([] , [])
+lemma : ∀ {xs} (e : ES₃ xs) -> Maybe (∃ λ ws -> e ⇒ ws)
+lemma [] = just ([] , [])
 lemma (x ∷ e) with lemma e
-lemma (_∷_ {cs = cs} x e) | yes (ws , p) with cs isPrefixOf ws
-lemma (_∷_ {ds = ds} x e) | yes (._ , p) | yes (ys , refl) = yes ((ds ++ ys) , (x ∷ p))
-lemma (x ∷ e) | yes (ws , p) | no ¬p = no {!!} -- (aux₂ (ws , p) {!!}) -- (aux₂ ? {!¬p!}) 
-lemma (x ∷ e) | no ¬p = no (aux ¬p)
-lemma (c ∷ᶜ e) = no (λ p → ⊥ᶜ-⇒ (proj₂ p))
-
+lemma (_∷_ {cs = cs} x e) | just (ws , p) with isPrefixOf {_≟_ = eq?} cs  ws
+lemma (_∷_ {ds = ds} x e) | just (._ , p) | just (ws , refl) = just ((ds ++ ws) , (x ∷ p))
+lemma (x ∷ e) | just (ws , proj₂) | nothing = nothing
+lemma (x ∷ e) | nothing = nothing
+lemma (c ∷ᶜ e) = nothing
 
 --------------------------------------------------------------------------------
 
@@ -116,80 +94,80 @@ lemma (c ∷ᶜ e) = no (λ p → ⊥ᶜ-⇒ (proj₂ p))
 -- diff3-wt (Ins₁ x p) (Ins .x q) = Ins x (diff3-wt p q)
 -- diff3-wt (Ins₂ x p) (Ins .x q) = Ins x (diff3-wt p q)
 
--- Well-typed ES₃ can be converted to well-typed ES
--- toES : ∀ {xs ys zs ws} {e₀₁ : ES xs ys} {e₀₂ : ES xs zs} (p : e₀₁ ~ e₀₂) -> 
---        let e₀₁₂ = diff3 e₀₁ e₀₂ p in (q : e₀₁₂ ↓ ws) -> ES xs ws
--- toES End End = End
--- toES (DelDel x p) (Del .x q) = Del x (toES p q)
--- toES (UpdUpd x y z p) q with y =?= z
--- toES (UpdUpd x y .y p) (Upd .x .y q) | yes refl = Upd x y (toES p q)
--- toES (UpdUpd x y z p) () | no ¬p
--- toES (DelUpd x y p) q with x =?= y
--- toES (DelUpd x .x p) (Del .x q) | yes refl = Del x (toES p q)
--- toES (DelUpd x y p) () | no ¬p
--- toES (UpdDel x y p) q with x =?= y
--- toES (UpdDel x .x p) (Del .x q) | yes refl = Del x (toES p q)
--- toES (UpdDel x y p) () | no ¬p
--- toES (InsIns {a = a} {b = b} x y p) q with eq? a b
--- toES (InsIns x y p) q | yes refl with x =?= y
--- toES (InsIns x .x p) (Ins .x q) | yes refl | yes refl = Ins x (toES p q)
--- toES (InsIns x y p) () | yes refl | no ¬p
--- toES (InsIns x y p) () | no ¬p
--- toES (Ins₁ x p) (Ins .x q) = Ins x (toES p q)
--- toES (Ins₂ x p) (Ins .x q) = Ins x (toES p q)
-
 --------------------------------------------------------------------------------
 
 -- diff3 is reflexive. Any edit script run against itself succeeds
--- diff3-refl : ∀ {xs ys} (e : ES xs ys) -> diff3 e e (~-refl e) ↓ ys
--- diff3-refl (Ins {a = a} x e) with eq? a a
--- diff3-refl (Ins x e) | yes refl with x =?= x
--- diff3-refl (Ins x e) | yes refl | yes refl = Ins x (diff3-refl e)
--- diff3-refl (Ins x e) | yes refl | no ¬p = ⊥-elim (¬p refl)
--- diff3-refl (Ins x e) | no ¬p = ⊥-elim (¬p refl)
--- diff3-refl (Del x e) = Del x (diff3-refl e)
--- diff3-refl (Upd x y e) with y =?= y
--- diff3-refl (Upd x y e) | yes refl = Upd x y (diff3-refl e)
--- diff3-refl (Upd x y e) | no ¬p = ⊥-elim (¬p refl)
--- diff3-refl End = End
 
--- diff3-sym : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} -> (p : e₁ ~ e₂) -> 
---              let e₁₂ = diff3 e₁ e₂ p in NoCnf e₁₂ -> e₁₂ ≡ diff3 e₂ e₁ (~-sym p)
--- diff3-sym End End = refl
--- diff3-sym (DelDel x p) (Del .x q) = cong (Del x) (diff3-sym p q)
--- diff3-sym (UpdUpd x y z p) q with y =?= z
--- diff3-sym (UpdUpd x y .y p) q | yes refl with y =?= y
--- diff3-sym (UpdUpd x y .y p) (Upd .x .y q) | yes refl | yes refl = cong (Upd x y) (diff3-sym p q)
--- diff3-sym (UpdUpd x y .y p) q | yes refl | no ¬p = ⊥-elim (¬p refl)
--- diff3-sym (UpdUpd x y z p) () | no ¬p
--- diff3-sym (DelUpd x y p) q with x =?= y
--- diff3-sym (DelUpd x .x p) (Del .x q) | yes refl = cong (Del x) (diff3-sym p q)
--- diff3-sym (DelUpd x y p) () | no ¬p
--- diff3-sym (UpdDel x y p) q with x =?= y
--- diff3-sym (UpdDel x .x p) (Del .x q) | yes refl = cong (Del x) (diff3-sym p q)
--- diff3-sym (UpdDel x y p) () | no ¬p
--- diff3-sym (InsIns {a = a} {b = b} x y p) q with eq? a b
--- diff3-sym (InsIns x y p) q | yes refl with x =?= y
--- diff3-sym (InsIns {a = a} x .x p) q | yes refl | yes refl with eq? a a
--- diff3-sym (InsIns x .x p) q | yes refl | yes refl | yes refl with x =?= x
--- diff3-sym (InsIns x .x p) (Ins .x q) | yes refl | yes refl | yes refl | yes refl = cong (Ins x) (diff3-sym p q)
--- diff3-sym (InsIns x .x p) q | yes refl | yes refl | yes refl | no ¬p = ⊥-elim (¬p refl)
--- diff3-sym (InsIns x .x p) q | yes refl | yes refl | no ¬p = ⊥-elim (¬p refl)
--- diff3-sym (InsIns x y p) () | yes refl | no ¬p
--- diff3-sym (InsIns x y p) () | no ¬p
--- diff3-sym (Ins₁ x p) (Ins .x q) = cong (Ins x) (diff3-sym p q)
--- diff3-sym (Ins₂ x p) (Ins .x q) = cong (Ins x) (diff3-sym p q)
+Diff₃-refl : ∀ {xs ys} {e : ES xs ys} {e₃ : ES₃ xs} -> (⋎-refl e) ⇓ e₃ -> e₃ ⇒ ys
+Diff₃-refl nil = []
+Diff₃-refl (merge (Id₁ f .f v≠w) d) = ⊥-elim (v≠w refl)
+Diff₃-refl (merge (Id₂ f .f v≠w) d) = ⊥-elim (v≠w refl)
+Diff₃-refl (merge (Idem f) d) = f ∷ (Diff₃-refl d)
+Diff₃-refl (conflict (InsIns f .f α≠β) d) = ⊥-elim (α≠β refl)
+Diff₃-refl (conflict (UpdUpd f .f α≠β α≠γ β≠γ) d) = ⊥-elim (β≠γ refl)
 
 --------------------------------------------------------------------------------
 
--- -- well-typedness is symmetric
--- ↓-sym : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} -> (p : e₁ ~ e₂) -> diff3 e₁ e₂ p ↓ ws -> diff3 e₂ e₁ (~-sym p) ↓ ws
--- ↓-sym p q rewrite sym (diff3-sym p (diff3-wt p q)) = q
+-- well-typedness is symmetric
+↦-sym : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} {p : e₁ ⋎ e₂} -> p ↦ ws -> (⋎-sym p) ↦ ws
+↦-sym nil = nil
+↦-sym (cons f g h m q) = cons g f h (↧-sym m) (↦-sym q)
 
 --------------------------------------------------------------------------------
+-- Relation between Diff₃ and ⨆
+
+-- Sufficient condition: ⨆ => Diff₃
+-- It shows that Diff₃ can safely represent the outcome of ⨆. 
+Diff₃-suf : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} -> (p : e₁ ⋎ e₂) -> Diff₃ e₁ e₂ (e₁ ⨆ e₂)
+Diff₃-suf (cons x y p) with mergeOrConflict x y
+Diff₃-suf (cons x y p) | inj₁ (c , u) = conflict u (Diff₃-suf p)
+Diff₃-suf (cons x y p) | inj₂ (z , m) = merge m (Diff₃-suf p)
+Diff₃-suf nil = nil 
+
+-- Necessary conditions : Diff₃ => ⨆ 
+-- Given Diff₃ e₁ e₂ e₃, e₃ is the result of e₁ ⨆ e₂
+Diff₃-nec : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES₃ xs} {p : e₁ ⋎ e₂} -> 
+              Diff₃ e₁ e₂ e₃ -> e₃ ≡ e₁ ⨆ e₂
+Diff₃-nec nil = refl
+Diff₃-nec (merge {f = f} {g = g} m q) with mergeOrConflict f g
+Diff₃-nec (merge m q) | inj₁ (c , u) = ⊥-elim (mergeConflictExclusive m u)
+Diff₃-nec (merge m q) | inj₂ (h , m') with mergeDeterministic m m'
+Diff₃-nec (merge m q) | inj₂ (h , m') | refl = cong (_∷_ h) (Diff₃-nec q)
+Diff₃-nec (conflict {f = f} {g = g} u q) with mergeOrConflict f g
+Diff₃-nec (conflict u q) | inj₁ (c , u') with conflictDeterministic u u'
+Diff₃-nec (conflict u q) | inj₁ (c , u') | refl = cong (_∷ᶜ_ c) (Diff₃-nec q)
+Diff₃-nec (conflict u q) | inj₂ (h , m) = ⊥-elim (mergeConflictExclusive m u)
+
+-- Diff₃ <=> ⨆ , therefore all the properties that hold for Diff₃ hold also for ⨆.
 
 --------------------------------------------------------------------------------
--- Relates Diff and Diff₃ and diff3
+-- Relation between well-typedness and Merged₃
+
+Merged₃-suf : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} {p : e₁ ⋎ e₂} {e₃ : ES₃ xs} ->
+                Diff₃ e₁ e₂ e₃ -> (q : e₃ ⇒ ws) -> Merged₃ {ws = ws} e₁ e₂ ∥ e₃ ∥
+Merged₃-suf nil [] = nil
+Merged₃-suf (merge m d) (f ∷ q) = cons m (Merged₃-suf d q)
+
+-- Here we need to explicitly pattern match on h to avoid unification issues ultimately 
+-- due to _++_ in the _∷_ constructor for ⇒. 
+Merged₃-nec : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} {p : e₁ ⋎ e₂} {e₃ : ES xs ws} {e₃' : ES₃ xs} ->
+                 Merged₃ e₁ e₂ e₃ -> Diff₃ e₁ e₂ e₃' -> (q : e₃' ⇒ ws) -> e₃ ≡ ∥ e₃' ∥
+Merged₃-nec nil nil [] = refl
+Merged₃-nec (cons m p) (merge m' d) q with mergeDeterministic m m'
+Merged₃-nec (cons m p) (merge {h = Ins α} m' d) (.(Ins α) ∷ q) | refl = cong (_∷_ (Ins α)) (Merged₃-nec p d q)
+Merged₃-nec (cons m p) (merge {h = Del α} m' d) (.(Del α) ∷ q) | refl = cong (_∷_ (Del α)) (Merged₃-nec p d q)
+Merged₃-nec (cons m p) (merge {h = Upd α β} m' d) (.(Upd α β) ∷ q) | refl = cong (_∷_ (Upd α β)) (Merged₃-nec p d q)
+Merged₃-nec (cons m p) (merge {h = Nop} m' d) (.Nop ∷ q) | refl = cong (_∷_ Nop) (Merged₃-nec p d q)
+Merged₃-nec (cons m p) (conflict u d) ()
+
+-- Merged₃ and Diff₃ are in a one-to-one relationship given the well-typedness of e₃.
+-- Therefore we can use Merged₃ to reason about well-typed conflictless Diff₃.
+
+--------------------------------------------------------------------------------
+-- Relate Diff and Diff₃ and diff3
+
+-- Define data type for well-typed WT-Diff3.
+-- Show that Diff3 e1 e2 e3 + WT e3 <=> WT-Diff3
 
 -- diff₃-Diff-suf : ∀ {xs ys zs ws} {x : DList xs} {y : DList ys} {z : DList zs}
 --                  {e₁ : ES xs ys} {e₂ : ES xs zs} (d₁ : Diff x y e₁) (d₂ : Diff x z e₂) ->
