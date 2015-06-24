@@ -55,13 +55,13 @@ noBackOutChanges₂ c d p₁ q | propagate f∈₁ g∈₂ m f∈₃ | e₃ | re
 -- Just reuse noBackOutChanges₁ using a `downgraded' Merged₃ 
 noBackOutChangesMerged₁ : ∀ {xs ys zs ws as bs cs ds} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws}
                             {u : Val as bs} {v : Val cs ds} {f : u ~> v} -> 
-                            Change f -> Merged₃ e₁ e₂ e₃ -> f ∈ₑ e₁ -> f ∈ₑ e₃
-noBackOutChangesMerged₁ c m p = ∈₃-∈ₑ (noBackOutChanges₁ c (Merged₃-Diff₃ m) p (ES-NoCnf _))
+                            {{c : Change f}} -> Merged₃ e₁ e₂ e₃ -> f ∈ₑ e₁ -> f ∈ₑ e₃
+noBackOutChangesMerged₁ {{c}} m p = ∈₃-∈ₑ (noBackOutChanges₁ c (Merged₃-Diff₃ m) p (ES-NoCnf _))
 
 noBackOutChangesMerged₂ : ∀ {xs ys zs ws as bs cs ds} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws}
                             {u : Val as bs} {v : Val cs ds} {f : u ~> v} -> 
-                            Change f -> Merged₃ e₁ e₂ e₃ -> f ∈ₑ e₂ -> f ∈ₑ e₃
-noBackOutChangesMerged₂ c m p = ∈₃-∈ₑ (noBackOutChanges₂ c (Merged₃-Diff₃ m) p (ES-NoCnf _))
+                            {{c : Change f}} -> Merged₃ e₁ e₂ e₃ -> f ∈ₑ e₂ -> f ∈ₑ e₃
+noBackOutChangesMerged₂ {{c}} m p = ∈₃-∈ₑ (noBackOutChanges₂ c (Merged₃-Diff₃ m) p (ES-NoCnf _))
 
 -- The sum type ⊎ corresponds to disjunction in logic (∨).
 -- An edit can belong to both the script and in those cases I default to inj₁.

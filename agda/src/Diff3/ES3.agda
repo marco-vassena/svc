@@ -120,3 +120,13 @@ ES-NoCnf (x ∷ e) = x ∷ (ES-NoCnf e)
 ∈₃-∈ₑ {e = []} ()
 ∈₃-∈ₑ {e = .x ∷ e} (here x) = here x
 ∈₃-∈ₑ {e = .x ∷ e} (there x p) = there x (∈₃-∈ₑ p)
+
+-- The source function ⟪_⟫₃ is equivalent to ⟪_⟫
+⟪⟫-⟪⟫₃ : ∀ {xs ys} (e : ES xs ys) -> ⟪ e ⟫ ≡ ⟪ ⌞ e ⌟ ⟫₃ 
+⟪⟫-⟪⟫₃ [] = refl
+⟪⟫-⟪⟫₃ (Ins α ∷ e) = ⟪⟫-⟪⟫₃ e
+⟪⟫-⟪⟫₃ (Del α ∷ e) rewrite
+  dsplit-lemma ⟪ ⌞ e ⌟ ⟫₃ | dsplit-lemma ⟪ e ⟫ | ⟪⟫-⟪⟫₃ e = refl
+⟪⟫-⟪⟫₃ (Upd α β ∷ e) rewrite
+  dsplit-lemma ⟪ ⌞ e ⌟ ⟫₃ | dsplit-lemma ⟪ e ⟫ | ⟪⟫-⟪⟫₃ e = refl
+⟪⟫-⟪⟫₃ (Nop ∷ e) = ⟪⟫-⟪⟫₃ e

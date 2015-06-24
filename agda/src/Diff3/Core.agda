@@ -216,6 +216,10 @@ data Merged₃ : ∀ {xs ys zs ws} -> ES xs ys -> ES xs zs -> ES xs ws -> Set₁
             {f : u ~> v} {g : u ~> w} {h : u ~> z} -> 
             (m : f ⊔ g ↧ h) -> Merged₃ e₁ e₂ e₃ -> Merged₃ (f ∷ e₁) (g ∷ e₂) (h ∷ e₃)
 
+Merged₃-sym : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} -> Merged₃ e₁ e₂ e₃ -> Merged₃ e₂ e₁ e₃
+Merged₃-sym nil = nil
+Merged₃-sym (cons m d) = cons (↧-sym m) (Merged₃-sym d)
+
 Merged₃⋎ : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} ->
              Merged₃ e₁ e₂ e₃ -> e₁ ⋎ e₂
 Merged₃⋎ nil = nil
@@ -225,3 +229,7 @@ Merged₃-Diff₃ : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ 
                   (m : Merged₃ e₁ e₂ e₃) -> Merged₃⋎ m ⇓ ⌞ e₃ ⌟ 
 Merged₃-Diff₃ nil = nil
 Merged₃-Diff₃ (cons m d) = merge m (Merged₃-Diff₃ d)
+
+Merged₃⟪_⟫ : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} ->
+               Merged₃ e₁ e₂ e₃ -> ⟪ e₁ ⟫ ≡ ⟪ e₃ ⟫
+Merged₃⟪_⟫ {e₃ = e₃} d rewrite ⟪⟫-⟪⟫₃ e₃ = Diff₃⟪ Merged₃-Diff₃ d ⟫
