@@ -14,6 +14,9 @@ open import Relation.Binary.PropositionalEquality
 
 --------------------------------------------------------------------------------
 
+-- Technical remark
+-- Note that we do not want to store inequalities here, otherwise proving that c₁ ≡ c₂
+-- would require extensionality. 
 data Conflict : ∀ {as bs cs ds es fs} (u : Val as bs) (v : Val cs ds) (w : Val es fs) -> Set₁ where
   UpdUpd : ∀ {as bs cs a} (α : View as a) (β : View bs a) (γ : View cs a) -> Conflict ⟨ α ⟩ ⟨ β ⟩ ⟨ γ ⟩
   DelUpd : ∀ {as bs a} (α : View as a) (β : View bs a) -> Conflict ⟨ α ⟩ ⊥ ⟨ β ⟩
@@ -53,27 +56,34 @@ sym₃ (c ∷ᶜ e) = swap c ∷ᶜ sym₃ e
 ⟪ UpdDel α β ∷ᶜ e ⟫₃ | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
 ⟪ InsIns α β ∷ᶜ e ⟫₃ = ⟪ e ⟫₃
 
+--------------------------------------------------------------------------------
+
 -- The proof that an ES₃ does not contain any conflict
 data NoCnf : ∀ {xs} -> ES₃ xs -> Set where
   [] : NoCnf []
   _∷_ : ∀ {as bs cs ds xs} {v : Val as bs} {w : Val cs ds} {e : ES₃ (as ++ xs)} 
           (f : v ~> w) -> NoCnf e -> NoCnf (f ∷ e)
 
+-- NoCnf is preserved by sym₃
 NoCnf-sym : ∀ {xs} {e : ES₃ xs} -> NoCnf e -> NoCnf (sym₃ e)
 NoCnf-sym [] = []
 NoCnf-sym (f ∷ p) = f ∷ (NoCnf-sym p)
 
+-- When no conflict occurs an ES₃ corresponds to its symmetric
 NoCnf-≡ : ∀ {xs} {e : ES₃ xs} -> NoCnf e -> e ≡ sym₃ e
 NoCnf-≡ [] = refl
 NoCnf-≡ (f ∷ p) = cong (_∷_ f) (NoCnf-≡ p)
 
 --------------------------------------------------------------------------------
--- Merge datatypes
+-- Merge datatypes.
+-- These datatypes describe merging declaratively and succintly.
+--------------------------------------------------------------------------------
 
--- It minimally represents how mappings can be merged.
--- Id₁ and Id₂ can be used when one of the two function is just a copy, in which case we choose the other function.
+-- It minimally represents how transformations can be merged.
+-- Id₁ and Id₂ can be used when one of the two transformation is just id, 
+-- in which case we choose the other transformation.
 -- The third constructor Idem corresponds to the fact that ⊔ is idempotent, therefore any 
--- function can be successfully merged against itself producing the same function. 
+-- transformation can be successfully merged against itself producing itself. 
 -- Note that this datatype is polymorphic in the source node v, which is common
 -- in all the three mappings.
 data _⊔_↧_ {as bs} {v : Val as bs} : ∀ {cs ds es fs gs hs} {a : Val cs ds} {b : Val es fs} {c : Val gs hs} -> 
@@ -84,6 +94,7 @@ data _⊔_↧_ {as bs} {v : Val as bs} : ∀ {cs ds es fs gs hs} {a : Val cs ds}
 
 infixl 2 _⊔_↧_
 
+-- ⊔ is symmetric in the input transformations.
 ↧-sym : ∀ {as bs cs ds es fs gs hs} {v : Val as bs} {a : Val cs ds} {b : Val es fs} {c : Val gs hs}
           {f : v ~> a} {g : v ~> b} {h : v ~> c} -> f ⊔ g ↧ h -> g ⊔ f ↧ h
 ↧-sym (Id₁ f g v≠w) = Id₂ g f v≠w
@@ -107,6 +118,7 @@ data _⊔_↥_ : ∀ {as bs cs ds es fs} {v : Val as bs} {w : Val cs ds} {z : Va
 
 infixl 2 _⊔_↥_
 
+-- ↥ is symmetric modulo `swap', because conflicts are inherently ordered.
 ↥-sym : ∀ {as bs cs ds es fs} {v : Val as bs} {a : Val cs ds} {b : Val es fs} {c : Conflict v a b}
           {f : v ~> a} {g : v ~> b} -> f ⊔ g ↥ c -> g ⊔ f ↥ swap c
 ↥-sym (InsIns f g α≠β) = InsIns g f (¬⋍-sym α≠β)
@@ -114,11 +126,18 @@ infixl 2 _⊔_↥_
 ↥-sym (UpdDel f g α≠β) = DelUpd g f α≠β
 ↥-sym (DelUpd f g α≠β) = UpdDel g f α≠β
 
--- TODO
--- Interesting facts about merge
--- 1) Change f -> Change g -> f ⊔ g ↧ h -> f ≅ g × f ≅ h
--- 2) ¬ (Change f) -> f ⊔ g ↧ g -- This is actually evident from Id₁
--- 3) f : v ~> v -> f ⊔ g ↥ c -> ⊥
+-- If both transformations perform a change and they are merged then they are all the same transformation.
+changeAll-≡ : ∀ {as bs cs ds es fs gs hs} {u : Val as bs} {v : Val cs ds} {w : Val es fs} {z : Val gs hs}
+                {f : u ~> v} {g : u ~> w} {h : u ~> z} -> Change f -> Change g -> f ⊔ g ↧ h -> f ≅ g × f ≅ h
+changeAll-≡ (IsChange v≠w) q (Id₁ f g v≠w₁) = ⊥-elim (v≠w refl)
+changeAll-≡ p (IsChange v≠w) (Id₂ f g v≠w₁) = ⊥-elim (v≠w refl)
+changeAll-≡ p q (Idem f) = refl , refl
+
+-- An id transformation can never raise a conflict
+⊥-IdConflict : ∀ {as bs cs ds} {v : Val as bs} {w : Val cs ds} 
+                  {f : v ~> v} {g : v ~> w} {c : Conflict v v w} -> ¬ (f ⊔ g ↥ c)
+⊥-IdConflict (UpdUpd f g α≠β α≠γ β≠γ) = α≠β refl
+⊥-IdConflict (UpdDel f g α≠β) = α≠β refl
 
 --------------------------------------------------------------------------------
 
@@ -144,9 +163,12 @@ data _⇓_ : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} -> e₁ ⋎ e₂
 
 --------------------------------------------------------------------------------
 
+-- A simple type synonym more readable than ⇓:
+-- Diff₃ e₁ e₂ e₃ is more intuitive than p ⇓ e₃
 Diff₃ : ∀ {xs ys zs} (e₁ : ES xs ys) (e₂ : ES xs zs) {{p : e₁ ⋎ e₂}} -> ES₃ xs -> Set₁
 Diff₃ _ _ {{p}} e₃ = p ⇓ e₃
 
+-- Diff₃ e₁ e₂ e₃ implies that the three editscripts originated from the same source.
 Diff₃⟪_⟫ : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES₃ xs} {p : e₁ ⋎ e₂} ->
             Diff₃ e₁ e₂ e₃ -> ⟪ e₁ ⟫ ≡ ⟪ e₃ ⟫₃
 Diff₃⟪ nil ⟫ = refl
@@ -204,6 +226,7 @@ mergeOrConflict Nop Nop = inj₂ (Nop , Idem Nop)
 
 --------------------------------------------------------------------------------
 
+-- The proof that a conflict is present in ES₃
 data _∈ᶜ_ {as bs cs ds es fs } {u : Val as bs} {v : Val cs ds} {w : Val es fs} 
           : ∀ {xs} -> Conflict u v w -> ES₃ xs -> Set₁ where
   here : ∀ {xs} {e : ES₃ (as ++ xs)} (c : Conflict u v w) -> c ∈ᶜ (c ∷ᶜ e)
@@ -214,13 +237,14 @@ data _∈ᶜ_ {as bs cs ds es fs } {u : Val as bs} {v : Val cs ds} {w : Val es f
 
 infixr 3 _∈ᶜ_ 
 
-
+-- NoCnf and ∈ᶜ are contradictory.
 ⊥-NoCnf : ∀ {xs as bs cs ds es fs} {e : ES₃ xs} {u : Val as bs} {v : Val cs ds} {w : Val es fs}
                  {c : Conflict u v w} -> NoCnf e -> ¬ (c ∈ᶜ e)
 ⊥-NoCnf () (here c)
 ⊥-NoCnf (x ∷ p) (there .x q) = ⊥-NoCnf p q
 ⊥-NoCnf () (thereᶜ c' q)
 
+-- The proof that a transformation is present in ES₃
 data _∈₃_ {as bs cs ds} {u : Val as bs} {v : Val cs ds} : ∀ {xs} -> u ~> v -> ES₃ xs -> Set₁ where
   here : ∀ {xs} {e : ES₃ (as ++ xs)} (f : u ~> v) -> f ∈₃ (f ∷ e)
   there : ∀ {as' bs' cs' ds' xs} {u' : Val as' bs'} {v' : Val cs' ds'} {f : u ~> v} 
@@ -228,25 +252,31 @@ data _∈₃_ {as bs cs ds} {u : Val as bs} {v : Val cs ds} : ∀ {xs} -> u ~> v
   thereᶜ : ∀ {as' bs' cs' ds' es' fs' xs} {u' : Val as' bs'} {v' : Val cs' ds'} {w' : Val es' fs'} 
              {e : ES₃ (as' ++ xs)} {f : u ~> v} (c : Conflict u' v' w') -> f ∈₃ e -> f ∈₃ (c ∷ᶜ e)
 
-infixr 3 _∈₃_ 
-
+infixr 3 _∈₃_
 
 --------------------------------------------------------------------------------
 
 -- TODO move to Diff3.Algo
--- Diff₃
+-- The diff₃ algorithm
 _⨆_ : ∀ {xs ys zs} (e₁ : ES xs ys) (e₂ : ES xs zs) -> {{ p : e₁ ⋎ e₂ }} -> ES₃ xs
 _⨆_ .[] .[] {{nil}} = []
 _⨆_ ._ ._ {{cons x y p}} with mergeOrConflict x y
 _⨆_ ._ ._ {{cons x y p}} | inj₁ (c , _) = c ∷ᶜ _⨆_ _ _ {{p}}
 _⨆_ ._ ._ {{cons x y p}} | inj₂ (z , _) = z ∷ _⨆_ _ _ {{p}}
 
+--------------------------------------------------------------------------------
+-- Relation between Diff₃ and ⨆
+
+-- Sufficient condition: ⨆ => Diff₃
+-- It shows that Diff₃ can safely represent the outcome of ⨆. 
 Diff₃-suf : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} -> (p : e₁ ⋎ e₂) -> Diff₃ e₁ e₂ (e₁ ⨆ e₂)
 Diff₃-suf (cons x y p) with mergeOrConflict x y
 Diff₃-suf (cons x y p) | inj₁ (c , u) = conflict u (Diff₃-suf p)
 Diff₃-suf (cons x y p) | inj₂ (z , m) = merge m (Diff₃-suf p)
 Diff₃-suf nil = nil 
 
+-- Merge and conficts are exclusive:
+-- For any pair of transformations either they are merged or raise a conflict
 mergeConflictExclusive : ∀ {as bs cs ds es fs gs hs} {s : Val as bs} {u : Val cs ds} {v : Val es fs} {w : Val gs hs} 
                            {c : Conflict s u v} {x : s ~> u} {y : s ~> v} {z : s ~> w} -> x ⊔ y ↧ z -> ¬ (x ⊔ y ↥ c)
 mergeConflictExclusive (Id₁ f y _) (UpdUpd .f .y α≠β α≠γ β≠γ) = α≠β refl
@@ -256,6 +286,8 @@ mergeConflictExclusive (Id₂ f y _) (DelUpd .f .y α≠β) = α≠β refl
 mergeConflictExclusive (Idem x) (InsIns .x .x α≠β) = α≠β refl
 mergeConflictExclusive (Idem x) (UpdUpd .x .x α≠β α≠γ β≠γ) = β≠γ refl
 
+-- Merges are deterministic.
+-- If f ⊔ g ↧ h₁ and f ⊔ g ↧ h₂ then h₁ ≅ h₂.
 mergeDeterministic : ∀ {as bs cs ds es fs gs hs is ls} 
                        {a : Val as bs} {b : Val cs ds} {c : Val es fs} {d : Val gs hs} {e : Val is ls} 
                        {f : a ~> b} {g : a ~> c} {h₁ : a ~> d} {h₂ : a ~> e} ->
@@ -270,14 +302,20 @@ mergeDeterministic (Idem h₂) (Id₁ .h₂ .h₂ v≠w) = ⊥-elim (v≠w refl)
 mergeDeterministic (Idem h₂) (Id₂ .h₂ .h₂ v≠w) = ⊥-elim (v≠w refl)
 mergeDeterministic (Idem h₂) (Idem .h₂) = refl
 
+-- Conflicts are deterministic.
+-- If x ⊔ y ↥ c₁ and x ⊔ y ↥ c₂ then c₁ ≡ c₂.
 conflictDeterministic : ∀ {as bs cs ds es fs} {u : Val as bs} {v : Val cs ds} {w : Val es fs} 
-                          {c₁ c₂ : Conflict u v w} {x : u ~> v} {y : u ~> w} -> x ⊔ y ↥ c₁ -> x ⊔ y ↥ c₂ -> c₁ ≡ c₂
+                          {c₁ c₂ : Conflict u v w} {x : u ~> v} {y : u ~> w} -> 
+                          x ⊔ y ↥ c₁ -> x ⊔ y ↥ c₂ -> c₁ ≡ c₂
 conflictDeterministic (InsIns x y α≠β) (InsIns .x .y α≠β₁) = refl
 conflictDeterministic (UpdUpd x y α≠β α≠γ β≠γ) (UpdUpd .x .y α≠β₁ α≠γ₁ β≠γ₁) = refl
 conflictDeterministic (UpdDel x y α≠β) (UpdDel .x .y α≠β₁) = refl
 conflictDeterministic (DelUpd x y α≠β) (DelUpd .x .y α≠β₁) = refl
 
-Diff₃-nec : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES₃ xs} {p : e₁ ⋎ e₂} -> Diff₃ e₁ e₂ e₃ -> e₃ ≡ e₁ ⨆ e₂
+-- Necessary conditions : Diff₃ => ⨆ 
+-- Given Diff₃ e₁ e₂ e₃, e₃ is the result of e₁ ⨆ e₂
+Diff₃-nec : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES₃ xs} {p : e₁ ⋎ e₂} -> 
+              Diff₃ e₁ e₂ e₃ -> e₃ ≡ e₁ ⨆ e₂
 Diff₃-nec nil = refl
 Diff₃-nec (merge {f = f} {g = g} m q) with mergeOrConflict f g
 Diff₃-nec (merge m q) | inj₁ (c , u) = ⊥-elim (mergeConflictExclusive m u)
@@ -287,3 +325,5 @@ Diff₃-nec (conflict {f = f} {g = g} u q) with mergeOrConflict f g
 Diff₃-nec (conflict u q) | inj₁ (c , u') with conflictDeterministic u u'
 Diff₃-nec (conflict u q) | inj₁ (c , u') | refl = cong (_∷ᶜ_ c) (Diff₃-nec q)
 Diff₃-nec (conflict u q) | inj₂ (h , m) = ⊥-elim (mergeConflictExclusive m u)
+
+-- Diff₃ <=> ⨆ , therefore all the properties that hold for Diff₃ hold also for ⨆.
