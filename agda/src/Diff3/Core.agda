@@ -215,3 +215,13 @@ data Merged₃ : ∀ {xs ys zs ws} -> ES xs ys -> ES xs zs -> ES xs ws -> Set₁
             {u : Val as bs} {v : Val cs ds} {w : Val es fs} {z : Val gs hs} 
             {f : u ~> v} {g : u ~> w} {h : u ~> z} -> 
             (m : f ⊔ g ↧ h) -> Merged₃ e₁ e₂ e₃ -> Merged₃ (f ∷ e₁) (g ∷ e₂) (h ∷ e₃)
+
+Merged₃⋎ : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} ->
+             Merged₃ e₁ e₂ e₃ -> e₁ ⋎ e₂
+Merged₃⋎ nil = nil
+Merged₃⋎ (cons m d) = cons _ _ (Merged₃⋎ d)
+
+Merged₃-Diff₃ : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES xs ws} ->
+                  (m : Merged₃ e₁ e₂ e₃) -> Merged₃⋎ m ⇓ ⌞ e₃ ⌟ 
+Merged₃-Diff₃ nil = nil
+Merged₃-Diff₃ (cons m d) = merge m (Merged₃-Diff₃ d)

@@ -16,29 +16,29 @@ data _~>_ : ∀ {as bs cs ds} -> Val as bs -> Val cs ds -> Set where
   Nop : ⊥ ~> ⊥
 
 data ES : List Set -> List Set -> Set₁ where
+  [] : ES [] []
   _∷_ : ∀ {xs ys as bs cs ds} {v : Val as bs} {w : Val cs ds} -> 
           (x : v ~> w) -> (e : ES (as ++ xs) (cs ++ ys)) -> ES (bs ++ xs) (ds ++ ys)
-  [] : ES [] []
   
 --------------------------------------------------------------------------------
 
 ⟦_⟧ : ∀ {xs ys} -> ES xs ys -> DList ys
+⟦ [] ⟧ = []
 ⟦ Ins α ∷ e ⟧ with dsplit ⟦ e ⟧
 ... | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
 ⟦ Del α ∷ e ⟧ = ⟦ e ⟧
 ⟦ Upd α β ∷ e ⟧ with dsplit ⟦ e ⟧
 ... | ds₁ , ds₂ = Node β ds₁ ∷ ds₂
 ⟦ Nop ∷ e ⟧ = ⟦ e ⟧
-⟦ [] ⟧ = []
 
 ⟪_⟫ : ∀ {xs ys} -> ES xs ys -> DList xs
+⟪ [] ⟫ = []
 ⟪ Ins α ∷ e ⟫ = ⟪ e ⟫
 ⟪ Del α ∷ e ⟫ with dsplit ⟪ e ⟫
 ... | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
 ⟪ Upd α β ∷ e ⟫ with dsplit ⟪ e ⟫
 ... | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
 ⟪ Nop ∷ e ⟫ = ⟪ e ⟫
-⟪ [] ⟫ = []
 
 --------------------------------------------------------------------------------
 -- Membership
@@ -156,4 +156,3 @@ map∃ⱽ f (v , p) = v , f p
 
 ∃ⱽ₂ : ∀ {a} -> (∀ {as bs cs ds} -> Val as bs -> Val cs ds -> Set a) -> Set _
 ∃ⱽ₂ P = ∃ⱽ (λ v → ∃ⱽ (λ w → P v w))
-

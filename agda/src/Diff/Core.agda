@@ -73,20 +73,20 @@ mkDiff⟦ Nop d ⟧ = mkDiff⟦ d ⟧
 --------------------------------------------------------------------------------
 
 -- The second edit script extends the first, adding a finite number of Nop.
-data _⊆_ : ∀ {xs ys} -> ES xs ys -> ES xs ys -> Set where
-  stop : [] ⊆ []
+data _⊴_ : ∀ {xs ys} -> ES xs ys -> ES xs ys -> Set where
+  stop : [] ⊴ []
   cons : ∀ {xs ys as bs cs ds} {v : Val as bs} {w : Val cs ds} {e₁ e₂ : ES (as ++ xs) (cs ++ ys)} -> 
-          (x : v ~> w) -> e₁ ⊆ e₂ -> x ∷ e₁ ⊆ x ∷ e₂
-  nop : ∀ {xs ys} {e₁ e₂ : ES xs ys} -> e₁ ⊆ e₂ -> e₁ ⊆ Nop ∷ e₂
+          (x : v ~> w) -> e₁ ⊴ e₂ -> x ∷ e₁ ⊴ x ∷ e₂
+  nop : ∀ {xs ys} {e₁ e₂ : ES xs ys} -> e₁ ⊴ e₂ -> e₁ ⊴ Nop ∷ e₂
 
-infixr 3 _⊆_
+infixr 3 _⊴_
 
 -- ≈ is the equivalence relation for edit scripts.
 -- e₁ ≈ e₂ if the source and target tree of e₁ and e₂ are the same.
 data _≈_ {xs ys} (e₁ e₂ : ES xs ys) : Set₁ where
   eq : ⟪ e₁ ⟫ ≡ ⟪ e₂ ⟫ -> ⟦ e₁ ⟧ ≡ ⟦ e₂ ⟧ -> e₁ ≈ e₂
 
-safe⟪_⟫ : ∀ {xs ys} {e₁ e₂ : ES xs ys} -> e₁ ⊆ e₂ -> ⟪ e₁ ⟫ ≡ ⟪ e₂ ⟫
+safe⟪_⟫ : ∀ {xs ys} {e₁ e₂ : ES xs ys} -> e₁ ⊴ e₂ -> ⟪ e₁ ⟫ ≡ ⟪ e₂ ⟫
 safe⟪ stop ⟫ = refl
 safe⟪ cons (Ins α) p ⟫ = safe⟪ p ⟫
 safe⟪ cons (Del α) p ⟫ rewrite safe⟪ p ⟫ = refl
@@ -94,7 +94,7 @@ safe⟪ cons (Upd α β) p ⟫ rewrite safe⟪ p ⟫ = refl
 safe⟪ cons Nop p ⟫ = safe⟪ p ⟫
 safe⟪ nop p ⟫ = safe⟪ p ⟫
 
-safe⟦_⟧ : ∀ {xs ys} {e₁ e₂ : ES xs ys} -> e₁ ⊆ e₂ -> ⟦ e₁ ⟧ ≡ ⟦ e₂ ⟧
+safe⟦_⟧ : ∀ {xs ys} {e₁ e₂ : ES xs ys} -> e₁ ⊴ e₂ -> ⟦ e₁ ⟧ ≡ ⟦ e₂ ⟧
 safe⟦ stop ⟧ = refl
 safe⟦ cons (Ins α) p ⟧ rewrite safe⟦ p ⟧ = refl
 safe⟦ cons (Del α) p ⟧ = safe⟦ p ⟧
@@ -102,14 +102,14 @@ safe⟦ cons (Upd α β) p ⟧ rewrite safe⟦ p ⟧ = refl
 safe⟦ cons Nop p ⟧ = safe⟦ p ⟧
 safe⟦ nop p ⟧ = safe⟦ p ⟧
 
--- Any e₁ and e₂ for which e₁ ⊆ e₂ is always a SafeExtension 
-⊆-safe : ∀ {xs ys} {e₁ e₂ : ES xs ys} (p : e₁ ⊆ e₂) -> e₁ ≈ e₂
-⊆-safe p = eq safe⟪ p ⟫ safe⟦ p ⟧
+-- Any e₁ and e₂ for which e₁ ⊴ e₂ is always a SafeExtension 
+⊴-safe : ∀ {xs ys} {e₁ e₂ : ES xs ys} (p : e₁ ⊴ e₂) -> e₁ ≈ e₂
+⊴-safe p = eq safe⟪ p ⟫ safe⟦ p ⟧
 
 --------------------------------------------------------------------------------
 
 data _~_ {xs ys zs : List Set} (e₁ : ES xs ys) (e₂ : ES xs zs) : Set₁ where
-  Align : ∀ {e₁' : ES xs ys} {e₂' : ES xs zs} -> (a : e₁ ⊆ e₁') (b : e₂ ⊆ e₂')(p : e₁' ⋎ e₂') -> e₁ ~ e₂
+  Align : ∀ {e₁' : ES xs ys} {e₂' : ES xs zs} -> (a : e₁ ⊴ e₁') (b : e₂ ⊴ e₂')(p : e₁' ⋎ e₂') -> e₁ ~ e₂
 
 Diff⋎ : ∀ {xs ys zs} {x : DList xs} {y : DList ys} {z : DList zs} {e₁ : ES xs ys} {e₂ : ES xs zs} 
         -> Diff x y e₁ -> Diff x z e₂ -> e₁ ~ e₂

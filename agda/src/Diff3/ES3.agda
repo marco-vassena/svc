@@ -54,6 +54,13 @@ sym₃ (c ∷ᶜ e) = swap c ∷ᶜ sym₃ e
 ⟪ UpdDel α β ∷ᶜ e ⟫₃ | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
 ⟪ InsIns α β ∷ᶜ e ⟫₃ = ⟪ e ⟫₃
 
+-- An ES can be turned into ES₃, because we just loose information
+-- about well-typedness of the second index
+⌞_⌟ : ∀ {xs ys} -> ES xs ys -> ES₃ xs
+⌞ [] ⌟ = []
+⌞ x ∷ e ⌟ = x ∷ ⌞ e ⌟
+
+
 --------------------------------------------------------------------------------
 -- Membership in ES₃
 
@@ -102,3 +109,14 @@ NoCnf-≡ (f ∷ p) = cong (_∷_ f) (NoCnf-≡ p)
 ⊥-NoCnf () (here c)
 ⊥-NoCnf (x ∷ p) (there .x q) = ⊥-NoCnf p q
 ⊥-NoCnf () (thereᶜ c' q)
+
+ES-NoCnf : ∀ {xs ys} (e : ES xs ys) -> NoCnf ⌞ e ⌟ 
+ES-NoCnf [] = []
+ES-NoCnf (x ∷ e) = x ∷ (ES-NoCnf e)
+
+-- Maps between ∈₃ and eₑ 
+∈₃-∈ₑ : ∀ {xs ys as bs cs ds} {v : Val as bs} {w : Val cs ds} {e : ES xs ys} {f : v ~> w} ->
+          f ∈₃ ⌞ e ⌟ -> f ∈ₑ e
+∈₃-∈ₑ {e = []} ()
+∈₃-∈ₑ {e = .x ∷ e} (here x) = here x
+∈₃-∈ₑ {e = .x ∷ e} (there x p) = there x (∈₃-∈ₑ p)
