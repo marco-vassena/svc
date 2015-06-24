@@ -53,6 +53,20 @@ sym₃ (c ∷ᶜ e) = swap c ∷ᶜ sym₃ e
 ⟪ UpdDel α β ∷ᶜ e ⟫₃ | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
 ⟪ InsIns α β ∷ᶜ e ⟫₃ = ⟪ e ⟫₃
 
+-- The proof that an ES₃ does not contain any conflict
+data NoCnf : ∀ {xs} -> ES₃ xs -> Set where
+  [] : NoCnf []
+  _∷_ : ∀ {as bs cs ds xs} {v : Val as bs} {w : Val cs ds} {e : ES₃ (as ++ xs)} 
+          (f : v ~> w) -> NoCnf e -> NoCnf (f ∷ e)
+
+NoCnf-sym : ∀ {xs} {e : ES₃ xs} -> NoCnf e -> NoCnf (sym₃ e)
+NoCnf-sym [] = []
+NoCnf-sym (f ∷ p) = f ∷ (NoCnf-sym p)
+
+NoCnf-≡ : ∀ {xs} {e : ES₃ xs} -> NoCnf e -> e ≡ sym₃ e
+NoCnf-≡ [] = refl
+NoCnf-≡ (f ∷ p) = cong (_∷_ f) (NoCnf-≡ p)
+
 --------------------------------------------------------------------------------
 -- Merge datatypes
 
@@ -99,6 +113,12 @@ infixl 2 _⊔_↥_
 ↥-sym (UpdUpd f g α≠β α≠γ β≠γ) = UpdUpd g f α≠γ α≠β (¬⋍-sym β≠γ)
 ↥-sym (UpdDel f g α≠β) = DelUpd g f α≠β
 ↥-sym (DelUpd f g α≠β) = UpdDel g f α≠β
+
+-- TODO
+-- Interesting facts about merge
+-- 1) Change f -> Change g -> f ⊔ g ↧ h -> f ≅ g × f ≅ h
+-- 2) ¬ (Change f) -> f ⊔ g ↧ g -- This is actually evident from Id₁
+-- 3) f : v ~> v -> f ⊔ g ↥ c -> ⊥
 
 --------------------------------------------------------------------------------
 
@@ -194,11 +214,18 @@ data _∈ᶜ_ {as bs cs ds es fs } {u : Val as bs} {v : Val cs ds} {w : Val es f
 
 infixr 3 _∈ᶜ_ 
 
+
+⊥-NoCnf : ∀ {xs as bs cs ds es fs} {e : ES₃ xs} {u : Val as bs} {v : Val cs ds} {w : Val es fs}
+                 {c : Conflict u v w} -> NoCnf e -> ¬ (c ∈ᶜ e)
+⊥-NoCnf () (here c)
+⊥-NoCnf (x ∷ p) (there .x q) = ⊥-NoCnf p q
+⊥-NoCnf () (thereᶜ c' q)
+
 data _∈₃_ {as bs cs ds} {u : Val as bs} {v : Val cs ds} : ∀ {xs} -> u ~> v -> ES₃ xs -> Set₁ where
   here : ∀ {xs} {e : ES₃ (as ++ xs)} (f : u ~> v) -> f ∈₃ (f ∷ e)
   there : ∀ {as' bs' cs' ds' xs} {u' : Val as' bs'} {v' : Val cs' ds'} {f : u ~> v} 
               {e : ES₃ (as' ++ xs)} (g : u' ~> v') -> f ∈₃ e -> f ∈₃ g ∷ e
-  thereᶜ : ∀ {as' bs' cs' ds' es' fs' xs} {u' : Val as' bs'} {v' : Val cs' ds'} {w' : Val es' fs'} {c : Conflict u' v' w'} 
+  thereᶜ : ∀ {as' bs' cs' ds' es' fs' xs} {u' : Val as' bs'} {v' : Val cs' ds'} {w' : Val es' fs'} 
              {e : ES₃ (as' ++ xs)} {f : u ~> v} (c : Conflict u' v' w') -> f ∈₃ e -> f ∈₃ (c ∷ᶜ e)
 
 infixr 3 _∈₃_ 
