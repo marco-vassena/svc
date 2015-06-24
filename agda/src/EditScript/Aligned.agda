@@ -40,25 +40,24 @@ infixr 3 _⋎_
 ⋎-⟪⟫ (cons Nop (Ins α) p) = ⋎-⟪⟫ p
 ⋎-⟪⟫ (cons Nop Nop p) = ⋎-⟪⟫ p
 
--- What are the sufficient conditions on e₁ and e₂ so that diff3 e₁ e₂ is well-typed?
--- I think now we can just have one ↓ relation.
--- data _⇊_ : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES zs ws} -> e₁ ⋎ e₂ -> List Set -> Set₁ where
---   nil : nil ⇊ []
---   cons : ∀ {xs ys zs ws ts} {e₁ : ES xs (ys ++ zs)} {e₂ : ES xs (ys ++ ws)} {p : e₁ ⋎ e₂} ->
---            p ⇊ (ys ++ ts) -> cons (Ins {!!}) {!Ins!} p ⇊ {!!}
+--------------------------------------------------------------------------------
 
-  -- InsIns : ∀ {xs ys zs ws us a} {e₁ : ES xs (ys ++ zs)} {e₂ : ES xs (ys ++ ws)} {p : e₁ ⋎ e₂}
-  --          -> (x : View ys a) -> p ⇊ (ys ++ us) -> InsIns x x p ⇊ (a ∷ us)  -- Same x
-  -- UpdUpd : ∀ {xs ys zs ws us ts a} {e₁ : ES (xs ++ zs) (ys ++ ws)} {e₂ : ES (xs ++ zs) (ys ++ us)} {p : e₁ ⋎ e₂} 
-  --          -> (x : View xs a) (y : View ys a) -> p ⇊ (ys ++ ts) -> UpdUpd x y y p ⇊ (a ∷ ts)
-  -- DelDel : ∀ {xs ys zs ws ts a} {e₁ : ES (xs ++ ys) zs} {e₂ : ES (xs ++ ys) ws} {p : e₁ ⋎ e₂} 
-  --          -> (x : View xs a) -> p ⇊ ts -> DelDel x p ⇊ ts
-  -- DelCpy : ∀ {xs ys zs us ws a} {e₁ : ES (xs ++ ys) zs} {e₂ : ES (xs ++ ys) (xs ++ ws)} {p : e₁ ⋎ e₂} 
-  --          -> (x : View xs a) -> p ⇊ us -> DelUpd x x p ⇊ us
-  -- CpyDel : ∀ {xs ys zs us ws a} {e₁ : ES (xs ++ ys) (xs ++ ws)} {e₂ : ES (xs ++ ys) zs} {p : e₁ ⋎ e₂} 
-  --          -> (x : View xs a) -> p ⇊ us -> UpdDel x x p ⇊ us
-  -- Ins₁ : ∀ {xs ys zs us ws a} {e₁ : ES ys (xs ++ zs)} {e₂ : ES ys us} {p : e₁ ⋎ e₂} {{i : ¬Ins e₂}}
-  --        -> (x : View xs a) -> p ⇊ (xs ++ ws) -> Ins₁ x p ⇊ (a ∷ ws)
-  -- Ins₂ : ∀ {xs ys zs us ws a} {e₁ : ES ys us} {e₂ : ES ys (xs ++ zs)} {p : e₁ ⋎ e₂} {{i : ¬Ins e₁}} 
-  --        -> (x : View xs a) -> p ⇊ (xs ++ ws) -> Ins₂ x p ⇊ (a ∷ ws)
+-- p ⊢ v ~>[ x , y ] is the proof that in two aligned scripts xs and ys, the same source value v
+-- is mapped to x and y in xs and ys respectively
+data Map⋎ {as bs cs ds es fs} (u : Val as bs) (v : Val cs ds) (w : Val es fs) 
+          : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} (p : e₁ ⋎ e₂) -> Set where
+  here : ∀ {xs ys zs} {e₁ : ES (as ++ xs) (cs ++ ys)} {e₂ : ES (as ++ xs) (es ++ zs)} {p : e₁ ⋎ e₂} 
+           (x : u ~> v) (y : u ~> w) -> Map⋎ u v w (cons x y p) 
+  cons : ∀ {xs ys zs as' bs' cs' ds' es' fs'} {e₁ : ES (as' ++ xs) (cs' ++ ys)} {e₂ : ES (as' ++ xs) (es' ++ zs)} 
+           {p : e₁ ⋎ e₂} {u' : Val as' bs'} {v' : Val cs' ds'} {w' : Val es' fs'} 
+           (x : u' ~> v') (y : u' ~> w') -> Map⋎ u v w p -> Map⋎ u v w (cons x y p)
+
+-- More readable syntax
+-- Note that a syntax declaration would not work here, because it is not possible
+-- to include instance arguments (e₁ ⋎ e₂) 
+_,_⊢_~>[_,_] : ∀ {xs ys zs as bs cs ds es fs} (e₁ : ES xs ys) (e₂ : ES xs zs) {{p : e₁ ⋎ e₂}} -> 
+                 (u : Val as bs) (v : Val cs ds) (w : Val es fs) -> Set
+_,_⊢_~>[_,_] e₁ e₂ {{p}} u v w = Map⋎ u v w p
+
+infixr 2 _,_⊢_~>[_,_]
 
