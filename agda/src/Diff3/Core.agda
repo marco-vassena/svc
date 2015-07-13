@@ -28,6 +28,31 @@ data _⊔_↧_ {as bs} {v : Val as bs} : ∀ {cs ds es fs gs hs} {a : Val cs ds}
   Idem : ∀ {cs ds} {w : Val cs ds} -> (f : v ~> w) -> f ⊔ f ↧ f
 
 infixl 2 _⊔_↧_
+ 
+-- TODO it turns out that we don't need v≠w
+data _⊔_↧'_ {as bs} {v : Val as bs} : ∀ {cs ds es fs gs hs} {a : Val cs ds} {b : Val es fs} {c : Val gs hs} -> 
+                                     v ~> a -> v ~> b -> v ~> c -> Set₁ where
+  Id₁ : ∀ {cs ds} {w : Val cs ds} -> (f : v ~> v) (g : v ~> w) -> f ⊔ g ↧' g
+  Id₂ : ∀ {cs ds} {w : Val cs ds} -> (f : v ~> w) (g : v ~> v) -> f ⊔ g ↧' f
+  Idem : ∀ {cs ds} {w : Val cs ds} -> (f : v ~> w) -> f ⊔ f ↧' f
+
+edit-≅ : ∀ {as bs} {v : Val as bs} -> (f g : v ~> v) -> f ≅ g
+edit-≅ Nop Nop = refl
+edit-≅ (Upd α .α) (Upd .α .α) = refl
+
+mergeDeterministic' : ∀ {as bs cs ds es fs gs hs is ls} 
+                       {a : Val as bs} {b : Val cs ds} {c : Val es fs} {d : Val gs hs} {e : Val is ls} 
+                       {f : a ~> b} {g : a ~> c} {h₁ : a ~> d} {h₂ : a ~> e} ->
+                       f ⊔ g ↧' h₁ -> f ⊔ g ↧' h₂ -> h₁ ≅ h₂
+mergeDeterministic' (Id₁ f g) (Id₁ .f .g) = refl
+mergeDeterministic' (Id₁ f g) (Id₂ .f .g) = edit-≅ g f
+mergeDeterministic' (Id₁ f .f) (Idem .f) = refl
+mergeDeterministic' (Id₂ f g) (Id₁ .f .g) = edit-≅ f g
+mergeDeterministic' (Id₂ f g) (Id₂ .f .g) = refl
+mergeDeterministic' (Id₂ f .f) (Idem .f) = refl
+mergeDeterministic' (Idem f) (Id₁ .f .f) = refl
+mergeDeterministic' (Idem f) (Id₂ .f .f) = refl
+mergeDeterministic' (Idem f) (Idem .f) = refl
 
 -- ⊔ is symmetric in the input transformations.
 ↧-sym : ∀ {as bs cs ds es fs gs hs} {v : Val as bs} {a : Val cs ds} {b : Val es fs} {c : Val gs hs}
@@ -61,10 +86,11 @@ infixl 2 _⊔_↥_
 ↥-sym (UpdDel f g α≠β) = DelUpd g f α≠β
 ↥-sym (DelUpd f g α≠β) = UpdDel g f α≠β
 
+-- TODO here or in Algo?
 -- For any two mapping from the same source u, either there is a third mapping h from u that merges them
 -- or the merge fails with some conflict c. 
 mergeOrConflict : ∀ {as bs cs ds es fs} {u : Val as bs} {v : Val cs ds} {w : Val es fs} 
-                    (f : u ~> v) (g : u ~> w) -> (∃ λ c -> f ⊔ g ↥ c) ⊎ ∃ᴹ (λ h → f ⊔ g ↧ h)
+                    (f : u ~> v) (g : u ~> w) -> (∃ λ c -> f ⊔ g ↥ c) ⊎ (∃ᴹ λ h → f ⊔ g ↧ h)
 mergeOrConflict (Ins {a = a} α) (Ins {a = b} β) with α ≟ β
 mergeOrConflict (Ins α) (Ins .α) | yes refl = inj₂ (Ins α , Idem (Ins α))
 mergeOrConflict (Ins α) (Ins β) | no ¬p = inj₁ (InsIns α β , InsIns (Ins α) (Ins β) ¬p)
@@ -119,12 +145,12 @@ mergeDeterministic (Idem h₂) (Idem .h₂) = refl
 -- Conflicts are deterministic.
 -- If x ⊔ y ↥ c₁ and x ⊔ y ↥ c₂ then c₁ ≡ c₂.
 conflictDeterministic : ∀ {as bs cs ds es fs} {u : Val as bs} {v : Val cs ds} {w : Val es fs} 
-                          {c₁ c₂ : Conflict u v w} {x : u ~> v} {y : u ~> w} -> 
-                          x ⊔ y ↥ c₁ -> x ⊔ y ↥ c₂ -> c₁ ≡ c₂
-conflictDeterministic (InsIns x y α≠β) (InsIns .x .y α≠β₁) = refl
-conflictDeterministic (UpdUpd x y α≠β α≠γ β≠γ) (UpdUpd .x .y α≠β₁ α≠γ₁ β≠γ₁) = refl
-conflictDeterministic (UpdDel x y α≠β) (UpdDel .x .y α≠β₁) = refl
-conflictDeterministic (DelUpd x y α≠β) (DelUpd .x .y α≠β₁) = refl
+                          {c₁ c₂ : Conflict u v w} {f : u ~> v} {g : u ~> w} -> 
+                          f ⊔ g ↥ c₁ -> f ⊔ g ↥ c₂ -> c₁ ≡ c₂
+conflictDeterministic (InsIns f g α≠β) (InsIns .f .g α≠β₁) = refl
+conflictDeterministic (UpdUpd f g α≠β α≠γ β≠γ) (UpdUpd .f .g α≠β₁ α≠γ₁ β≠γ₁) = refl
+conflictDeterministic (UpdDel f g α≠β) (UpdDel .f .g α≠β₁) = refl
+conflictDeterministic (DelUpd f g α≠β) (DelUpd .f .g α≠β₁) = refl
 
 --------------------------------------------------------------------------------
 -- Minors proofs about the merge data-types

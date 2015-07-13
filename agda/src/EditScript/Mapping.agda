@@ -5,6 +5,7 @@ open import Data.DTree
 
 open import Data.List
  
+-- TODO can this be implemented as a type synonym ?
 data _⊢ₑ_~>_  {xs ys} (e : ES xs ys) : ∀ {as bs cs ds} -> Val as bs -> Val cs ds -> Set₁ where
   Upd : ∀ {as bs a} (α : View as a) (β : View bs a) -> Upd α β ∈ₑ e -> e ⊢ₑ ⟨ α ⟩ ~> ⟨ β ⟩ 
   Del : ∀ {as a} (α : View as a) -> Del α ∈ₑ e -> e ⊢ₑ ⟨ α ⟩ ~> ⊥

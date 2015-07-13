@@ -12,14 +12,22 @@ open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality
 
 --------------------------------------------------------------------------------
-
--- The diff₃ algorithm
+  
+-- The diff₃ core algorithm
 _⨆_ : ∀ {xs ys zs} (e₁ : ES xs ys) (e₂ : ES xs zs) -> {{ p : e₁ ⋎ e₂ }} -> ES₃ xs
 _⨆_ .[] .[] {{nil}} = []
 _⨆_ ._ ._ {{cons x y p}} with mergeOrConflict x y
 _⨆_ ._ ._ {{cons x y p}} | inj₁ (c , _) = c ∷ᶜ _⨆_ _ _ {{p}}
 _⨆_ ._ ._ {{cons x y p}} | inj₂ (z , _) = z ∷ _⨆_ _ _ {{p}}
 
+open import Diff.Core
+open import Diff.Algo
+-- TODO maybe move to Diff3 outer module
+-- Entry point
+diff₃ : ∀ {xs ys zs} -> DList xs -> DList ys -> DList zs -> ES₃ xs
+diff₃ x y z with Diff⋎ (Diff-suf x y) (Diff-suf x z)
+diff₃ x y z | Align {e₁' = e₁'} {e₂' = e₂'} a b p = e₁' ⨆ e₂'
+        
 --------------------------------------------------------------------------------
 -- When ES₃ is well typed ?
 --------------------------------------------------------------------------------

@@ -8,7 +8,7 @@ open import Lemmas
 -- Diff algorithm
 --------------------------------------------------------------------------------
 
-open import Data.Nat hiding (eq?)
+open import Data.Nat hiding (eq? ; _≟_)
 open import Relation.Binary.PropositionalEquality
 
 del-size : ∀ {zs ws us as n} (xs : DList zs) (ts₁ : DList ws) (ys : DList as) (ts₂ : DList us) 
@@ -29,10 +29,10 @@ upd-size xs ts₁ ys ts₂ p rewrite
 
 -- Computes the length of an edit script.
 cost : ∀ {xs ys} -> ES xs ys -> ℕ
-cost (Ins x ∷ e) = 1 + cost e
-cost (Del x ∷ e) = 1 + cost e
-cost (Upd x y ∷ e) = distance x y + cost e 
-cost (Nop ∷ e) = cost e
+cost (Nop ∷ e) = 1 + cost e
+cost (Del α ∷ e) = 1 + cost e
+cost (Ins α ∷ e) = 1 + cost e
+cost (Upd α β ∷ e) = distance α β + cost e 
 cost [] = 0
 
 open import Relation.Nullary
@@ -49,17 +49,17 @@ infixl 3 _⨅_
 -- an upper-bound on the number of nodes contained in the lists.
 sdiff : ∀ {xs ys n} -> (x : DList xs) (y : DList ys) -> size x + size y ≤ n -> ES xs ys
 sdiff [] [] z≤n = []
-sdiff [] (Node y ys ∷ ts) (s≤s p) rewrite sym (size-+++ ys ts) = Ins y ∷ (sdiff [] (ys +++ ts) p)
-sdiff (Node x xs ∷ ts) [] (s≤s p) rewrite sym (size-+++ xs ts) = Del x ∷ (sdiff (xs +++ ts) [] p)
-sdiff {n = suc n} (Node {a = a} x xs ∷ ts₁) (Node {a = b} y ys ∷ ts₂) (s≤s p) 
+sdiff [] (Node β ys₁ ∷ ys₂) (s≤s p) rewrite sym (size-+++ ys₁ ys₂) = Ins β ∷ (sdiff [] (ys₁ +++ ys₂) p)
+sdiff (Node α xs₁ ∷ xs₂) [] (s≤s p) rewrite sym (size-+++ xs₁ xs₂) = Del α ∷ (sdiff (xs₁ +++ xs₂) [] p)
+sdiff {n = suc n} (Node {a = a} α xs₁ ∷ xs₂) (Node {a = b} β ys₁ ∷ ys₂) (s≤s p) 
   with eq? a b
-sdiff {._} {._} {suc n} (Node x xs ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | yes refl 
-  = Del x ∷ (sdiff (xs +++ ts₁) (Node y ys ∷ ts₂) (del-size xs ts₁ ys ts₂ p)) 
-  ⨅ Ins y ∷ (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ ys ts₂ p))
-  ⨅ Upd x y ∷ (sdiff (xs +++ ts₁) (ys +++ ts₂) (upd-size xs ts₁ ys ts₂ p))
-sdiff {._} {._} {suc n} (Node x xs ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | no ¬p 
-  = Del x ∷ (sdiff (xs +++ ts₁) (Node y ys ∷ ts₂) (del-size xs ts₁ ys ts₂ p)) 
-  ⨅ Ins y ∷ (sdiff (Node x xs ∷ ts₁) (ys +++ ts₂) (ins-size xs ts₁ ys ts₂ p))
+sdiff {._} {._} {suc n} (Node α xs₁ ∷ xs₂) (Node β ys₁ ∷ ys₂) (s≤s p) | yes refl 
+  = Del α ∷ (sdiff (xs₁ +++ xs₂) (Node β ys₁ ∷ ys₂) (del-size xs₁ xs₂ ys₁ ys₂ p)) 
+  ⨅ Ins β ∷ (sdiff (Node α xs₁ ∷ xs₂) (ys₁ +++ ys₂) (ins-size xs₁ xs₂ ys₁ ys₂ p))
+  ⨅ Upd α β ∷ (sdiff (xs₁ +++ xs₂) (ys₁ +++ ys₂) (upd-size xs₁ xs₂ ys₁ ys₂ p))
+sdiff {._} {._} {suc n} (Node α xs₁ ∷ xs₂) (Node β ys₁ ∷ ys₂) (s≤s p) | no a≠b 
+  = Del α ∷ (sdiff (xs₁ +++ xs₂) (Node β ys₁ ∷ ys₂) (del-size xs₁ xs₂ ys₁ ys₂ p)) 
+  ⨅ Ins β ∷ (sdiff (Node α xs₁ ∷ xs₂) (ys₁ +++ ys₂) (ins-size xs₁ xs₂ ys₁ ys₂ p))
 
 -- Computes the minimal-length edit-script.
 -- It calls sdiff with an appropriate upper bound on the number of nodes. 

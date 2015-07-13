@@ -71,6 +71,7 @@ mkDiff⟦ Nop d ⟧ = mkDiff⟦ d ⟧
 -- Now that we have Diff-suf we can use Diff x y e as an approximation of diff x y 
 
 --------------------------------------------------------------------------------
+-- TODO move this section in EditScript
 
 -- The second edit script extends the first, adding a finite number of Nop.
 data _⊴_ : ∀ {xs ys} -> ES xs ys -> ES xs ys -> Set where
@@ -86,6 +87,7 @@ infixr 3 _⊴_
 data _≈_ {xs ys} (e₁ e₂ : ES xs ys) : Set₁ where
   eq : ⟪ e₁ ⟫ ≡ ⟪ e₂ ⟫ -> ⟦ e₁ ⟧ ≡ ⟦ e₂ ⟧ -> e₁ ≈ e₂
 
+-- TODO rename with ⊴-⟪_⟫
 safe⟪_⟫ : ∀ {xs ys} {e₁ e₂ : ES xs ys} -> e₁ ⊴ e₂ -> ⟪ e₁ ⟫ ≡ ⟪ e₂ ⟫
 safe⟪ stop ⟫ = refl
 safe⟪ cons (Ins α) p ⟫ = safe⟪ p ⟫

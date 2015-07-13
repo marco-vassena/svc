@@ -32,7 +32,7 @@ data _⋍_ : ∀ {xs ys a b} -> View xs a -> View ys b -> Set where
 
 ty=>⋍ : ∀ {a b as bs} {x : View as a} {y : View bs b} -> ¬ (a ≡ b) -> ¬ (x ⋍ y)
 ty=>⋍ ¬p refl = ¬p refl
-
+ 
 postulate eq? : (a b : Set) -> Dec (a ≡ b)
 postulate _=?=_ : ∀ {a as bs} (α : View as a) (β : View bs a) -> Dec (α ⋍ β)
 postulate _≟_ : ∀ {a b as bs} (α : View as a) (β : View bs b) -> Dec (α ⋍ β)
@@ -86,6 +86,7 @@ dsplit-lemma : ∀ {{xs ys}} -> (ds : DList (xs ++ ys)) ->
 dsplit-lemma {{[]}} ds = refl
 dsplit-lemma {{x ∷ xs}} (t ∷ ds) = P.cong (_∷_ t) (dsplit-lemma ds)
 
+-- TODO rename to just here and there?
 data _∈_ : ∀ {ys xs a} -> View xs a -> DList ys -> Set₁ where
   ∈-here : ∀ {xs a ys} (x : View xs a) {ts₁ : DList xs} {ts₂ : DList ys} -> x ∈ Node x ts₁ ∷ ts₂
   ∈-there : ∀ {xs a b zs ys} {x : View xs a} {y : View ys b} {ts₁ : DList ys} {ts₂ : DList zs} 

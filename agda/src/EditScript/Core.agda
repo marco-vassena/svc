@@ -10,10 +10,10 @@ data Val : List Set -> List Set -> Set₁ where
   ⟨_⟩ : ∀ {as a} (α : View as a) -> Val as [ a ] 
 
 data _~>_ : ∀ {as bs cs ds} -> Val as bs -> Val cs ds -> Set where
-  Ins : ∀ {as a} (α : View as a) -> ⊥ ~> ⟨ α ⟩
-  Del : ∀ {as a} (α : View as a) -> ⟨ α ⟩ ~> ⊥
-  Upd : ∀ {as bs a} (α : View as a) (β : View bs a) -> ⟨ α ⟩ ~> ⟨ β ⟩
   Nop : ⊥ ~> ⊥
+  Del : ∀ {as a} (α : View as a) -> ⟨ α ⟩ ~> ⊥
+  Ins : ∀ {as a} (α : View as a) -> ⊥ ~> ⟨ α ⟩
+  Upd : ∀ {as bs a} (α : View as a) (β : View bs a) -> ⟨ α ⟩ ~> ⟨ β ⟩
 
 data ES : List Set -> List Set -> Set₁ where
   [] : ES [] []
@@ -24,21 +24,21 @@ data ES : List Set -> List Set -> Set₁ where
 
 ⟦_⟧ : ∀ {xs ys} -> ES xs ys -> DList ys
 ⟦ [] ⟧ = []
-⟦ Ins α ∷ e ⟧ with dsplit ⟦ e ⟧
-... | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
+⟦ Nop ∷ e ⟧ = ⟦ e ⟧
 ⟦ Del α ∷ e ⟧ = ⟦ e ⟧
 ⟦ Upd α β ∷ e ⟧ with dsplit ⟦ e ⟧
 ... | ds₁ , ds₂ = Node β ds₁ ∷ ds₂
-⟦ Nop ∷ e ⟧ = ⟦ e ⟧
+⟦ Ins α ∷ e ⟧ with dsplit ⟦ e ⟧
+... | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
 
 ⟪_⟫ : ∀ {xs ys} -> ES xs ys -> DList xs
 ⟪ [] ⟫ = []
-⟪ Ins α ∷ e ⟫ = ⟪ e ⟫
+⟪ Nop ∷ e ⟫ = ⟪ e ⟫
 ⟪ Del α ∷ e ⟫ with dsplit ⟪ e ⟫
 ... | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
+⟪ Ins α ∷ e ⟫ = ⟪ e ⟫
 ⟪ Upd α β ∷ e ⟫ with dsplit ⟪ e ⟫
 ... | ds₁ , ds₂ = Node α ds₁ ∷ ds₂
-⟪ Nop ∷ e ⟫ = ⟪ e ⟫
 
 --------------------------------------------------------------------------------
 -- Membership

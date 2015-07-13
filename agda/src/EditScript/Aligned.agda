@@ -27,6 +27,8 @@ infixr 3 _⋎_
 ⋎-refl (x ∷ e) = cons x x (⋎-refl e)
 ⋎-refl [] = nil
 
+-- TODO Transitive ? 
+
 -- Roughly says that ⋎ means that the scripts refer to the same source object. 
 ⋎-⟪⟫ : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} -> e₁ ⋎ e₂
        -> ⟪ e₁ ⟫ ≡ ⟪ e₂ ⟫
@@ -40,6 +42,7 @@ infixr 3 _⋎_
 ⋎-⟪⟫ (cons Nop (Ins α) p) = ⋎-⟪⟫ p
 ⋎-⟪⟫ (cons Nop Nop p) = ⋎-⟪⟫ p
 
+-- Note that the opposite does not hold, because ⋎ usually requires Nop to align inserts.
 --------------------------------------------------------------------------------
 
 -- p ⊢ v ~>[ x , y ] is the proof that in two aligned scripts xs and ys, the same source value v
