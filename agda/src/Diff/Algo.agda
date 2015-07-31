@@ -11,6 +11,8 @@ open import Lemmas
 open import Data.Nat hiding (eq? ; _≟_)
 open import Relation.Binary.PropositionalEquality
 
+-- Auxliary lemmas needed to show that certain operations respect
+-- the upper bound on the number of nodes.
 del-size : ∀ {zs ws us as n} (xs : DList zs) (ts₁ : DList ws) (ys : DList as) (ts₂ : DList us) 
            -> size xs + size ts₁ + suc (size ys + size ts₂) ≤ n -> size (xs +++ ts₁) + suc (size ys + size ts₂) ≤ n
 del-size xs ts₁ ys ts₂ p rewrite sym (size-+++ xs ts₁) = p
@@ -45,7 +47,7 @@ e₁ ⨅ e₂ | no ¬p = e₂
 infixl 3 _⨅_
 
 -- Sized-diff
--- In order to convince the type-checker that diff is terminating, we introduce as an invariant
+-- In order to convince the type-checker that diff is terminating, we introduce an invariant:
 -- an upper-bound on the number of nodes contained in the lists.
 sdiff : ∀ {xs ys n} -> (x : DList xs) (y : DList ys) -> size x + size y ≤ n -> ES xs ys
 sdiff [] [] z≤n = []
@@ -85,6 +87,13 @@ lemma-⨅₃ e₁ e₂ e₃ | .e₂ | inj₂ refl with e₂ ⨅ e₃ | lemma-⨅
 lemma-⨅₃ e₁ e₂ e₃ | .e₂ | inj₂ refl | .e₂ | inj₁ refl = inj₂ (inj₁ refl)
 lemma-⨅₃ e₁ e₂ e₃ | .e₂ | inj₂ refl | .e₃ | inj₂ refl = inj₂ (inj₂ refl)
 
+-- Shows that sdiff satisfy the specification set by Diff.
+-- Note that the opposite does not hold in general.
+-- The reason is that diff finds the edit script which minimizes cost.
+-- Therefore given Diff x y e, e ≠ diff x y as e might be one of the non-optimal scripts.
+-- Diff could be adapted to include additional proofs object that thake these issues into account,
+-- but this is not really important for the properties I am going to prove.
+-- In other words, the proofs about Diff are valid regardless of the fact that the edit-script is optimal.
 Diff-suf' : ∀ {xs ys n} (x : DList xs) (y : DList ys) (p : size x + size y ≤ n) -> Diff x y (sdiff x y p)
 Diff-suf' [] [] z≤n = End
 Diff-suf' [] (Node y ys ∷ b) (s≤s p) 
@@ -115,12 +124,8 @@ Diff-suf' (Node x xs₂ ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | no ¬p | .(
 Diff-suf' (Node x xs₂ ∷ ts₁) (Node y ys ∷ ts₂) (s≤s p) | no ¬p | .(Ins y ∷ _) | inj₂ refl 
   = Ins y (Diff-suf' (Node x xs₂ ∷ ts₁) (ys +++ ts₂) (ins-size xs₂ ts₁ ys ts₂ p))
 
--- Note that the opposite does not hold in general.
--- The reason is that diff finds the edit script which minimizes cost.
--- Therefore given Diff x y e, e ≠ diff x y as e might be one of the non-optimal scripts.
--- Diff could be adapted to include additional proofs object that thake these issues into account,
--- but this is not really important for the properties I am going to prove.
--- In other words, the proofs about Diff are valid regardless of the fact that the edit-script is optimal.
-
+-- Shows that diff satisfy the sepcification embodied by Diff.
 Diff-suf : ∀ {xs ys} (x : DList xs) (y : DList ys) -> Diff x y (diff x y)
 Diff-suf x y = Diff-suf' x y (≤-refl (size x + size y))
+
+-- Now that we have Diff-suf we can use Diff x y e as an approximation of diff x y 

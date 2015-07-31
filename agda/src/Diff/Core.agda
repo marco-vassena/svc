@@ -9,6 +9,7 @@ open import Data.List
 open import Data.Product
 open import Relation.Binary.PropositionalEquality
 
+-- Diff x y e denotes that e is the edit script that transform x in y.
 data Diff : ∀ {xs ys} ->  DList xs -> DList ys -> ES xs ys -> Set₁ where
   End : Diff [] [] []
   Del : ∀ {as a xs ys} {e : ES (as ++ xs) ys} {ts₁ : DList as} {ts₂ : DList xs} {ts : DList ys}
@@ -20,7 +21,7 @@ data Diff : ∀ {xs ys} ->  DList xs -> DList ys -> ES xs ys -> Set₁ where
         -> (β : View bs b) -> Diff ts₁ (ts₂ +++ ts₃) e -> Diff ts₁ (Node β ts₂ ∷ ts₃) (Ins β ∷ e)
   Nop : ∀ {xs ys} {ts₁ : DList xs} {ts₂ : DList ys} {e : ES xs ys} -> Diff ts₁ ts₂ e -> Diff ts₁ ts₂ (Nop ∷ e)
 
--- Once more we need to have an explicit mapping with dsplit.
+-- Once more we need to have an explicit separate function to deal with dsplit.
 -- Simple rewriting fails because (probably), the underlying with clause becomes ill-typed.
 Diff-⟦⟧ : ∀ {xs} {{ys zs}} {t₀ : DList xs} (e : ES xs (ys ++ zs)) ->
               let ds₁ , ds₂ = dsplit ⟦ e ⟧ in Diff t₀ ⟦ e ⟧ e -> Diff t₀ (ds₁ +++ ds₂) e
@@ -32,7 +33,8 @@ Diff-⟪⟫ : ∀ {{xs ys}} {zs} {t₁ : DList zs} (e : ES (xs ++ ys) zs) ->
 Diff-⟪⟫ e d 
   rewrite dsplit-lemma ⟪ e ⟫ = d
 
--- Relation between Diff, ⟦_⟧ and ⟪_⟫
+-- From an edit script we can produce a Diff object where the input and output
+-- object correspond to the source and target trees of the edit script.
 mkDiff : ∀ {xs ys} (e : ES xs ys) -> Diff ⟪ e ⟫ ⟦ e ⟧ e
 mkDiff (Ins α ∷ e) = Ins α (Diff-⟦⟧ e (mkDiff e))
 mkDiff (Del α ∷ e) = Del α (Diff-⟪⟫ e (mkDiff e))
@@ -48,7 +50,8 @@ open import Function
 ≡-split (t ∷ a) b (.t ∷ .(a +++ b)) refl with proj₁ (dsplit (a +++ b)) | proj₂ (dsplit (a +++ b)) | ≡-split a b (a +++ b) refl
 ≡-split (t ∷ a) b (.t ∷ .(a +++ b)) refl | .a | .b | refl , refl = refl , refl
  
--- Necessary condition of mkDiff for ⟪_⟫
+
+-- Shows that the source x in Diff x y e corresponds to ⟪ e ⟫, the source object of the edit script.
 mkDiff⟪_⟫ : ∀ {xs ys} {t₀ : DList xs} {t₁ : DList ys} {e : ES xs ys} -> Diff t₀ t₁ e -> t₀ ≡ ⟪ e ⟫
 mkDiff⟪ End ⟫ = refl
 mkDiff⟪ Del {e = e} {ts₁ = ts₁} {ts₂ = ts₂} α d ⟫ with ≡-split ts₁ ts₂ ⟪ e ⟫ mkDiff⟪ d ⟫
@@ -58,7 +61,7 @@ mkDiff⟪ Upd α β d ⟫ | refl , refl = refl
 mkDiff⟪ Ins β d ⟫ = mkDiff⟪ d ⟫
 mkDiff⟪ Nop d ⟫ = mkDiff⟪ d ⟫
 
--- Necessary condition of mkDiff for ⟦_⟧
+-- Shows that the target y in Diff x y e corresponds to ⟦ e ⟧, the target object of the edit script.
 mkDiff⟦_⟧ : ∀ {xs ys} {t₀ : DList xs} {t₁ : DList ys} {e : ES xs ys} -> Diff t₀ t₁ e -> t₁ ≡ ⟦ e ⟧
 mkDiff⟦ End ⟧ = refl
 mkDiff⟦ Del α d ⟧ = mkDiff⟦ d ⟧
@@ -68,51 +71,9 @@ mkDiff⟦ Ins {e = e} {ts₂ = ts₂} {ts₃ = ts₃} β d ⟧ with ≡-split ts
 mkDiff⟦ Ins β d ⟧ | refl , refl = refl
 mkDiff⟦ Nop d ⟧ = mkDiff⟦ d ⟧
 
--- Now that we have Diff-suf we can use Diff x y e as an approximation of diff x y 
-
---------------------------------------------------------------------------------
--- TODO move this section in EditScript
-
--- The second edit script extends the first, adding a finite number of Nop.
-data _⊴_ : ∀ {xs ys} -> ES xs ys -> ES xs ys -> Set where
-  stop : [] ⊴ []
-  cons : ∀ {xs ys as bs cs ds} {v : Val as bs} {w : Val cs ds} {e₁ e₂ : ES (as ++ xs) (cs ++ ys)} -> 
-          (x : v ~> w) -> e₁ ⊴ e₂ -> x ∷ e₁ ⊴ x ∷ e₂
-  nop : ∀ {xs ys} {e₁ e₂ : ES xs ys} -> e₁ ⊴ e₂ -> e₁ ⊴ Nop ∷ e₂
-
-infixr 3 _⊴_
-
--- ≈ is the equivalence relation for edit scripts.
--- e₁ ≈ e₂ if the source and target tree of e₁ and e₂ are the same.
-data _≈_ {xs ys} (e₁ e₂ : ES xs ys) : Set₁ where
-  eq : ⟪ e₁ ⟫ ≡ ⟪ e₂ ⟫ -> ⟦ e₁ ⟧ ≡ ⟦ e₂ ⟧ -> e₁ ≈ e₂
-
--- TODO rename with ⊴-⟪_⟫
-safe⟪_⟫ : ∀ {xs ys} {e₁ e₂ : ES xs ys} -> e₁ ⊴ e₂ -> ⟪ e₁ ⟫ ≡ ⟪ e₂ ⟫
-safe⟪ stop ⟫ = refl
-safe⟪ cons (Ins α) p ⟫ = safe⟪ p ⟫
-safe⟪ cons (Del α) p ⟫ rewrite safe⟪ p ⟫ = refl
-safe⟪ cons (Upd α β) p ⟫ rewrite safe⟪ p ⟫ = refl
-safe⟪ cons Nop p ⟫ = safe⟪ p ⟫
-safe⟪ nop p ⟫ = safe⟪ p ⟫
-
-safe⟦_⟧ : ∀ {xs ys} {e₁ e₂ : ES xs ys} -> e₁ ⊴ e₂ -> ⟦ e₁ ⟧ ≡ ⟦ e₂ ⟧
-safe⟦ stop ⟧ = refl
-safe⟦ cons (Ins α) p ⟧ rewrite safe⟦ p ⟧ = refl
-safe⟦ cons (Del α) p ⟧ = safe⟦ p ⟧
-safe⟦ cons (Upd α β) p ⟧ rewrite safe⟦ p ⟧ = refl
-safe⟦ cons Nop p ⟧ = safe⟦ p ⟧
-safe⟦ nop p ⟧ = safe⟦ p ⟧
-
--- Any e₁ and e₂ for which e₁ ⊴ e₂ is always a SafeExtension 
-⊴-safe : ∀ {xs ys} {e₁ e₂ : ES xs ys} (p : e₁ ⊴ e₂) -> e₁ ≈ e₂
-⊴-safe p = eq safe⟪ p ⟫ safe⟦ p ⟧
-
 --------------------------------------------------------------------------------
 
-data _~_ {xs ys zs : List Set} (e₁ : ES xs ys) (e₂ : ES xs zs) : Set₁ where
-  Align : ∀ {e₁' : ES xs ys} {e₂' : ES xs zs} -> (a : e₁ ⊴ e₁') (b : e₂ ⊴ e₂')(p : e₁' ⋎ e₂') -> e₁ ~ e₂
-
+-- If two edit scripts e₁ and e₂ are derived from the same source object, then e₁ ~ e₂.
 Diff⋎ : ∀ {xs ys zs} {x : DList xs} {y : DList ys} {z : DList zs} {e₁ : ES xs ys} {e₂ : ES xs zs} 
         -> Diff x y e₁ -> Diff x z e₂ -> e₁ ~ e₂
 Diff⋎ End End = Align stop stop nil

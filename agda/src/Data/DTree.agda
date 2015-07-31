@@ -124,10 +124,10 @@ there+++ (t ∷ ts) r = there (there+++ ts r)
 
 -- Depth-first order
 data _⊢_⊏_ : ∀ {xs as bs a b} -> DList xs -> View as a -> View bs b -> Set₁ where
-  here : ∀ {xs ys zs a b} (x : View xs a) {y : View ys b} {ts₁ : DList xs} {ts₂ : DList zs} -> y ∈ (ts₁ +++ ts₂) 
-         -> Node x ts₁ ∷ ts₂ ⊢ x ⊏ y
-  there : ∀ {as bs cs xs a b c} {x : View as a} {y : View bs b} {z : View cs c} {ts₁ : DList cs} {ts₂ : DList xs} 
-          -> ts₁ +++ ts₂ ⊢ x ⊏ y -> Node z ts₁ ∷ ts₂ ⊢ x ⊏ y
+  here : ∀ {as bs cs a b} (α : View as a) {β : View bs b} {ts₁ : DList as} {ts₂ : DList cs} -> β ∈ (ts₁ +++ ts₂) 
+         -> Node α ts₁ ∷ ts₂ ⊢ α ⊏ β
+  there : ∀ {as bs cs xs a b c} {α : View as a} {β : View bs b} {γ : View cs c} {ts₁ : DList cs} {ts₂ : DList xs} 
+          -> ts₁ +++ ts₂ ⊢ α ⊏ β -> Node γ ts₁ ∷ ts₂ ⊢ α ⊏ β
 
 ⊏-∈₁ : ∀ {xs as bs a b} {ts : DList xs} {α : View as a} {β : View bs b} -> ts ⊢ α ⊏ β -> α ∈ ts
 ⊏-∈₁ (here α x) = ∈-here α

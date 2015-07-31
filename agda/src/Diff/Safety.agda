@@ -31,7 +31,7 @@ noTargetMadeUp p q rewrite mkDiff⟦ q ⟧ = targetOrigin p
 -- Inverse of noTargetMadeUp.
 -- Let e be the edit script that maps the source tree x in the target tree y (Diff x y e).
 -- If a node α is present in the target tree y, than there is a value v which is mapped to α
--- in e.
+  -- in e.
 noTargetErase : ∀ {xs ys as a} {α : View as a} {x : DList xs} {y : DList ys} {e : ES xs ys}
             -> Diff x y e -> α ∈ y -> ∃ⱽ (λ v → e ⊢ₑ v ~> ⟨ α ⟩) 
 noTargetErase (Del β d) (∈-here α) = map∃ⱽ (there~> (Del β)) (noTargetErase d (∈-here α))
@@ -67,12 +67,10 @@ noSourceErase (Ins β d) (∈-there p) = map∃ⱽ (there~> (Ins β)) (noSourceE
 noSourceErase (Nop d) (∈-there p) = map∃ⱽ (there~> Nop) (noSourceErase d (∈-there p))
 
 --------------------------------------------------------------------------------
-
---------------------------------------------------------------------------------
 -- The same lemmas are proved using specific data-types.
 -- This are more convienient to work with, when considering Embedding properties.
 
--- Source View present in edit script
+-- Source node present in an edit script
 data _∈ˢ_ {xs ys as a} (α : View as a) (e : ES xs ys) : Set₁ where
   source-∈ : ∀ {bs cs} {v : Val bs cs} {c : ⟨ α ⟩ ~> v} -> c ∈ₑ e -> α ∈ˢ e 
 
@@ -84,26 +82,26 @@ noEraseˢ p q | .(⟨ β ⟩) , Upd α β x = source-∈ x
 noEraseˢ p q | .⊥ , Del α x = source-∈ x
 
 -- Inverse of noErase
--- This lemma cannot be proved directly because of the abstraction introduced by ∈ˢ,
--- therefore the auxiliary lemma noMadeUpAuxˢ, which requires explicit equality proofs,
--- is used.
+-- If a node α is a source in e, then α belongs to the the source of e. 
 noMadeUpˢ : ∀ {xs ys as a} {t₀ : DList xs} {t₁ : DList ys} {e : ES xs ys}
               {α : View as a} -> α ∈ˢ e -> Diff t₀ t₁ e -> α ∈ t₀
 noMadeUpˢ (source-∈ x) q rewrite mkDiff⟪ q ⟫ = ∈-⟪⟫ x
 
 --------------------------------------------------------------------------------
 
--- Target view present in edit script
-
+-- Target node present in edit script
 data _∈ₒ_ {xs ys as a} (α : View as a) (e : ES xs ys) : Set₁ where
   target-∈ : ∀ {bs cs} {v : Val bs cs} {c : v ~> ⟨ α ⟩} -> c ∈ₑ e -> α ∈ₒ e 
 
-noMadeUpₒ : ∀ {xs ys as a} {α : View as a} {x : DList xs} {y : DList ys} {e : ES xs ys}
-            -> α ∈ₒ e -> Diff x y e -> α ∈ y 
-noMadeUpₒ (target-∈ x) q rewrite mkDiff⟦ q ⟧ = ∈-⟦⟧ x
-
+-- If a node α is present in the target y, then in the edit script that targets y,
+-- there is an edit where α is the target. 
 noEraseₒ : ∀ {xs ys as a} {α : View as a} {x : DList xs} {y : DList ys} {e : ES xs ys} ->
              Diff x y e -> α ∈ y -> α ∈ₒ e
 noEraseₒ p q with noTargetErase p q
 noEraseₒ p q | .(⟨ α ⟩) , Upd α β x = target-∈ x
 noEraseₒ p q | .⊥ , Ins α x = target-∈ x
+
+-- If a node α is a target in e, then α belongs to the the target of e. 
+noMadeUpₒ : ∀ {xs ys as a} {α : View as a} {x : DList xs} {y : DList ys} {e : ES xs ys}
+            -> α ∈ₒ e -> Diff x y e -> α ∈ y 
+noMadeUpₒ (target-∈ x) q rewrite mkDiff⟦ q ⟧ = ∈-⟦⟧ x

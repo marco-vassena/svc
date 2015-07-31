@@ -12,13 +12,17 @@ open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality
 
 --------------------------------------------------------------------------------
-  
--- The diff₃ core algorithm
-_⨆_ : ∀ {xs ys zs} (e₁ : ES xs ys) (e₂ : ES xs zs) -> {{ p : e₁ ⋎ e₂ }} -> ES₃ xs
-_⨆_ .[] .[] {{nil}} = []
-_⨆_ ._ ._ {{cons x y p}} with mergeOrConflict x y
-_⨆_ ._ ._ {{cons x y p}} | inj₁ (c , _) = c ∷ᶜ _⨆_ _ _ {{p}}
-_⨆_ ._ ._ {{cons x y p}} | inj₂ (z , _) = z ∷ _⨆_ _ _ {{p}}
+
+-- The merger core algorithm, which reconciles two aligned edit scripts.
+merge₃ : ∀ {xs ys zs} (e₁ : ES xs ys) (e₂ : ES xs zs) -> e₁ ⋎ e₂ -> ES₃ xs
+merge₃ .[] .[] nil = []
+merge₃ ._ ._ (cons f g p) with f ⊔ g
+merge₃ ._ ._ (cons f g p) | inj₁ (c , _) = c ∷ᶜ merge₃ _ _ p
+merge₃ ._ ._ (cons f g p) | inj₂ (h , _) = h ∷ merge₃ _ _ p
+
+-- A nicer entry point for merge₃
+_⊔₃_ : ∀ {xs ys zs} (e₁ : ES xs ys) (e₂ : ES xs zs) -> {{ p : e₁ ⋎ e₂ }} -> ES₃ xs
+_⊔₃_ e₁ e₂ {{p}} = merge₃ e₁ e₂ p
 
 open import Diff.Core
 open import Diff.Algo
@@ -26,7 +30,7 @@ open import Diff.Algo
 -- Entry point
 diff₃ : ∀ {xs ys zs} -> DList xs -> DList ys -> DList zs -> ES₃ xs
 diff₃ x y z with Diff⋎ (Diff-suf x y) (Diff-suf x z)
-diff₃ x y z | Align {e₁' = e₁'} {e₂' = e₂'} a b p = e₁' ⨆ e₂'
+diff₃ x y z | Align {e₁' = e₁'} {e₂' = e₂'} a b p = e₁' ⊔₃ e₂'
         
 --------------------------------------------------------------------------------
 -- When ES₃ is well typed ?
@@ -85,8 +89,8 @@ typeCheck (c ∷ᶜ e) = nothing
 
 Diff₃-refl : ∀ {xs ys} {e : ES xs ys} {e₃ : ES₃ xs} -> (⋎-refl e) ⇓ e₃ -> e₃ ⇒ ys
 Diff₃-refl nil = []
-Diff₃-refl (merge (Id₁ f .f v≠w) d) = ⊥-elim (v≠w refl)
-Diff₃-refl (merge (Id₂ f .f v≠w) d) = ⊥-elim (v≠w refl)
+Diff₃-refl (merge (Id₁ f .f) d) = f ∷ Diff₃-refl d
+Diff₃-refl (merge (Id₂ f .f) d) = f ∷ Diff₃-refl d
 Diff₃-refl (merge (Idem f) d) = f ∷ (Diff₃-refl d)
 Diff₃-refl (conflict (InsIns f .f α≠β) d) = ⊥-elim (α≠β refl)
 Diff₃-refl (conflict (UpdUpd f .f α≠β α≠γ β≠γ) d) = ⊥-elim (β≠γ refl)
@@ -99,35 +103,36 @@ Diff₃-refl (conflict (UpdUpd f .f α≠β α≠γ β≠γ) d) = ⊥-elim (β�
 ↦-sym (cons f g h m q) = cons g f h (↧-sym m) (↦-sym q)
 
 --------------------------------------------------------------------------------
--- Relation between Diff₃ and ⨆
+-- Relation between Diff₃ and ⊔
 
--- Sufficient condition: ⨆ => Diff₃
+-- Sufficient condition: ⊔₃ => Diff₃
 -- It shows that Diff₃ can safely represent the outcome of ⨆. 
-Diff₃-suf : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} -> (p : e₁ ⋎ e₂) -> Diff₃ e₁ e₂ (e₁ ⨆ e₂)
-Diff₃-suf (cons x y p) with mergeOrConflict x y
+Diff₃-suf : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} -> (p : e₁ ⋎ e₂) -> Diff₃ e₁ e₂ (e₁ ⊔₃ e₂)
+Diff₃-suf (cons x y p) with x ⊔ y
 Diff₃-suf (cons x y p) | inj₁ (c , u) = conflict u (Diff₃-suf p)
 Diff₃-suf (cons x y p) | inj₂ (z , m) = merge m (Diff₃-suf p)
 Diff₃-suf nil = nil 
 
--- Necessary conditions : Diff₃ => ⨆ 
+-- Necessary conditions : Diff₃ => ⊔₃
 -- Given Diff₃ e₁ e₂ e₃, e₃ is the result of e₁ ⨆ e₂
 Diff₃-nec : ∀ {xs ys zs} {e₁ : ES xs ys} {e₂ : ES xs zs} {e₃ : ES₃ xs} {p : e₁ ⋎ e₂} -> 
-              Diff₃ e₁ e₂ e₃ -> e₃ ≡ e₁ ⨆ e₂
+              Diff₃ e₁ e₂ e₃ -> e₃ ≡ e₁ ⊔₃ e₂
 Diff₃-nec nil = refl
-Diff₃-nec (merge {f = f} {g = g} m q) with mergeOrConflict f g
+Diff₃-nec (merge {f = f} {g = g} m q) with f ⊔ g
 Diff₃-nec (merge m q) | inj₁ (c , u) = ⊥-elim (mergeConflictExclusive m u)
 Diff₃-nec (merge m q) | inj₂ (h , m') with mergeDeterministic m m'
 Diff₃-nec (merge m q) | inj₂ (h , m') | refl = cong (_∷_ h) (Diff₃-nec q)
-Diff₃-nec (conflict {f = f} {g = g} u q) with mergeOrConflict f g
+Diff₃-nec (conflict {f = f} {g = g} u q) with f ⊔ g
 Diff₃-nec (conflict u q) | inj₁ (c , u') with conflictDeterministic u u'
 Diff₃-nec (conflict u q) | inj₁ (c , u') | refl = cong (_∷ᶜ_ c) (Diff₃-nec q)
 Diff₃-nec (conflict u q) | inj₂ (h , m) = ⊥-elim (mergeConflictExclusive m u)
 
--- Diff₃ <=> ⨆ , therefore all the properties that hold for Diff₃ hold also for ⨆.
+-- Diff₃ <=> ⨆ , therefore all the properties that hold for Diff₃ hold also for ⊔₃.
 
 --------------------------------------------------------------------------------
 -- Relation between well-typedness and Merged₃
 
+-- A Diff₃ that it is well typed is a successful merged and can be converted to Merged₃. 
 Merged₃-suf : ∀ {xs ys zs ws} {e₁ : ES xs ys} {e₂ : ES xs zs} {p : e₁ ⋎ e₂} {e₃ : ES₃ xs} ->
                 Diff₃ e₁ e₂ e₃ -> (q : e₃ ⇒ ws) -> Merged₃ {ws = ws} e₁ e₂ ⌜ e₃ ⌝
 Merged₃-suf nil [] = nil
