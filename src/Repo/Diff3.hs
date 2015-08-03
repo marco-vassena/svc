@@ -22,52 +22,31 @@ import Data.List (intercalate)
 
 debug = trace
 
--- An edit script @ES3 f xs ys zs@ represents is an edit scripts
--- that represents changes from @xs@ to @ys@ and from @xs@ to @zs@.
-data ES3 f xs ys where
+-- An edit script @ES3 f xs@ represents a merged edit script.
+-- It is well-typed with respect to the source object, but
+-- it may be ill-typed with respect to the source object,
+-- or it might contain value-related conflicts.
+data ES3 f xs where
   -- | Inserts something new in the tree
-  Ins3 :: (a :<: f) => f xs a -> ES3 f ys (xs :++: zs) -> ES3 f ys (a ': zs)
+  Ins3 :: (a :<: f) => f xs a -> ES3 f ys -> ES3 f ys
   -- | Removes something from the original tree
-  Del3 :: (a :<: f) => f xs a -> ES3 f (xs :++: ys) zs -> ES3 f (a ': ys) zs  
+  Del3 :: (a :<: f) => f xs a -> ES3 f (xs :++: ys) -> ES3 f (a ': ys)
   -- | Replaces something in the original tree
-  Upd3 :: (a :<: f) => f xs a -> f ys a -> ES3 f (xs :++: zs) (ys :++: ws) -> ES3 f (a ': zs) (a ': ws)
+  Upd3 :: (a :<: f) => f xs a -> f ys a -> ES3 f (xs :++: zs) -> ES3 f (a ': zs)
   -- | A conflict between the two edit script
-  Cnf3 :: Conflict f -> ES3 f xs ys -> ES3 f zs ws
+  Cnf3 :: Conflict f -> ES3 f xs -> ES3 f ys -- TODO remark that it is not worth to make this case well-typed
   -- | Terminates the edit script
-  End3 :: ES3 f '[] '[]
+  End3 :: ES3 f '[]
 
 -- Represents what kind of conflict has been detected.
 data Conflict f where
   InsIns :: f xs a -> f ys b -> Conflict f
-  UpdDel :: f xs a -> f ys b -> Conflict f
-  DelUpd :: f xs a -> f ys b -> Conflict f
-  UpdUpd :: f xs a -> f ys b -> Conflict f
-
-  -- Type-related conflicts
-
-  -- An Ins cannot be accepted because the resulting types don't match
-  BadIns :: f xs a -> Conflict f
-
-  -- We should Delete but the remaining script types don't match up.
-  -- That is either xs differs from '[ a ] (no swap), or the script from Del is
-  -- different from the script left from Cpy (swap)
-  CpyDel :: f xs a -> Conflict f
-
-  -- We should Update but xs differs from ys, therefore the Upd is not type-safe
-  -- (It always works as expected for basic values because xs = ys = [])
-  CpyUpd :: f xs a -> f ys a -> Conflict f
-
--- Applies the edit script to the original object merging changes in different versions
--- of the object. It fails if the script contains a conflict.
-patch3 :: (Family f, Metric f) => Proxy f -> ES3 f xs ys -> DList f xs -> DList f ys
-patch3 p (Upd3 x y e)  = insert y . patch3 p e . delete p x 
-patch3 p (Del3 x e)    =            patch3 p e . delete p x 
-patch3 p (Ins3 x e)    = insert x . patch3 p e
-patch3 p (Cnf3 c e)    = error $ "patch3: Conflict detected " ++ show c
-patch3 _ End3          = id 
+  UpdDel :: f xs a -> f ys a -> Conflict f
+  DelUpd :: f xs a -> f ys a -> Conflict f
+  UpdUpd :: f xs a -> f ys a -> f zs a -> Conflict f
 
 -- Collects the conflict that may be present in the edit script.
-getConflicts :: ES3 f xs ys -> [Conflict f]
+getConflicts :: ES3 f xs -> [Conflict f]
 getConflicts (Upd3 _ _ e) = getConflicts e
 getConflicts (Ins3 _ e) = getConflicts e
 getConflicts (Del3 _ e) = getConflicts e
@@ -78,70 +57,41 @@ instance Reify (FList f) where
   toSList FNil = SNil
   toSList (FCons _ fs) = SCons (toSList fs)
 
-fTake :: SList xs -> g ys -> FList f (xs :++: ys) -> FList f xs
-fTake SNil _ _ = FNil
-fTake (SCons s1) s2 (FCons x xs) = FCons x (fTake s1 s2 xs)
 
-fTail :: FList f (a ': xs) -> FList f xs
-fTail (FCons _ xs) = xs
+--------------------------------------------------------------------------------
 
--- TODO refactoring
--- TODO swap error messages
+-- TODO call this merge3 and reserve diff3 as high-level entry point
 -- Merges two ES scripts in an ES3 script.
-diff3 :: (Family f, Metric f) => ES f xs ys -> ES f xs zs -> ES3 f xs ys
+diff3 :: (Family f, Metric f) => ES f xs ys -> ES f xs zs -> ES3 f xs
 diff3 a@(Upd o x xs) b@(Upd o' y ys) = 
   case aligned o o' of
     (Refl, Refl) -> 
       case (o =?= x, o' =?= y, x =?= y) of
-          (Just (Refl, Refl), _, _) -> 
-              case (collect2 a, collect2 b) of
-                (FCons _ fxs, FCons _ fys) -> 
-                  case eq fxs fys of
-                    Just Refl -> Upd3 o y (diff3 ys xs)  -- Swap
-                    Nothing -> 
-                      let fas = fTake (reifyF x) fxs (collect2 xs)
-                          fbs = fTake (reifyF y) fys (collect2 ys) in
-                        case eq fas fbs of
-                          Just Refl -> Upd3 o y (diff3 xs ys)  -- No Swap
-                          Nothing -> Cnf3 (CpyUpd x y) (diff3 xs ys)
-          (_, Just (Refl, Refl), _) -> Upd3 o x (diff3 xs ys)
-          (_, _, Just (Refl, Refl)) -> Upd3 o x (diff3 xs ys) -- False positive, the scripts agree
-          (_, _, _                ) -> Cnf3 (UpdUpd x y) (diff3 xs ys)
+        (Just (Refl, Refl), _, _) -> Upd3 o y (diff3 xs ys) -- Id1
+        (_, Just (Refl, Refl), _) -> Upd3 o x (diff3 xs ys) -- Id2
+        (_, _, Just (Refl, Refl)) -> Upd3 o x (diff3 xs ys) -- Idem
+        (_, _, _                ) -> Cnf3 (UpdUpd o x y) (diff3 xs ys)
 diff3 a@(Upd o x xs) (Del o' ys) =
   case aligned o o' of
     (Refl, Refl) -> 
       case o =?= x of
-        Just (Refl, Refl) -> 
-          let fa = collect2 a
-              fb = collect2 ys in
-            case eq fa fb of
-              Just Refl -> Del3 o (diff3 ys xs)  -- Swap
-              Nothing -> 
-                let fxs = fTake (reifyF x) (fTail fa) (collect2 xs) in 
-                  case eq fxs (FCons x FNil) of
-                    Just Refl -> Del3 o (diff3 xs ys) -- No Swap
-                    Nothing -> Cnf3 (CpyDel o) (diff3 xs ys)
-        _ -> Cnf3 (UpdDel x o) (diff3 xs ys)
-diff3 (Del o xs) (Upd o' y ys) =
+        Just (Refl, Refl) -> Del3 o (diff3 xs ys) -- Id1
+        Nothing           -> Cnf3 (UpdDel o x) (diff3 xs ys)
+diff3 (Del o xs) (Upd o' y ys) = 
   case aligned o o' of
     (Refl, Refl) -> 
       case o' =?= y of
-        Just (Refl, Refl) -> Del3 o (diff3 xs ys)
-        _ -> Cnf3 (DelUpd o y) (diff3 xs ys)
+        Just (Refl, Refl) -> Del3 o (diff3 xs ys) -- Id2
+        Nothing           -> Cnf3 (DelUpd o y) (diff3 xs ys)
 diff3 (Del x xs) (Del y ys) =
   case aligned x y of
-    (Refl, Refl) -> Del3 x (diff3 xs ys)
-diff3 (Ins x xs) (Ins y ys) = 
+    (Refl, Refl) -> Del3 x (diff3 xs ys) -- Idem
+diff3 (Ins x xs) (Ins y ys) =
   case x =?= y of
-    Just (Refl, Refl) -> Ins3 x (diff3 xs ys)
-    _ -> Cnf3 (InsIns x y) (diff3 xs ys)
-diff3 (Ins x xs) ys = Ins3 x (diff3 xs ys) 
-diff3 e1 e2@(Ins y ys) = 
-  let f2 = collect2 e2
-      f1 = collect2 e1 in
-  case eq f1 f2 of
-    Just Refl -> Ins3 y (diff3 ys e1)
-    Nothing   -> Cnf3 (BadIns y) $ debug ("(" ++ tys f1 ++ " =/= " ++ tys f2 ++ ")") (diff3 e1 ys)
+    Just (Refl, Refl) -> Ins3 x (diff3 xs ys) -- Idem
+    Nothing           -> Cnf3 (InsIns x y) (diff3 xs ys)
+diff3 (Ins x xs) ys = Ins3 x (diff3 xs ys) -- Id2
+diff3 xs (Ins y ys) = Ins3 y (diff3 xs ys) -- Id1
 diff3 End End = End3
 
 -- Checks whether the two witnesses are the same,
@@ -151,6 +101,74 @@ aligned a b =
   case a =?= b of
     Just (Refl, Refl) -> (Refl, Refl)
     _ -> error $ "Scripts not aligned: " ++ string a ++ " <-> " ++ string b
+
+--data Edit f as bs cs ds where
+--  EIns :: f as a -> Edit f '[] '[] as '[ a ]
+--  EDel :: f as a -> Edit f as '[ a ] '[] '[]
+--  EUpd :: f as a -> f bs a -> Edit f as '[ a ] bs '[ a ]
+--
+---- A list of edit scripts, either well-typed or with typed-errors 
+---- TODO point out problems with ambiguity when trying to decouple ES from single edits.
+--data Edits f xs ys where
+--  ENil :: Edits f '[] '[]
+--  ECons :: SList xs -> SList ys -> Edit f as bs cs ds 
+--        -> Edits f (as :++: xs) (cs :++: ys) -> Edits f (bs :++: xs) (ds :++: ys)
+--  ETyErr :: Edit f as bs cs ds -> Edits f xs ys -> Edits f zs ws
+  
+-- Well-typed edit script
+data WES f xs where
+  WES :: FList f ys -> ES f xs ys -> WES f xs
+
+data TypeError f where
+
+-- Use type check and report left if there is at least one error.
+typeCheck :: Family f => ES3 f xs -> Either [TypeError f] (WES f xs)
+typeCheck = undefined
+
+data IsPrefixOf f xs zs where
+  Prefix :: FList f ys -> (xs :++: ys) :~: zs -> IsPrefixOf f xs zs
+
+isTyPrefixOf :: Family f => FList f as -> FList f bs -> Maybe (IsPrefixOf f as bs)
+isTyPrefixOf FNil s = Just $ Prefix s Refl
+isTyPrefixOf (FCons _ _) FNil = Nothing
+isTyPrefixOf (FCons x s1) (FCons y s2) =
+  case (isTyPrefixOf s1 s2, decEq x y) of
+    (Just (Prefix s Refl), Just Refl) -> Just $ Prefix s Refl
+    _ -> Nothing
+
+
+argsToFList :: Family f => f as a -> FList f as
+argsToFList x = undefined (reifyF x)
+
+
+-- TODO multiple type error report?
+-- Exploiting laziness, we can pair a WES with type error.
+-- WES is fully defined only if no errors are reported.
+tyCheck :: Family f => ES3 f xs -> Either (TypeError f) (WES f xs)
+tyCheck End3 = Right $ WES FNil End
+tyCheck (Cnf3 c _) = error $  "Conflict detected: " ++ show c
+tyCheck (Del3 x e) = 
+  case tyCheck e of
+    Right (WES ty e') -> Right $ WES ty (Del x e')
+    Left tyErr -> Left tyErr
+tyCheck (Ins3 x e) = 
+  case tyCheck e of
+    Right (WES ty e') -> 
+      let xs = argsToFList x in
+      case xs `isTyPrefixOf` ty of
+        Just (Prefix xsys Refl) -> Right $ WES (FCons x xsys) (Ins x e')
+        Nothing -> Left $ error "Report type error"
+    Left tyErr -> Left tyErr
+tyCheck (Upd3 x y e) = 
+  case tyCheck e of
+    Right (WES ty e') ->
+      let ys = argsToFList y in
+      case ys `isTyPrefixOf` ty of
+        Just (Prefix yszs Refl) -> Right $ WES (FCons y yszs) (Upd x y e')
+        Nothing -> Left $ error "Report type error"
+    Left tyErr -> Left tyErr
+
+-- TODO: Provide user-friendly entry point, i.e. checks for expected type.
 
 -- Debugging
 tys :: Family f => FList f xs -> String
@@ -162,6 +180,19 @@ tys fs = "[" ++ intercalate "," (go fs) ++ "]"
 --------------------------------------------------------------------------------
 -- Auxiliary functions and data-types used in the diff3 algorithm
 --------------------------------------------------------------------------------
+
+fappend :: FList f xs -> FList f ys -> FList f (xs :++: ys)
+fappend FNil f = f
+fappend (FCons x f1) f2 = FCons x (f1 `fappend` f2)
+
+-- TODO are these needed anymore?
+fTake :: SList xs -> g ys -> FList f (xs :++: ys) -> FList f xs
+fTake SNil _ _ = FNil
+fTake (SCons s1) s2 (FCons x xs) = FCons x (fTake s1 s2 xs)
+
+fTail :: FList f (a ': xs) -> FList f xs
+fTail (FCons _ xs) = xs
+
 
 eq :: Family f => FList f xs -> FList f ys -> Maybe (xs :~: ys)
 eq FNil FNil = Just Refl
@@ -197,7 +228,7 @@ collect2 (Upd x y e) = FCons y fs
   where fs = fdrop (reifyF y) (collect2 e)
 
 --------------------------------------------------------------------------------
-instance Family f => Show (ES3 f xs ys) where
+instance Family f => Show (ES3 f xs) where
   show End3 = "End3"
   show (Ins3 x xs) = "Ins3 " ++ string x ++ " $ " ++ show xs
   show (Del3 x xs) = "Del3 " ++ string x ++ " $ " ++ show xs
@@ -208,7 +239,4 @@ instance Family f => Show (Conflict f) where
   show (InsIns a b) = "InsIns " ++ string a ++ " " ++ string b
   show (UpdDel a b) = "UpdDel " ++ string a ++ " " ++ string b
   show (DelUpd a b) = "DelUpd " ++ string a ++ " " ++ string b
-  show (UpdUpd a b) = "UpdUpd " ++ string a ++ " " ++ string b
-  show (BadIns a)   = "BadIns " ++ string a
-  show (CpyDel a)   = "CpyDel " ++ string a
-  show (CpyUpd a b)   = "CpyUpd " ++ string a ++ " " ++ string b
+  show (UpdUpd o a b) = "UpdUpd " ++ string o ++ " " ++ string a ++ " " ++ string b
