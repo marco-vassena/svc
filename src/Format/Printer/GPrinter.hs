@@ -8,7 +8,7 @@ module Format.Printer.GPrinter where
 import Format.Syntax hiding ((<$>), (<*>), (<|>), pure, fail, (>>=), empty)
 import Format.Printer.Base
 import Data.Monoid
-import Data.HList
+import Data.TypeList.HList
 import Control.Applicative
 import Control.Isomorphism.Partial
 

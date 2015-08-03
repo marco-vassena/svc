@@ -11,7 +11,7 @@ module Format.Token.Char where
 
 import Control.Isomorphism.Partial
 import Data.Char
-import Data.HList
+import Data.TypeList.HList
 import Format.Syntax
 import Format.Combinator
 import Format.Combinator.Prim

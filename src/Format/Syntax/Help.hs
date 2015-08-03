@@ -4,7 +4,7 @@
 
 module Format.Syntax.Help where
 
-import Data.HList
+import Data.TypeList.HList
 import Format.Syntax.Base
 
 -- | This piece of format syntax is used to provide some helpful feedback

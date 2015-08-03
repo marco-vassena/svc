@@ -11,7 +11,7 @@ module Format.Combinator.Base where
 import Prelude
 import qualified Prelude as P
 import Format.Syntax
-import Data.HList
+import Data.TypeList.HList
 import Control.Isomorphism.Partial
 import Control.Applicative (Alternative)
 

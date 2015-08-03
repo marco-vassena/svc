@@ -23,7 +23,7 @@ module Control.Isomorphism.Partial.Prim
 import Prelude (($), fst, snd, otherwise, Eq, (==), Bool)
 import qualified Prelude as P
 
-import Data.HList
+import Data.TypeList.HList
 import Data.Maybe
 import Data.Proxy
 
@@ -57,7 +57,7 @@ infixr 9 <.>
 
 infixr 3 ***
 -- | Joins two isomorphisms, appending inputs and outputs in order.
-(***) ::  Iso xs ys -> Iso zs ws -> Iso (Append xs zs) (Append ys ws)
+(***) ::  Iso xs ys -> Iso zs ws -> Iso (xs :++: zs) (ys :++: ws)
 i *** j = Iso f g (sappend s1 s3) (sappend s2 s4)
    where (s1, s3) = (sapply i, sapply j)
          (s2, s4) = (sunapply i, sunapply j)
@@ -68,7 +68,7 @@ i *** j = Iso f g (sappend s1 s3) (sappend s2 s4)
 
 -- Given an isomorphism that produces a zipper 'HList' returns an isomorphisms
 -- that append the two 'HList' one after the other.
-unpack :: SameLength as bs -> Iso (ZipWith (,) as bs) cs -> Iso (Append as bs) cs 
+unpack :: SameLength as bs -> Iso (ZipWith (,) as bs) cs -> Iso (as :++: bs) cs 
 unpack p i = Iso f g (sappend sAs sBs) (sunapply i) 
   where (sAs, sBs) = toSList2 p
         f hs = apply i (hzip p as bs)
@@ -81,13 +81,13 @@ uncurry i = Iso f g (SCons SNil) (SCons SNil)
   where f (Cons (a, b) _) = apply i $ Cons a (Cons b Nil)
         g hs = hsingleton . happly (,) <$> unapply i hs 
 
-invert :: SList ys -> SList zs -> Iso xs (Append ys zs) -> Iso xs (Append zs ys)
+invert :: SList ys -> SList zs -> Iso xs (ys :++: zs) -> Iso xs (zs :++: ys)
 invert s1 s2 i = Iso f g (sapply i) (sappend s2 s1)
   where switch (hs1, hs2) = happend hs2 hs1
         f hs = switch . split s1 s2 $ apply i hs
         g hs = unapply i . switch $ split s2 s1 hs
 
-swap :: SList xs -> SList ys -> Iso (Append xs ys) (Append ys xs)
+swap :: SList xs -> SList ys -> Iso (xs :++: ys) (ys :++: xs)
 swap s1 s2 = Iso (f s1 s2) (Just . f s2 s1) (sappend s1 s2) (sappend s2 s1)
   where f s1 s2 = P.uncurry (P.flip happend) . split s1 s2
 
@@ -100,7 +100,7 @@ allEmpty (SCons s) = nil *** (allEmpty s)
 -- | Unpacks each list in head and tail.
 -- An hlist containing first all the heads and then all the tails is returned (apply).
 -- If some of the input list is Nothing the isomorphism fails.
-combine ::  SList xs -> Iso (Append xs (Map [] xs)) (Map [] xs) 
+combine ::  SList xs -> Iso (xs :++: (Map [] xs)) (Map [] xs) 
 combine s = unpack (mapPreservesLength proxyList s) (zipper s)
 
 -- | An isomorphism that convert an 'HList' of lists in a zipped 'HList' containing 
@@ -117,7 +117,7 @@ ignore hs = Iso f g (toSList hs) SNil
 -- Generalized foldl.
 -- This signature corresponds to the usual:
 -- foldl :: (b -> a -> b) -> b -> [ a ] -> b
-foldl :: SList as -> Iso (Append bs as) bs -> Iso (Append bs (Map [] as)) bs
+foldl :: SList as -> Iso (bs :++: as) bs -> Iso (bs :++: (Map [] as)) bs
 foldl s1 i = Iso f g (sappend s2 s1') s2
   where s1' = smap proxyList s1
         s2 = sunapply i
@@ -131,7 +131,7 @@ foldl s1 i = Iso f g (sappend s2 s1') s2
 -- Generalized foldr.
 -- This signature corresponds to the usual:
 -- foldr :: (a -> b -> b) -> b -> [ a ] -> b
-foldr :: SList as -> Iso (Append as bs) bs -> Iso (Append bs (Map [] as)) bs
+foldr :: SList as -> Iso (as :++: bs) bs -> Iso (bs :++: (Map [] as)) bs
 foldr s1 i = Iso f g (sappend s2 s1') s2
   where s1' = smap proxyList s1
         s2  = sunapply i
@@ -148,7 +148,7 @@ foldr s1 i = Iso f g (sappend s2 s1') s2
 -- | Isomorphisms are associative.
 associate :: SList xs 
           -> SList ys 
-          -> SList zs -> Iso (Append xs (Append ys zs)) (Append (Append xs ys) zs)
+          -> SList zs -> Iso (xs :++: (ys :++: zs)) ((xs :++: ys) :++: zs)
 associate s1 s2 s3 = Iso f g (sappend s1 (sappend s2 s3)) (sappend (sappend s1 s2) s3)
   where f hs = case appendAssociative s1 s2 s3 of
                   Refl -> hs
@@ -156,6 +156,6 @@ associate s1 s2 s3 = Iso f g (sappend s1 (sappend s2 s3)) (sappend (sappend s1 s
                   Refl -> Just hs
 
 -- | Isomorphisms are commutative.
-commute :: SList xs -> SList ys -> Iso (Append xs ys) (Append ys xs)
+commute :: SList xs -> SList ys -> Iso (xs :++: ys) (ys :++: xs)
 commute s1 s2 =  Iso (f s1 s2) (Just . f s2 s1) (sappend s1 s2) (sappend s2 s1)
   where f s1 s2 = P.uncurry (P.flip happend) . split s1 s2

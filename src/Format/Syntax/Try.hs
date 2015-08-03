@@ -4,7 +4,7 @@
 
 module Format.Syntax.Try where
 
-import Data.HList
+import Data.TypeList.HList
 import Format.Syntax.Base
 
 -- | This piece of format syntax is inspired by the Parsec combinator of the same.

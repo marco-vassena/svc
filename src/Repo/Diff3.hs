@@ -12,8 +12,10 @@
 module Repo.Diff3 where
 
 import Data.Proxy
-import Data.HList
+import Data.TypeList.SList
+import Data.TypeList.DList
 import Data.Type.Equality
+import Repo.Core
 import Repo.Diff
 
 -- Debugging
@@ -53,6 +55,7 @@ getConflicts (Del3 _ e) = getConflicts e
 getConflicts (Cnf3 c e) = c : getConflicts e
 getConflicts End3 = []
 
+-- TODO does not really belong here, maybe in FList module
 instance Reify (FList f) where
   toSList FNil = SNil
   toSList (FCons _ fs) = SCons (toSList fs)
@@ -140,6 +143,19 @@ isTyPrefixOf (FCons x s1) (FCons y s2) =
 argsToFList :: Family f => f as a -> FList f as
 argsToFList x = undefined (reifyF x)
 
+-- TODO remark in thesis: is it possible to catch multiple type errors in this setting?
+--data Unify a b where
+--  Same :: Unify a a
+--  TyErr :: Unify a b -- a and b are different
+
+-- Prefix would report TyErr whenever a or b comes from Top
+
+-- instead of FList we need some form of reified type,
+-- which includes type error, that can be unified with everything.
+--data Type xs where
+--  TNil :: Type '[]
+--  TCons :: s x -> Type xs -> Type (x ': xs)
+--  Top :: Type xs -- Can be anything, because of previous type errors
 
 -- TODO multiple type error report?
 -- Exploiting laziness, we can pair a WES with type error.

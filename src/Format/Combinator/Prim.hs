@@ -9,7 +9,7 @@
 
 module Format.Combinator.Prim where
 
-import Data.HList
+import Data.TypeList.HList
 import Data.Maybe
 import Format.Syntax
 import Format.Combinator.Base

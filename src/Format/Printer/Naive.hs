@@ -13,7 +13,7 @@ module Format.Printer.Naive (
 
 import Control.Applicative
 
-import Data.HList
+import Data.TypeList.HList
 import Data.ByteString.Char8
 
 import Format.Syntax.Help

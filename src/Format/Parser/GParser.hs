@@ -7,7 +7,7 @@ module Format.Parser.GParser where
 
 import Format.Syntax hiding ((<$>), (<*>), (<|>), pure, fail, (>>=), empty)
 import Format.Parser.Base
-import Data.HList
+import Data.TypeList.HList
 import Control.Applicative
 import Control.Isomorphism.Partial
 

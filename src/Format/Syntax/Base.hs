@@ -3,6 +3,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE TypeOperators #-}
 
 -- | This module defines types for describing formats
 
@@ -10,7 +11,7 @@ module Format.Syntax.Base where
 
 import Prelude ((.), Bool(..), const)
 import Control.Isomorphism.Partial
-import Data.HList
+import Data.TypeList.HList
 import Data.Type.Equality
 import GHC.Exts
 
@@ -29,7 +30,7 @@ type SFormat c m i a = Format c m i '[ a ]
 data Seq c (m :: * -> *) (i :: *) (zs :: [*]) where
   Seq :: (c m i a, Reify (a m i),
           c m i b, Reify (b m i))
-      => a m i xs -> b m i ys -> Seq c m i (Append xs ys)
+      => a m i xs -> b m i ys -> Seq c m i (xs :++: ys)
 
 data Satisfy c (m :: * -> *) (i :: *) (xs :: [ * ]) where
   Satisfy :: (i -> Bool) -> Satisfy c m i '[i]
@@ -52,7 +53,7 @@ data Fail c (m :: * -> *) (i :: *) (xs :: [ * ]) where
 
 data Bind c (m :: * -> *) (i :: *) (xs :: [ * ]) where
   Bind :: (c m i a, c m i b, Reify (a m i)) 
-       => SList ys -> a m i xs -> (HList xs -> b m i ys) -> Bind c m i (Append xs ys)
+       => SList ys -> a m i xs -> (HList xs -> b m i ys) -> Bind c m i (xs :++: ys)
 
 fail :: (Use Fail c m i, KnownSList xs) => Format c m i xs
 fail = format (Fail slist)
@@ -69,12 +70,12 @@ type BindC a c m i = (Use Bind      c m i,
 -- return a Format.
 
 (>>=) :: (BindC a c m i, KnownSList ys) 
-      => a c m i xs -> (HList xs -> Format c m i ys) -> Format c m i (Append xs ys)
+      => a c m i xs -> (HList xs -> Format c m i ys) -> Format c m i (xs :++: ys)
 f >>= k = format (Bind slist f k)
 
 type SeqC a b c m i = (UseAndReify a c m i, UseAndReify b c m i, Use Seq c m i) 
 
-(<*>) :: SeqC a b c m i  => a c m i xs -> b c m i ys -> Format c m i (Append xs ys)
+(<*>) :: SeqC a b c m i  => a c m i xs -> b c m i ys -> Format c m i (xs :++: ys)
 a <*> b = format (Seq a b)
 
 (*>) :: SeqC a b c m i => a c m i '[] -> b c m i ys -> Format c m i ys

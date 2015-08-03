@@ -5,7 +5,7 @@
 module Format.Parser.Base where
 
 import Format.Syntax
-import Data.HList
+import Data.TypeList.HList
 
 class ParseWith (m :: * -> *) (i :: *) a where
   mkParser' :: a m i xs -> m (HList xs)

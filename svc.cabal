@@ -17,13 +17,20 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:     src
-                      -- TODO clean up this section
-  exposed-modules:    Format, Format.Syntax, Format.Syntax.Base, Format.Syntax.Help, Format.Syntax.Try
-                      Format.Parser, Format.Printer,
-                      Format.Printer.Naive, Format.Printer.Base, Data.HList, Control.Isomorphism.Partial.Prim,
+                      -- TODO clean up this section, what needs to be exposed?
+  exposed-modules:    
+                      -- Type level lists and similars
+                      Data.TypeList.HList, Data.TypeList.DList, 
+
+                      -- Auxiliary iso staff
+                      Control.Isomorphism.Partial.Prim, Control.Isomorphism.Partial.Constructors,
+                      Control.Isomorphism.Partial.Base, 
+
+                      -- Formats staff
+                      Format, Format.Syntax, Format.Syntax.Base, Format.Syntax.Help, Format.Syntax.Try
+                      Format.Parser, Format.Printer, Format.Printer.Naive, Format.Printer.Base, 
                       Format.Parser.Naive, Format.Parser.UU, Format.Parser.Parsec, Format.Parser.Attoparsec,
                       Format.Parser.Base, Format.Token, Format.Token.Char, Format.Combinator
-                      Control.Isomorphism.Partial.Constructors Control.Isomorphism.Partial.Base, 
                       Format.Printer.GPrinter, Format.Parser.GParser,
 
                       -- Version control
@@ -32,7 +39,7 @@ library
   other-modules:      Format.Combinator.Base, Format.Combinator.Prim, 
 
                       -- Repository
-                      Repo.Path, Repo.Head, Repo.Diff, Repo.Diff3, Repo.Diff3UnTy
+                      Repo.Path, Repo.Head, Repo.Diff, Repo.Diff3, Repo.Core
 
   build-depends:      base >=4.7 && <4.8, mtl >=2.2, transformers >= 0.3, 
 

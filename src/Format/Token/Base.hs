@@ -4,7 +4,7 @@
 module Format.Token.Base where
 
 import Prelude hiding (takeWhile)
-import Data.HList
+import Data.TypeList.HList
 
 import Format.Syntax
 import Format.Combinator

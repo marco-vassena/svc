@@ -39,7 +39,7 @@ module Format.Combinator (
 import Format.Combinator.Base
 import qualified Format.Combinator.Prim as P
 import Control.Isomorphism.Partial
-import Data.HList
+import Data.TypeList.HList
 import Format.Syntax
 
 -- '@atMost@ n f k' has the following behaviour:

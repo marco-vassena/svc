@@ -8,7 +8,7 @@ module Format.Printer.Base where
 
 import Format.Syntax
 import Control.Monad
-import Data.HList
+import Data.TypeList.HList
 
 class PrintWith s (m :: * -> *) (i :: *) a where
   mkPrinter' :: a m i xs -> HList xs -> m s

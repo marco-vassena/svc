@@ -11,11 +11,34 @@
 -- This module defines typed heterogeneous lists
 -- and few basic functions to deal with them.
 
-module Data.HList where
+module Data.TypeList.HList (
+    module Data.TypeList.Core
+  , module Data.TypeList.SList
+  , HList(..)
+  , HApply(..)
+  , SameLength(..)
+  , hsingleton
+  , hHead
+  , happend
+  , split
+  , hzip
+  , hunzip
+  , hfoldr
+  , hfoldl
+  , hunfoldr
+  , hunfoldl
+  , proxyList
+  , appendAssociative
+  , mapPreservesLength
+  , leftIdentityAppend
+  , rightIdentityAppend
+  ) where
 
 import GHC.TypeLits
 import Data.Proxy
 import Data.Type.Equality
+import Data.TypeList.Core
+import Data.TypeList.SList
 import Control.Applicative
 
 -- Heterogeneous list, indexed by a type level list that
@@ -24,24 +47,8 @@ data HList (xs :: [ * ]) where
   Nil :: HList '[]
   Cons :: x -> HList xs -> HList (x ': xs)
 
--- Type level append
-type family Append (xs :: [ * ]) (ys :: [ * ]) :: [ * ] where
-  Append '[] ys = ys
-  Append (x ': xs) ys = x ': Append xs ys
-
--- Type level map 
-type family Map (f :: * -> *) (xs :: [ * ]) :: [ * ] where
-  Map f '[] = '[]
-  Map f (x ': xs) = f x ': Map f xs
-
--- Type level zip
-type family ZipWith (f :: * -> * -> *) (xs :: [ * ]) (ys :: [ * ]) where
-  ZipWith f '[] '[] = '[]
-  ZipWith f (x ': xs) (y ': ys) = f x y ': ZipWith f xs ys
-  ZipWith f  xs ys  = '[]
-
 -- Appends two heterogeneous lists
-happend :: HList xs -> HList ys -> HList (Append xs ys)
+happend :: HList xs -> HList ys -> HList (xs :++: ys)
 happend Nil ys = ys
 happend (Cons x xs) ys = Cons x (happend xs ys)
 
@@ -110,34 +117,6 @@ hTail :: HList (x ': xs) -> HList xs
 hTail (Cons x hs) = hs
 
 --------------------------------------------------------------------------------
--- The singleton type of lists, which allows us to take a list as a
--- term-level and a type-level argument at the same time.
--- It is used to retrieve information about the shape of an
--- 'HList' at runtime.
-data SList xs where
- SNil :: SList '[]
- SCons :: SList xs -> SList (x ': xs)
-
--- | Append function for the singleton type 'SList'.
-sappend :: SList xs -> SList ys -> SList (Append xs ys)
-sappend SNil ys = ys
-sappend (SCons xs) ys = SCons (sappend xs ys)
-
--- | Map function for the singleton type SList.
-smap :: Proxy f -> SList xs -> SList (Map f xs)
-smap _ SNil = SNil
-smap p (SCons xs) = SCons (smap p xs) 
-
--- | A class of objects parametrized over a type level list 
-class Reify f where
-  -- | Return the 'SList' witness object for the parametrized list.
-  toSList :: f xs -> SList xs
-
--- A class of objects parametrized over two type level lists
-class Reify2 f where
-  -- | Returns the 'SList' witness object for both the parametrized lists.
-  toSList2 :: f xs ys -> (SList xs, SList ys)
-
 instance Reify HList where
   toSList Nil = SNil
   toSList (Cons x xs) = SCons (toSList xs)
@@ -213,7 +192,7 @@ merge SNil Nil Nil = Nil
 merge (SCons s) (Cons x xs) (Cons ys yss) = Cons (x : ys) (merge s xs yss)
   
 -- Splits an hlist in two sub-hlists, according to the given index as 'SList'.
-split :: SList xs -> SList ys -> HList (Append xs ys) -> (HList xs, HList ys)
+split :: SList xs -> SList ys -> HList (xs :++: ys) -> (HList xs, HList ys)
 split SNil s hs = (Nil, hs)
 split (SCons s1) s2 (Cons h hs) = (Cons h hs1, hs2)
   where (hs1, hs2) = split s1 s2 hs
@@ -293,33 +272,23 @@ instance Reify2 SameLength where
 
 -- | Proof that append is associative.
 appendAssociative :: SList xs -> SList ys -> SList zs 
-                -> HList (Append xs (Append ys zs)) :~: HList (Append (Append xs ys) zs)
+                -> HList (xs :++: (ys :++: zs)) :~: HList ((xs :++: ys) :++: zs)
 appendAssociative SNil s2 s3 = Refl
 appendAssociative (SCons s1) s2 s3 =
   case appendAssociative s1 s2 s3 of
     Refl -> Refl
 
-leftIdentityAppend :: SList xs -> Append '[] xs :~: xs
+leftIdentityAppend :: SList xs -> '[] :++: xs :~: xs
 leftIdentityAppend SNil = Refl
 leftIdentityAppend (SCons s) = 
   case leftIdentityAppend s of
     Refl -> Refl
 
-rightIdentityAppend :: SList xs -> Append xs '[] :~: xs
+rightIdentityAppend :: SList xs -> xs :++: '[] :~: xs
 rightIdentityAppend SNil = Refl
 rightIdentityAppend (SCons s) = 
   case rightIdentityAppend s of
     Refl -> Refl
-
---------------------------------------------------------------------------------
-class KnownSList xs where
-  slist :: SList xs
-
-instance KnownSList '[] where
-  slist = SNil
-
-instance KnownSList xs => KnownSList (x ': xs) where
-  slist = SCons slist
 
 --------------------------------------------------------------------------------
 -- Debugging

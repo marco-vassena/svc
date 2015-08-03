@@ -6,7 +6,7 @@ module Control.Isomorphism.Partial.Constructors where
 import Control.Isomorphism.Partial.Base
 import Control.Applicative
 
-import Data.HList
+import Data.TypeList.HList
 
 --------------------------------------------------------------------------------
 -- Partial isomorphisms for standard data types

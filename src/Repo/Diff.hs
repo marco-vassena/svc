@@ -1,18 +1,13 @@
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Repo.Diff where
 
 import Data.Proxy
-import Data.HList
 import Data.Type.Equality
-
--- TODO use this in Data.HList instead of :++:
-type (:++:) = Append
+import Data.TypeList.DList
+import Repo.Core
 
 -- TODO for the ES datatype we could
 -- 1) Include Cpy (a special case of Upd), which might make the code for diff3 easier.
@@ -32,12 +27,6 @@ data ES f xs ys where
   -- | Terminates the edit script
   End :: ES f '[] '[]
 
--- A @'View' f a@ deconstructs a value, producing a 
--- witness @f xs a@ of its constructor, with a list 
--- containing its fields.
-data View f a where
-  View :: f xs a -> DList f xs -> View f a
-
 --------------------------------------------------------------------------------
 -- TODO probably we want to store the cost with the edit script
 cost :: Metric f => ES f xs ys -> Int
@@ -49,21 +38,6 @@ cost (Upd f g xs) = distance f g + cost xs
 -- Returns the best edit tree (least distance)
 (&) :: Metric f => ES f xs ys -> ES f xs ys -> ES f xs ys
 x & y = if cost x <= cost y then x else y
-
---------------------------------------------------------------------------------
-
-data DList f xs where
-  DNil :: DList f '[]
-  DCons :: (x :<: f) => x -> DList f xs -> DList f (x ': xs)
-
-dappend :: DList f xs -> DList f ys -> DList f (xs :++: ys)
-dappend DNil ys = ys
-dappend (DCons x xs) ys = DCons x (dappend xs ys)
-
-dsplit :: SList xs -> DList f (xs :++: ys) -> (DList f xs, DList f ys)
-dsplit SNil ds = (DNil, ds)
-dsplit (SCons s) (DCons x ds) = (DCons x ds1, ds2)
-  where (ds1, ds2) = dsplit s ds
 
 --------------------------------------------------------------------------------
 
@@ -220,36 +194,11 @@ extractD (CN g e i) = DES g e i
 extractD (CC f g e _ i _) = DES f e i
 
 --------------------------------------------------------------------------------
--- Represents the fact that a type a belongs to a particular
--- family of mutually recursive data-types
-class a :<: f where
-  view :: Proxy f -> a -> View f a
-
-class Family f where
-  -- TODO better name
-  decEq :: f xs a -> f ys b -> Maybe (a :~: b)
-  
-  -- Succeds only if the singleton types represents exactly the same constructor
-  (=?=) :: Family f => f xs a -> f ys b -> Maybe ( a :~: b , xs :~: ys ) -- TODO: Remove Family f 
-
-  string :: f xs a -> String
-  build :: f xs a -> DList f xs -> a
-  unbuild :: f xs a -> a -> Maybe (DList f xs)
-  
-  reifyF :: f xs a -> SList xs
-
-class Metric f where
-  -- Laws:
-  --  d x y = d y x             (symmetry)
-  --  d x y >= 0                (non-negativity)
-  --  d x x = 0                 (identity)
-  --  d x z <= d x y + d y z    (triangle inequality)
-  distance :: f xs a -> f ys a -> Int
-
---------------------------------------------------------------------------------
 
 instance Family f => Show (ES f xs ys) where
   show End = "End"
   show (Ins x xs) = "Ins " ++ string x ++ " $ " ++ show xs
   show (Del x xs) = "Del " ++ string x ++ " $ " ++ show xs
   show (Upd f g xs) = "Upd " ++ string f ++ " " ++ string g ++ " $ " ++ show xs
+
+

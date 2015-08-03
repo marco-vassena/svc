@@ -14,7 +14,7 @@ module Format.Parser.Naive (
   , Parser
   ) where
 
-import Data.HList
+import Data.TypeList.HList
 import Format.Parser.Base
 import Format.Parser.GParser
 import Control.Applicative

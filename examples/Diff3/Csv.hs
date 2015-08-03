@@ -159,6 +159,7 @@ instance Family CsvF where
   reifyF NilInt' = slist
   reifyF ConsRow' = slist
   reifyF ConsInt' = slist
+
 instance Metric CsvF where
   distance (Int' x) (Int' y) = if x == y then 0 else 1
   distance NilRow'  NilRow' = 0
