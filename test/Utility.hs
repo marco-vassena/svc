@@ -5,7 +5,7 @@
 
 module Utility where
 
-import Data.HList
+import Data.TypeList.HList
 import Control.Monad
 import Test.QuickCheck
 import Test.HUnit.Base

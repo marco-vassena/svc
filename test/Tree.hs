@@ -7,7 +7,7 @@ module Tree where
 
 import Control.Isomorphism.Partial
 import qualified Control.Isomorphism.Partial as C
-import Data.HList
+import Data.TypeList.HList
 
 data Tree = Branch Tree Tree
           | Leaf

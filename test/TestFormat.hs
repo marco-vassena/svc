@@ -6,7 +6,7 @@
 module Main where
 
 import Prelude hiding ((>>=))
-import Data.HList
+import Data.TypeList.HList
 import Format.Syntax
 import Format.Combinator
 import Format.Token

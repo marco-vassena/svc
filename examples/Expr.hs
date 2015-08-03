@@ -8,7 +8,7 @@
 
 module Expr where
 
-import Data.HList
+import Data.TypeList.HList
 
 import Format.Syntax hiding ((>>=), fail)
 import Format.Combinator

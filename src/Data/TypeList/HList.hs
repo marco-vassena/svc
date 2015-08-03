@@ -19,6 +19,7 @@ module Data.TypeList.HList (
   , SameLength(..)
   , hsingleton
   , hHead
+  , hTail
   , happend
   , split
   , hzip

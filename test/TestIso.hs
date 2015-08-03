@@ -9,7 +9,7 @@ import Prelude
 import qualified Prelude as P
 import Control.Isomorphism.Partial
 import Control.Monad
-import Data.HList
+import Data.TypeList.HList
 import Data.Maybe
 import Data.Tuple
 import qualified Data.List as L

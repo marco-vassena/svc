@@ -12,7 +12,7 @@ import qualified Control.Applicative as A
 import qualified Control.Monad as M
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
-import Data.HList
+import Data.TypeList.HList
 import Data.List
 import Data.Word
 

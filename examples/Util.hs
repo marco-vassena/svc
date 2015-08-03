@@ -7,7 +7,7 @@ import Format.Syntax
 import Format.Combinator
 import Format.Token
 import Control.Isomorphism.Partial
-import Data.HList
+import Data.TypeList.HList
 
 -- | A lexeme that recognizes integers.
 int :: (FormatC c m, AlternativeC c m Char) => SFormat c m Char Int
