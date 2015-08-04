@@ -1,6 +1,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE PolyKinds #-}
 
 module Repo.Diff where
 
@@ -8,6 +9,21 @@ import Data.Proxy
 import Data.Type.Equality
 import Data.TypeList.DList
 import Repo.Core
+
+--------------------------------------------------------------------------------
+
+-- Represents the fact that a type a belongs to a particular
+-- family of mutually recursive data-types
+class Metric f where
+  -- Laws:
+  --  d x y = d y x             (symmetry)
+  --  d x y >= 0                (non-negativity)
+  --  d x x = 0                 (identity)
+  --  d x z <= d x y + d y z    (triangle inequality)
+  distance :: f xs a -> f ys a -> Int
+
+
+--------------------------------------------------------------------------------
 
 -- TODO for the ES datatype we could
 -- 1) Include Cpy (a special case of Upd), which might make the code for diff3 easier.
@@ -76,7 +92,7 @@ patch p End         = id
 
 insert :: (Family f, a :<: f) => f xs a -> DList f (xs :++: ys) -> DList f (a ': ys)
 insert f ds = DCons (build f ds1) ds2
-  where (ds1, ds2) = dsplit (reifyF f) ds
+  where (ds1, ds2) = dsplit (reifyArgs f) ds
 
 stringOf :: (Family f, a :<: f) => Proxy f -> a -> String
 stringOf p a = case view p a of

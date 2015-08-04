@@ -63,39 +63,44 @@ instance Reify (FList f) where
 
 --------------------------------------------------------------------------------
 
--- TODO call this merge3 and reserve diff3 as high-level entry point
+-- User friendly entry point
+-- TODO maybe even more friendly expecting directly raw types instead of DList ?
+-- TODO Safer interface: errors for types or conflicts.
+diff3 :: DList f ys -> DList f xs -> DList f ys -> ES f xs ys
+diff3 = undefined
+
 -- Merges two ES scripts in an ES3 script.
-diff3 :: (Family f, Metric f) => ES f xs ys -> ES f xs zs -> ES3 f xs
-diff3 a@(Upd o x xs) b@(Upd o' y ys) = 
+merge3 :: (Family f, Metric f) => ES f xs ys -> ES f xs zs -> ES3 f xs
+merge3 a@(Upd o x xs) b@(Upd o' y ys) = 
   case aligned o o' of
     (Refl, Refl) -> 
       case (o =?= x, o' =?= y, x =?= y) of
-        (Just (Refl, Refl), _, _) -> Upd3 o y (diff3 xs ys) -- Id1
-        (_, Just (Refl, Refl), _) -> Upd3 o x (diff3 xs ys) -- Id2
-        (_, _, Just (Refl, Refl)) -> Upd3 o x (diff3 xs ys) -- Idem
-        (_, _, _                ) -> Cnf3 (UpdUpd o x y) (diff3 xs ys)
-diff3 a@(Upd o x xs) (Del o' ys) =
+        (Just (Refl, Refl), _, _) -> Upd3 o y (merge3 xs ys) -- Id1
+        (_, Just (Refl, Refl), _) -> Upd3 o x (merge3 xs ys) -- Id2
+        (_, _, Just (Refl, Refl)) -> Upd3 o x (merge3 xs ys) -- Idem
+        (_, _, _                ) -> Cnf3 (UpdUpd o x y) (merge3 xs ys)
+merge3 a@(Upd o x xs) (Del o' ys) =
   case aligned o o' of
     (Refl, Refl) -> 
       case o =?= x of
-        Just (Refl, Refl) -> Del3 o (diff3 xs ys) -- Id1
-        Nothing           -> Cnf3 (UpdDel o x) (diff3 xs ys)
-diff3 (Del o xs) (Upd o' y ys) = 
+        Just (Refl, Refl) -> Del3 o (merge3 xs ys) -- Id1
+        Nothing           -> Cnf3 (UpdDel o x) (merge3 xs ys)
+merge3 (Del o xs) (Upd o' y ys) = 
   case aligned o o' of
     (Refl, Refl) -> 
       case o' =?= y of
-        Just (Refl, Refl) -> Del3 o (diff3 xs ys) -- Id2
-        Nothing           -> Cnf3 (DelUpd o y) (diff3 xs ys)
-diff3 (Del x xs) (Del y ys) =
+        Just (Refl, Refl) -> Del3 o (merge3 xs ys) -- Id2
+        Nothing           -> Cnf3 (DelUpd o y) (merge3 xs ys)
+merge3 (Del x xs) (Del y ys) =
   case aligned x y of
-    (Refl, Refl) -> Del3 x (diff3 xs ys) -- Idem
-diff3 (Ins x xs) (Ins y ys) =
+    (Refl, Refl) -> Del3 x (merge3 xs ys) -- Idem
+merge3 (Ins x xs) (Ins y ys) =
   case x =?= y of
-    Just (Refl, Refl) -> Ins3 x (diff3 xs ys) -- Idem
-    Nothing           -> Cnf3 (InsIns x y) (diff3 xs ys)
-diff3 (Ins x xs) ys = Ins3 x (diff3 xs ys) -- Id2
-diff3 xs (Ins y ys) = Ins3 y (diff3 xs ys) -- Id1
-diff3 End End = End3
+    Just (Refl, Refl) -> Ins3 x (merge3 xs ys) -- Idem
+    Nothing           -> Cnf3 (InsIns x y) (merge3 xs ys)
+merge3 (Ins x xs) ys = Ins3 x (merge3 xs ys) -- Id2
+merge3 xs (Ins y ys) = Ins3 y (merge3 xs ys) -- Id1
+merge3 End End = End3
 
 -- Checks whether the two witnesses are the same,
 -- and fails if this is not the case.
@@ -120,7 +125,7 @@ aligned a b =
   
 -- Well-typed edit script
 data WES f xs where
-  WES :: FList f ys -> ES f xs ys -> WES f xs
+  WES :: TList f ys -> ES f xs ys -> WES f xs
 
 data TypeError f where
 
@@ -129,19 +134,15 @@ typeCheck :: Family f => ES3 f xs -> Either [TypeError f] (WES f xs)
 typeCheck = undefined
 
 data IsPrefixOf f xs zs where
-  Prefix :: FList f ys -> (xs :++: ys) :~: zs -> IsPrefixOf f xs zs
+  Prefix :: TList f ys -> (xs :++: ys) :~: zs -> IsPrefixOf f xs zs
 
-isTyPrefixOf :: Family f => FList f as -> FList f bs -> Maybe (IsPrefixOf f as bs)
-isTyPrefixOf FNil s = Just $ Prefix s Refl
-isTyPrefixOf (FCons _ _) FNil = Nothing
-isTyPrefixOf (FCons x s1) (FCons y s2) =
-  case (isTyPrefixOf s1 s2, decEq x y) of
+isTyPrefixOf :: Family f => TList f as -> TList f bs -> Maybe (IsPrefixOf f as bs)
+isTyPrefixOf TNil s = Just $ Prefix s Refl
+isTyPrefixOf (TCons _ _) TNil = Nothing
+isTyPrefixOf (TCons x s1) (TCons y s2) =
+  case (isTyPrefixOf s1 s2, tyEq (proxyOfTL s1) x y) of
     (Just (Prefix s Refl), Just Refl) -> Just $ Prefix s Refl
     _ -> Nothing
-
-
-argsToFList :: Family f => f as a -> FList f as
-argsToFList x = undefined (reifyF x)
 
 -- TODO remark in thesis: is it possible to catch multiple type errors in this setting?
 --data Unify a b where
@@ -161,7 +162,7 @@ argsToFList x = undefined (reifyF x)
 -- Exploiting laziness, we can pair a WES with type error.
 -- WES is fully defined only if no errors are reported.
 tyCheck :: Family f => ES3 f xs -> Either (TypeError f) (WES f xs)
-tyCheck End3 = Right $ WES FNil End
+tyCheck End3 = Right $ WES TNil End
 tyCheck (Cnf3 c _) = error $  "Conflict detected: " ++ show c
 tyCheck (Del3 x e) = 
   case tyCheck e of
@@ -170,17 +171,17 @@ tyCheck (Del3 x e) =
 tyCheck (Ins3 x e) = 
   case tyCheck e of
     Right (WES ty e') -> 
-      let xs = argsToFList x in
+      let xs = argsTy x in
       case xs `isTyPrefixOf` ty of
-        Just (Prefix xsys Refl) -> Right $ WES (FCons x xsys) (Ins x e')
+        Just (Prefix xsys Refl) -> Right $ WES (TCons Proxy xsys) (Ins x e')
         Nothing -> Left $ error "Report type error"
     Left tyErr -> Left tyErr
 tyCheck (Upd3 x y e) = 
   case tyCheck e of
     Right (WES ty e') ->
-      let ys = argsToFList y in
+      let ys = argsTy y in
       case ys `isTyPrefixOf` ty of
-        Just (Prefix yszs Refl) -> Right $ WES (FCons y yszs) (Upd x y e')
+        Just (Prefix yszs Refl) -> Right $ WES (TCons Proxy yszs) (Upd x y e')
         Nothing -> Left $ error "Report type error"
     Left tyErr -> Left tyErr
 
@@ -194,7 +195,7 @@ tys fs = "[" ++ intercalate "," (go fs) ++ "]"
         go (FCons x xs) = string x : go xs
 
 --------------------------------------------------------------------------------
--- Auxiliary functions and data-types used in the diff3 algorithm
+-- Auxiliary functions and data-types used in the merge3 algorithm
 --------------------------------------------------------------------------------
 
 fappend :: FList f xs -> FList f ys -> FList f (xs :++: ys)
@@ -226,22 +227,6 @@ data FList f xs where
 fdrop :: SList xs -> FList f (xs :++: ys) -> FList f ys
 fdrop SNil fs = fs
 fdrop (SCons s) (FCons _ fs) = fdrop s fs
-
-collect1 :: Family f => ES f xs ys -> FList f xs
-collect1 End = FNil
-collect1 (Ins x e) = collect1 e
-collect1 (Del x e) = FCons x fs
-  where fs = fdrop (reifyF x) (collect1 e)
-collect1 (Upd x y e) = FCons x fs
-  where fs = fdrop (reifyF x) (collect1 e)
-
-collect2 :: Family f => ES f xs ys -> FList f ys
-collect2 End = FNil
-collect2 (Ins x e) = FCons x fs
-  where fs = fdrop (reifyF x) (collect2 e)
-collect2 (Del x e) = collect2 e
-collect2 (Upd x y e) = FCons y fs
-  where fs = fdrop (reifyF y) (collect2 e)
 
 --------------------------------------------------------------------------------
 instance Family f => Show (ES3 f xs) where

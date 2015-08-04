@@ -4,13 +4,14 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Csv where
 
-import Data.HList
+--import Data.TypeList.HList
+import Data.TypeList.DList
 import Repo.Diff
 import Repo.Diff3
-import qualified Repo.Diff3UnTy as U
 import Data.Proxy
 import Data.Type.Equality
 
@@ -30,9 +31,9 @@ r02 = gdiff r0 r2
 -- text files are), we match nodes with nodes (embedding), rather than trying to squeeze and
 -- shuffle subtrees around.
 -- [1,4, 4 <-> 5, 2 <-> 5, 3, 6]
-r012, r021 :: ES3 CsvF '[Row] '[Row]
-r012 = diff3 r01 r02
-r021 = diff3 r02 r01
+--r012, r021 :: ES CsvF '[Row] '[Row]
+--r012 = diff3 r01 r02
+--r021 = diff3 r02 r01
 
 --------------------------------------------------------------------------------
 
@@ -74,39 +75,35 @@ c2PatchFail = case patch Proxy d02 (DCons c1 DNil) of
 --------------------------------------------------------------------------------
 -- Diff3 
 
+-- TODO update examples, choose which interface to follow: diff3 or merge3?
+
 -- Changes merged with no conflicts
-d012 :: ES3 CsvF '[Csv] '[Csv]
-d012 = diff3 d01 d02
-
-d012' :: U.ES3 CsvF
-d012' = U.diff3 d01 d02
-
-c012' :: (U.DTree CsvF Csv, U.ES3 CsvF)
-c012' = U.toDTree ConsRow' d012'
-
-c012 :: Csv
-c012 = case patch3 Proxy d012 (DCons c0 DNil) of
-        (DCons x DNil) -> x
-
-d021 :: ES3 CsvF '[Csv] '[Csv]
-d021 = diff3 d02 d01
-
-c021 :: Csv
-c021 = case patch3 Proxy d021 (DCons c0 DNil) of
-        (DCons x DNil) -> x
-
--- Example with UpdUpd conflicts
-d013 :: ES3 CsvF '[Csv] '[Csv]
-d013 = diff3 d02 d03
-
-d034 :: ES3 CsvF '[Csv] '[Csv]
-d034 = diff3 d03 d04
-  where d03 = gdiff c0 c3
-        d04 = gdiff c0 c4
-
-c034 :: Csv
-c034 = case patch3 Proxy d034 (DCons c0 DNil) of
-          DCons x DNil -> x
+--d012 :: ES3 CsvF '[Csv] '[Csv]
+--d012 = diff3 d01 d02
+--
+--c012 :: Csv
+--c012 = case patch Proxy d012 (DCons c0 DNil) of
+--        (DCons x DNil) -> x
+--
+--d021 :: ES3 CsvF '[Csv] '[Csv]
+--d021 = diff3 d02 d01
+--
+--c021 :: Csv
+--c021 = case patch Proxy d021 (DCons c0 DNil) of
+--        (DCons x DNil) -> x
+--
+---- Example with UpdUpd conflicts
+--d013 :: ES3 CsvF '[Csv] '[Csv]
+--d013 = diff3 d02 d03
+--
+--d034 :: ES3 CsvF '[Csv] '[Csv]
+--d034 = diff3 d03 d04
+--  where d03 = gdiff c0 c3
+--        d04 = gdiff c0 c4
+--
+--c034 :: Csv
+--c034 = case patch Proxy d034 (DCons c0 DNil) of
+--          DCons x DNil -> x
 
 --------------------------------------------------------------------------------
 data CsvF xs a where
@@ -130,17 +127,6 @@ instance Family CsvF where
   build ConsRow' (DCons x (DCons xs DNil)) = x : xs
   build ConsInt' (DCons x (DCons xs DNil)) = x : xs
 
-  decEq (Int' _) (Int' _) = Just Refl
-  decEq NilRow' NilRow' = Just Refl
-  decEq NilRow' ConsRow' = Just Refl
-  decEq ConsRow' NilRow' = Just Refl
-  decEq ConsRow' ConsRow' = Just Refl
-  decEq ConsInt' ConsInt' = Just Refl
-  decEq ConsInt' NilInt' = Just Refl
-  decEq NilInt' NilInt' = Just Refl
-  decEq NilInt' ConsInt' = Just Refl
-  decEq _ _ = Nothing
-
   string (Int' i) = show i
   string NilRow' = "[]"
   string ConsRow' = "(:)"
@@ -154,12 +140,17 @@ instance Family CsvF where
   ConsInt' =?= ConsInt' = Just (Refl, Refl)
   _ =?= _ = Nothing
 
-  reifyF (Int' _) = slist
-  reifyF NilRow' = slist
-  reifyF NilInt' = slist
-  reifyF ConsRow' = slist
-  reifyF ConsInt' = slist
-
+  argsTy NilRow' = tlist
+  argsTy ConsRow' = tlist
+  argsTy NilInt' = tlist
+  argsTy ConsInt' = tlist
+  
+  outputTy NilRow' = tlist
+  outputTy ConsRow' = tlist
+  outputTy NilInt' = tlist
+  outputTy ConsInt' = tlist
+  
+  
 instance Metric CsvF where
   distance (Int' x) (Int' y) = if x == y then 0 else 1
   distance NilRow'  NilRow' = 0
@@ -168,22 +159,23 @@ instance Metric CsvF where
   distance ConsInt' ConsInt' = 0
   distance _ _ = 1
 
+type instance TypesOf CsvF = '[Int, [Int], [[Int]]]
+
 instance Csv :<: CsvF where
   view _ [] = View NilRow' DNil
   view _ (x:xs) = View ConsRow' (DCons x (DCons xs DNil))
- 
+
+  getElem p1 p2 = There $ There $ Here
+
 instance [Int] :<: CsvF where
   view _ [] = View NilInt' DNil
   view _ (x:xs) = View ConsInt' (DCons x (DCons xs DNil))
 
+  getElem _ _ = There $ Here
+
 instance Int :<: CsvF where
   view _ i = View (Int' i) DNil
+  
+  getElem _ _ = Here
 
 --------------------------------------------------------------------------------
--- Used for Untyped diff3
-instance U.ToFList CsvF where
-  toFList (Int' _) = FNil
-  toFList NilRow' = FNil
-  toFList NilInt' = FNil
-  toFList ConsInt' = FCons (Int' 0) $ FCons ConsInt' FNil
-  toFList ConsRow' = FCons ConsInt' $ FCons ConsRow' FNil
