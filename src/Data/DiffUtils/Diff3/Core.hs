@@ -63,13 +63,6 @@ getConflicts End3 = []
 
 --------------------------------------------------------------------------------
 
--- User friendly entry point
--- TODO: Provide user-friendly entry point, i.e. checks for expected type.
--- TODO maybe even more friendly expecting directly raw types instead of DList ?
--- TODO Safer interface: errors for types or conflicts.
-diff3 :: DList f ys -> DList f xs -> DList f ys -> ES f xs ys
-diff3 = undefined
-
 -- Merges two ES scripts in an ES3 script.
 merge3 :: (Family f, Metric f) => ES f xs ys -> ES f xs zs -> ES3 f xs
 merge3 a@(Upd o x xs) b@(Upd o' y ys) = 

@@ -21,14 +21,7 @@ class Metric f where
   --  d x z <= d x y + d y z    (triangle inequality)
   distance :: f xs a -> f ys a -> Int
 
-
 --------------------------------------------------------------------------------
-
--- TODO for the ES datatype we could
--- 1) Include Cpy (a special case of Upd), which might make the code for diff3 easier.
-
--- TODO I think we can remove the KnownSList constraint in most places.
--- The same information can be retrieved using reifyF
 
 -- | A well-typed edit script that maps transforms xs values in ys values,
 -- by means of insert, delete and update.
@@ -83,6 +76,8 @@ diff p (DCons x xs) (DCons y ys) =
 -- Patch
 --------------------------------------------------------------------------------
 
+-- TODO if we used DTree and DList we could make patch safe
+-- TODO with an auxiliary function patch' we can avoid the proxy.
 patch :: Family f => Proxy f -> ES f xs ys -> DList f xs -> DList f ys
 patch p (Ins x e)   = insert x . patch p e
 patch p (Del x e)   =            patch p e . delete p x
@@ -167,6 +162,20 @@ best f g i d c =
 -- Auxiliary functions and datatypes used in diffT.
 --------------------------------------------------------------------------------
 
+data IES f b xs ys where
+  IES :: f zs b -> ES f xs (b ': ys) -> EST f xs (zs :++: ys) -> IES f b xs ys
+
+data DES f a xs ys where
+  DES :: f zs a -> ES f (a ': xs) ys -> EST f (zs :++: xs) ys -> DES f a xs ys
+
+extractI :: EST f xs (b ': ys) -> IES f b xs ys
+extractI (NC f e i) = IES f e i
+extractI (CC f g e i _ _) = IES g e i
+
+extractD :: EST f (a ': xs) ys -> DES f a xs ys
+extractD (CN g e i) = DES g e i
+extractD (CC f g e _ i _) = DES f e i
+
 extendI :: (Metric f, Family f, a :<: f) 
         => f xs a -> DList f ys -> EST f (xs :++: ys) zs -> EST f (a ': ys) zs
 extendI f _ d@(NN e) = CN f (Del f e) d
@@ -193,21 +202,6 @@ extendD f _ i@(CC _ _ e _ _ _) =
     DES g e c -> CC g f (best g f i d c) i d c
       where d = extendD f undefined c
 
--- TODO better names
-data InsES f b xs ys where
-  IES :: f zs b -> ES f xs (b ': ys) -> EST f xs (zs :++: ys) -> InsES f b xs ys
-
-data DelES f a xs ys where
-  DES :: f zs a -> ES f (a ': xs) ys -> EST f (zs :++: xs) ys -> DelES f a xs ys
-
-extractI :: EST f xs (b ': ys) -> InsES f b xs ys
-extractI (NC f e i) = IES f e i
-extractI (CC f g e i _ _) = IES g e i
-
-extractD :: EST f (a ': xs) ys -> DelES f a xs ys
-extractD (CN g e i) = DES g e i
-extractD (CC f g e _ i _) = DES f e i
-
 --------------------------------------------------------------------------------
 
 instance Family f => Show (ES f xs ys) where
@@ -215,5 +209,3 @@ instance Family f => Show (ES f xs ys) where
   show (Ins x xs) = "Ins " ++ string x ++ " $ " ++ show xs
   show (Del x xs) = "Del " ++ string x ++ " $ " ++ show xs
   show (Upd f g xs) = "Upd " ++ string f ++ " " ++ string g ++ " $ " ++ show xs
-
-

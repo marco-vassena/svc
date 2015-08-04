@@ -57,12 +57,11 @@ isTyPrefixOf TNil s = Just $ Prefix s Same
 isTyPrefixOf s Top = Just $ Prefix Top Failed
 isTyPrefixOf (TCons _ _) INil = Nothing
 isTyPrefixOf (TCons x s1) (ICons y s2) =
-  case (isTyPrefixOf s1 s2, tyEq (proxyOfTL s1) x y) of
-    (Just (Prefix s Same), Just Refl) -> Just $ Prefix s Same
+  case (tyEq (proxyOfTL s1) x y, isTyPrefixOf s1 s2) of
+    (Just Refl, Just (Prefix s Same)) -> Just $ Prefix s Same
     _ -> Nothing
 
 --------------------------------------------------------------------------------
--- Prefix would report TyErr whenever a or b comes from Top
 
 -- Use type check and report left if there is at least one error.
 typeCheck :: Family f => ES3 f xs -> Either [TypeError f] (WES f xs)
@@ -71,12 +70,13 @@ typeCheck e =
     ([]  , IES ty e') -> Right $ WES (toTList ty) e'
     (errs, _        ) -> Left $ errs
 
--- TODO multiple type error report?
 -- Exploiting laziness, we can pair a IES with type error.
--- IES is fully defined only if no errors are reported.
+-- The script IES is fully defined only if no errors are reported.
 tyCheck :: Family f => ES3 f xs -> ([TypeError f], IES f xs)
 tyCheck End3 = ([], IES INil End)
-tyCheck (Cnf3 c e) = error $ "Conflict detected: " ++ show c
+tyCheck (Cnf3 c e) = 
+  case tyCheck e of 
+    (tyErr, IES ty e') -> (tyErr, IES Top undefined) -- TODO we should report conflicts and type errors.
 tyCheck (Del3 x e) = 
   case tyCheck e of
     (tyErr, IES ty e') -> (tyErr, IES ty (Del x e'))
