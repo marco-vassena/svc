@@ -89,6 +89,9 @@ diff3Target x o y =
 mergeCsv :: Csv -> Csv -> Csv -> DList CsvF '[Csv]
 mergeCsv = diff3Target 
 
+mergeRow :: Row -> Row -> Row -> DList CsvF '[Row]
+mergeRow = diff3Target
+
 c012 :: Csv
 c012 = dHead $ mergeCsv c1 c0 c2 
  

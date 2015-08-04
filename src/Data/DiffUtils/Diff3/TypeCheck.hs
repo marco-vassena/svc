@@ -63,6 +63,7 @@ isTyPrefixOf (TCons _ _) INil = Nothing
 isTyPrefixOf (TCons x s1) (ICons y s2) =
   case (tyEq (proxyOfTL s1) x y, isTyPrefixOf s1 s2) of
     (Just Refl, Just (Prefix s Same)) -> Just $ Prefix s Same
+    (Just Refl, Just (Prefix s Failed)) -> Just $ Prefix s Failed
     _ -> Nothing
 
 --------------------------------------------------------------------------------
