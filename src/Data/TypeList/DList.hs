@@ -62,6 +62,7 @@ data View f a where
 class a :<: (f :: [ * ] -> * -> *) where
   view :: Proxy f -> a -> View f a
   getElem :: Proxy f -> Elem f a (TypesOf f)
+  -- TODO string representation of Type
 
 class Family f where
   

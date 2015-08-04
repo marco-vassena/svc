@@ -60,10 +60,10 @@ instance Reify (FList f) where
   toSList FNil = SNil
   toSList (FCons _ fs) = SCons (toSList fs)
 
-
 --------------------------------------------------------------------------------
 
 -- User friendly entry point
+-- TODO: Provide user-friendly entry point, i.e. checks for expected type.
 -- TODO maybe even more friendly expecting directly raw types instead of DList ?
 -- TODO Safer interface: errors for types or conflicts.
 diff3 :: DList f ys -> DList f xs -> DList f ys -> ES f xs ys
@@ -123,11 +123,18 @@ aligned a b =
 --        -> Edits f (as :++: xs) (cs :++: ys) -> Edits f (bs :++: xs) (ds :++: ys)
 --  ETyErr :: Edit f as bs cs ds -> Edits f xs ys -> Edits f zs ws
   
+-- TODO move to TypeChecking module
+
+-- TODO Inferred type instead of Well-Typed
 -- Well-typed edit script
 data WES f xs where
   WES :: TList f ys -> ES f xs ys -> WES f xs
 
 data TypeError f where
+  -- TODO include slice of ES3 ?
+  TyErr :: ExpectedType f xs -> InferredType f ys -> TypeError f
+
+newtype ExpectedType f xs = ET (TList f xs)
 
 -- Use type check and report left if there is at least one error.
 typeCheck :: Family f => ES3 f xs -> Either [TypeError f] (WES f xs)
@@ -153,10 +160,10 @@ isTyPrefixOf (TCons x s1) (TCons y s2) =
 
 -- instead of FList we need some form of reified type,
 -- which includes type error, that can be unified with everything.
---data Type xs where
---  TNil :: Type '[]
---  TCons :: s x -> Type xs -> Type (x ': xs)
---  Top :: Type xs -- Can be anything, because of previous type errors
+data InferredType f xs where
+  INil :: InferredType f '[]
+  ICons :: (x :<: f) => Proxy x -> InferredType f xs -> InferredType f (x ': xs)
+  Top :: InferredType f xs -- Can be anything, because of previous type errors
 
 -- TODO multiple type error report?
 -- Exploiting laziness, we can pair a WES with type error.
@@ -174,7 +181,7 @@ tyCheck (Ins3 x e) =
       let xs = argsTy x in
       case xs `isTyPrefixOf` ty of
         Just (Prefix xsys Refl) -> Right $ WES (TCons Proxy xsys) (Ins x e')
-        Nothing -> Left $ error "Report type error"
+        Nothing -> Left $ TyErr (ET xs) undefined
     Left tyErr -> Left tyErr
 tyCheck (Upd3 x y e) = 
   case tyCheck e of
@@ -182,10 +189,9 @@ tyCheck (Upd3 x y e) =
       let ys = argsTy y in
       case ys `isTyPrefixOf` ty of
         Just (Prefix yszs Refl) -> Right $ WES (TCons Proxy yszs) (Upd x y e')
-        Nothing -> Left $ error "Report type error"
+        Nothing -> Left $ TyErr (ET ys) undefined
     Left tyErr -> Left tyErr
 
--- TODO: Provide user-friendly entry point, i.e. checks for expected type.
 
 -- Debugging
 tys :: Family f => FList f xs -> String
@@ -198,11 +204,12 @@ tys fs = "[" ++ intercalate "," (go fs) ++ "]"
 -- Auxiliary functions and data-types used in the merge3 algorithm
 --------------------------------------------------------------------------------
 
+-- TODO are these needed anymore?
+
 fappend :: FList f xs -> FList f ys -> FList f (xs :++: ys)
 fappend FNil f = f
 fappend (FCons x f1) f2 = FCons x (f1 `fappend` f2)
 
--- TODO are these needed anymore?
 fTake :: SList xs -> g ys -> FList f (xs :++: ys) -> FList f xs
 fTake SNil _ _ = FNil
 fTake (SCons s1) s2 (FCons x xs) = FCons x (fTake s1 s2 xs)
