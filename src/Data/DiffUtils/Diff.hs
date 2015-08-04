@@ -51,46 +51,33 @@ x & y = if cost x <= cost y then x else y
 
 -- Entry point, still needs type annotations for @f@.
 gdiff :: (Family f, Metric f, a :<: f, b :<: f) => a -> b -> ES f '[ a ] '[ b ]
-gdiff x y = getDiff $ diffT Proxy (DCons x DNil) (DCons y DNil)
+gdiff x y = getDiff $ diffT Proxy (toDList x) (toDList y)
 
 diff :: (Family f, Metric f) 
      => Proxy f -> DList f xs -> DList f ys -> ES f xs ys
 diff _ DNil DNil = End
-diff p (DCons x xs) DNil = 
-  case view p x of 
-    View f ys -> Del f $ diff p (dappend ys xs) DNil
-diff p DNil (DCons y ys) =
-  case view p y of
-    View g xs -> Ins g $ diff p DNil (dappend xs ys)
-diff p (DCons x xs) (DCons y ys) =
-  case (view p x, view p y) of
-    (View f fs, View g gs) -> 
-      let i = Ins g $ diff p (DCons x xs) (dappend gs ys) 
-          d = Del f $ diff p (dappend fs xs) (DCons y ys) in 
-      case decEq f g of
-        Nothing -> i & d
-        Just Refl -> i & d & u
-          where u = Upd f g $ diff p (dappend fs xs) (dappend gs ys)
+diff p (DCons (Node a as) xs) DNil = Del a $ diff p (dappend as xs) DNil
+diff p DNil (DCons (Node b bs) ys) = Ins b $ diff p DNil (dappend bs ys)
+diff p (DCons x@(Node a as) xs) (DCons y@(Node b bs) ys) =
+  let i = Ins b $ diff p (DCons x xs) (dappend bs ys) 
+      d = Del a $ diff p (dappend as xs) (DCons y ys) in 
+  case decEq a b of
+    Nothing -> i & d
+    Just Refl -> i & d & u
+      where u = Upd a b $ diff p (dappend as xs) (dappend bs ys)
 
 --------------------------------------------------------------------------------
 -- Patch
 --------------------------------------------------------------------------------
 
--- TODO if we used DTree and DList we could make patch safe
--- TODO with an auxiliary function patch' we can avoid the proxy.
-patch :: Family f => Proxy f -> ES f xs ys -> DList f xs -> DList f ys
-patch p (Ins x e)   = insert x . patch p e
-patch p (Del x e)   =            patch p e . delete p x
-patch p (Upd x y e) = insert y . patch p e . delete p x
-patch p End         = id
-
--- Safe alternative to patch
+-- Return the target object, equivalent to patch
 target :: Family f => ES f xs ys -> DList f ys
 target (Ins x e) = insert x (target e)
 target (Del x e) = target e
 target (Upd x y e) = insert y (target e)
 target End = DNil
 
+-- Returns the source object
 source :: Family f => ES f xs ys -> DList f xs
 source (Ins x e) = source e
 source (Del x e) = insert x (source e)
@@ -99,18 +86,8 @@ source End = DNil
 
 
 insert :: (Family f, a :<: f) => f xs a -> DList f (xs :++: ys) -> DList f (a ': ys)
-insert f ds = DCons (build f ds1) ds2
+insert f ds = DCons (Node f ds1) ds2
   where (ds1, ds2) = dsplit (reifyArgs f) ds
-
-stringOf :: (Family f, a :<: f) => Proxy f -> a -> String
-stringOf p a = case view p a of
-                  View g _ -> string g
-
-delete :: Family f => Proxy f -> f xs a -> DList f (a ': ys) -> DList f (xs :++: ys)
-delete p f (DCons x ys) = 
-  case unbuild f x of
-    Just xs -> dappend xs ys
-    Nothing -> error $ "delete: Expecting " ++ string f ++ ", found " ++ stringOf p x
 
 -------------------------------------------------------------------------------- 
 -- Diff with memoization
@@ -142,21 +119,14 @@ getDiff (NN e) = e
 -- Memoized version of diff
 diffT :: (Family f, Metric f) => Proxy f -> DList f xs -> DList f ys -> EST f xs ys
 diffT _ DNil DNil = NN End
-diffT p (DCons x xs) DNil = 
-  case view p x of
-    View f fs -> CN f (Del f (getDiff d)) d 
-        where d = diffT p (dappend fs xs) DNil
-diffT p DNil (DCons y ys) = 
-  case view p y of
-    View g gs -> NC g (Ins g (getDiff i)) i
-      where i = diffT p DNil (dappend gs ys)
-diffT p (DCons x xs) (DCons y ys) =
-  case (view p x, view p y) of
-    (View f fs, View g gs) -> 
-       let c = diffT p (dappend fs xs) (dappend gs ys)
-           i = extendI f xs c
-           d = extendD g ys c in 
-           CC f g (best f g i d c) i d c
+diffT p (DCons (Node a as) xs) DNil = CN a (Del a (getDiff d)) d 
+  where d = diffT p (dappend as xs) DNil
+diffT p DNil (DCons (Node b bs) ys) = NC b (Ins b (getDiff i)) i
+  where i = diffT p DNil (dappend bs ys)
+diffT p (DCons (Node a as) xs) (DCons (Node b bs) ys) = CC a b (best a b i d c) i d c
+  where c = diffT p (dappend as xs) (dappend bs ys)
+        i = extendI a xs c
+        d = extendD b ys c
 
 best :: (Metric f, Family f, a :<: f, b :<: f)
      => f as a -> f bs b

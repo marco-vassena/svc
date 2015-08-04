@@ -63,15 +63,6 @@ d01 = gdiff c0 c1
 d02 = gdiff c0 c2
 d03 = gdiff c0 c3
 
--- Patching
-c1' :: Csv
-c1' = case patch Proxy d01 (DCons c0 DNil) of
-        DCons x DNil -> x
-        
-c2PatchFail :: Csv
-c2PatchFail = case patch Proxy d02 (DCons c1 DNil) of
-            DCons x DNil -> x
-
 --------------------------------------------------------------------------------
 -- Diff3 
 
@@ -86,18 +77,21 @@ diff3Target x o y =
     Left errs -> error (show errs)
     Right e -> target e
 
-mergeCsv :: Csv -> Csv -> Csv -> DList CsvF '[Csv]
-mergeCsv = diff3Target 
+mergeCsv :: Csv -> Csv -> Csv -> Csv
+mergeCsv x o y = fromDTree (dHead d)
+  where d :: DList CsvF '[Csv] 
+        d = diff3Target x o y
 
-mergeRow :: Row -> Row -> Row -> DList CsvF '[Row]
-mergeRow = diff3Target
+mergeRow :: Row -> Row -> Row -> Row
+mergeRow x o y = fromDTree (dHead d)
+  where d :: DList CsvF '[Row]
+        d = diff3Target x o y
 
 c012 :: Csv
-c012 = dHead $ mergeCsv c1 c0 c2 
- 
+c012 = mergeCsv c1 c0 c2 
 
 c023 :: Csv
-c023 = dHead $ mergeCsv c2 c0 c3
+c023 = mergeCsv c2 c0 c3
    
 -- Changes merged with no conflicts
 --d012 :: ES3 CsvF '[Csv] '[Csv]
@@ -136,19 +130,6 @@ data CsvF xs a where
   ConsInt' :: CsvF '[Int, [Int]] [Int]
 
 instance Family CsvF where
-  unbuild (Int' i) _ = Just DNil
-  unbuild NilRow' [] = Just DNil
-  unbuild NilInt' [] = Just DNil
-  unbuild ConsRow' (x:xs) = Just $ DCons x (DCons xs DNil)
-  unbuild ConsInt' (x:xs) = Just $ DCons x (DCons xs DNil)
-  unbuild _ _ = Nothing
-
-  build (Int' i) _ = i
-  build NilRow' _ = []
-  build NilInt' _ = []
-  build ConsRow' (DCons x (DCons xs DNil)) = x : xs
-  build ConsInt' (DCons x (DCons xs DNil)) = x : xs
-
   string (Int' i) = show i
   string NilRow' = "[]"
   string ConsRow' = "(:)"
@@ -185,24 +166,25 @@ instance Metric CsvF where
 type instance TypesOf CsvF = '[Int, [Int], [[Int]]]
 
 instance Csv :<: CsvF where
-  view _ [] = View NilRow' DNil
-  view _ (x:xs) = View ConsRow' (DCons x (DCons xs DNil))
-
   getElem _ = inject
-
+  fromDTree (Node NilRow' DNil) = []
+  fromDTree (Node ConsRow' (DCons x (DCons xs DNil))) = fromDTree x : fromDTree xs
+  toDTree [] = Node NilRow' DNil
+  toDTree (x:xs) = Node ConsRow' ds 
+    where ds = DCons (toDTree x) $ DCons (toDTree xs) DNil
   stringOfTy _ _ = "Csv"
 
 instance [Int] :<: CsvF where
-  view _ [] = View NilInt' DNil
-  view _ (x:xs) = View ConsInt' (DCons x (DCons xs DNil))
-
   getElem _ = inject
-
+  fromDTree (Node NilInt' DNil) = []
+  fromDTree (Node ConsInt' (DCons x (DCons xs DNil))) = fromDTree x : fromDTree xs
+  toDTree [] = Node NilInt' DNil
+  toDTree (x:xs) = Node ConsInt' ds
+    where ds = DCons (toDTree x) $ DCons (toDTree xs) DNil
   stringOfTy _ _ = "[Int]"
 
 instance Int :<: CsvF where
-  view _ i = View (Int' i) DNil
-  
   getElem _ = inject
-
+  fromDTree (Node (Int' n) DNil) = n
+  toDTree n = Node (Int' n) DNil
   stringOfTy _ _ = "Int"

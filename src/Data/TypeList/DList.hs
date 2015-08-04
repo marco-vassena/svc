@@ -15,8 +15,9 @@ module Data.TypeList.DList (
   , dappend
   , dsplit
   , dHead
-  , View(..)
   , DList(..)
+  , DTree(..)
+  , toDList
   , Elem(..)
   , Family(..)
   , (:<:)(..)
@@ -34,12 +35,16 @@ module Data.TypeList.DList (
 
 import Data.TypeList.Core
 import Data.TypeList.SList
+import Data.TypeList.HList
 import Data.Proxy
 import Data.Type.Equality
 
 data DList f xs where
   DNil :: DList f '[]
-  DCons :: (x :<: f) => x -> DList f xs -> DList f (x ': xs)
+  DCons :: (x :<: f) => DTree f x -> DList f xs -> DList f (x ': xs)
+
+data DTree f x where
+  Node :: f xs x -> DList f xs -> DTree f x
 
 dappend :: DList f xs -> DList f ys -> DList f (xs :++: ys)
 dappend DNil ys = ys
@@ -50,41 +55,26 @@ dsplit SNil ds = (DNil, ds)
 dsplit (SCons s) (DCons x ds) = (DCons x ds1, ds2)
   where (ds1, ds2) = dsplit s ds
 
-dHead :: DList f (a ': xs) -> a
+dHead :: DList f (a ': xs) -> DTree f a
 dHead (DCons x _) = x
 
 --------------------------------------------------------------------------------
--- TODO can we avoid View at all? rather prefer the 
--- DList and DTree safer version ?
-
--- A @'View' f a@ deconstructs a value, producing a 
--- witness @f xs a@ of its constructor, with a list 
--- containing its fields.
-data View f a where
-  View :: f xs a -> DList f xs -> View f a
 
 -- Belongs to relation
 class a :<: (f :: [ * ] -> * -> *) where
-  view :: Proxy f -> a -> View f a
+  toDTree :: a -> DTree f a
+  fromDTree :: DTree f a -> a
   getElem :: Proxy f -> Elem f a (TypesOf f)
-
   -- TODO can we use a single proxy? Proxy (a ,f) and store this in TList?
   stringOfTy :: Proxy a -> Proxy f -> String
 
-  -- TODO string representation of Type
+toDList :: (a :<: f) => a -> DList f '[ a ]
+toDList x = DCons (toDTree x) DNil
 
 class Family f where
-  
   -- Succeds only if the singleton types represents exactly the same constructor
   (=?=) :: f xs a -> f ys b -> Maybe (a :~: b , xs :~: ys)
 
-  -- TODO
-  -- Can we use DList and DTree instead of single DList with Maybe?
-  -- Since we are not already putting effort in saving space,
-  -- it is better to provide an interface as safe as possible, for the proof of concept.
-  build :: f xs a -> DList f xs -> a
-  unbuild :: f xs a -> a -> Maybe (DList f xs)
-  
   string :: f xs a -> String
 
   argsTy :: f xs a -> TList f xs
