@@ -6,8 +6,8 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE FlexibleContexts #-} -- For automatic inj'ion
-{-# LANGUAGE OverlappingInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverlappingInstances #-} -- For automatic injection
 
 module Data.TypeList.DList (
     module Data.TypeList.Core
@@ -61,7 +61,7 @@ dHead (DCons x _) = x
 --------------------------------------------------------------------------------
 
 -- Belongs to relation
-class a :<: (f :: [ * ] -> * -> *) where
+class a :<: f where
   toDTree :: a -> DTree f a
   fromDTree :: DTree f a -> a
   getElem :: Proxy f -> Elem f a (TypesOf f)

@@ -47,7 +47,7 @@ library
   
 
                       -- Repository
-                      Repo.Path, Repo.Head, Repo.Core
+                      Repo.Path, Repo.Head
 
   build-depends:      base >=4.7 && <4.8, mtl >=2.2, transformers >= 0.3, 
 
