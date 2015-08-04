@@ -11,18 +11,10 @@
 
 module Repo.Diff3 where
 
-import Data.Proxy
-import Data.TypeList.SList
 import Data.TypeList.DList
 import Data.Type.Equality
 import Repo.Core
 import Repo.Diff
-
--- Debugging
-import Debug.Trace
-import Data.List (intercalate)
-
-debug = trace
 
 -- An edit script @ES3 f xs@ represents a merged edit script.
 -- It is well-typed with respect to the source object, but
@@ -40,6 +32,21 @@ data ES3 f xs where
   -- | Terminates the edit script
   End3 :: ES3 f '[]
 
+--------------------------------------------------------------------------------
+-- TODO point out problems with ambiguity when trying to decouple ES from single edits.
+--data Edit f as bs cs ds where
+--  EIns :: f as a -> Edit f '[] '[] as '[ a ]
+--  EDel :: f as a -> Edit f as '[ a ] '[] '[]
+--  EUpd :: f as a -> f bs a -> Edit f as '[ a ] bs '[ a ]
+--
+-- A list of edit scripts, either well-typed or with typed-errors 
+--data Edits f xs ys where
+--  ENil :: Edits f '[] '[]
+--  ECons :: SList xs -> SList ys -> Edit f as bs cs ds 
+--        -> Edits f (as :++: xs) (cs :++: ys) -> Edits f (bs :++: xs) (ds :++: ys)
+--  ETyErr :: Edit f as bs cs ds -> Edits f xs ys -> Edits f zs ws
+-------------------------------------------------------------------------------- 
+
 -- Represents what kind of conflict has been detected.
 data Conflict f where
   InsIns :: f xs a -> f ys b -> Conflict f
@@ -54,11 +61,6 @@ getConflicts (Ins3 _ e) = getConflicts e
 getConflicts (Del3 _ e) = getConflicts e
 getConflicts (Cnf3 c e) = c : getConflicts e
 getConflicts End3 = []
-
--- TODO does not really belong here, maybe in FList module
-instance Reify (FList f) where
-  toSList FNil = SNil
-  toSList (FCons _ fs) = SCons (toSList fs)
 
 --------------------------------------------------------------------------------
 
@@ -109,131 +111,6 @@ aligned a b =
   case a =?= b of
     Just (Refl, Refl) -> (Refl, Refl)
     _ -> error $ "Scripts not aligned: " ++ string a ++ " <-> " ++ string b
-
---data Edit f as bs cs ds where
---  EIns :: f as a -> Edit f '[] '[] as '[ a ]
---  EDel :: f as a -> Edit f as '[ a ] '[] '[]
---  EUpd :: f as a -> f bs a -> Edit f as '[ a ] bs '[ a ]
---
----- A list of edit scripts, either well-typed or with typed-errors 
----- TODO point out problems with ambiguity when trying to decouple ES from single edits.
---data Edits f xs ys where
---  ENil :: Edits f '[] '[]
---  ECons :: SList xs -> SList ys -> Edit f as bs cs ds 
---        -> Edits f (as :++: xs) (cs :++: ys) -> Edits f (bs :++: xs) (ds :++: ys)
---  ETyErr :: Edit f as bs cs ds -> Edits f xs ys -> Edits f zs ws
-  
--- TODO move to TypeChecking module
-
--- TODO Inferred type instead of Well-Typed
--- Well-typed edit script
-data WES f xs where
-  WES :: TList f ys -> ES f xs ys -> WES f xs
-
-data TypeError f where
-  -- TODO include slice of ES3 ?
-  TyErr :: ExpectedType f xs -> InferredType f ys -> TypeError f
-
-newtype ExpectedType f xs = ET (TList f xs)
-
--- Use type check and report left if there is at least one error.
-typeCheck :: Family f => ES3 f xs -> Either [TypeError f] (WES f xs)
-typeCheck = undefined
-
-data IsPrefixOf f xs zs where
-  Prefix :: TList f ys -> (xs :++: ys) :~: zs -> IsPrefixOf f xs zs
-
-isTyPrefixOf :: Family f => TList f as -> TList f bs -> Maybe (IsPrefixOf f as bs)
-isTyPrefixOf TNil s = Just $ Prefix s Refl
-isTyPrefixOf (TCons _ _) TNil = Nothing
-isTyPrefixOf (TCons x s1) (TCons y s2) =
-  case (isTyPrefixOf s1 s2, tyEq (proxyOfTL s1) x y) of
-    (Just (Prefix s Refl), Just Refl) -> Just $ Prefix s Refl
-    _ -> Nothing
-
--- TODO remark in thesis: is it possible to catch multiple type errors in this setting?
---data Unify a b where
---  Same :: Unify a a
---  TyErr :: Unify a b -- a and b are different
-
--- Prefix would report TyErr whenever a or b comes from Top
-
--- instead of FList we need some form of reified type,
--- which includes type error, that can be unified with everything.
-data InferredType f xs where
-  INil :: InferredType f '[]
-  ICons :: (x :<: f) => Proxy x -> InferredType f xs -> InferredType f (x ': xs)
-  Top :: InferredType f xs -- Can be anything, because of previous type errors
-
--- TODO multiple type error report?
--- Exploiting laziness, we can pair a WES with type error.
--- WES is fully defined only if no errors are reported.
-tyCheck :: Family f => ES3 f xs -> Either (TypeError f) (WES f xs)
-tyCheck End3 = Right $ WES TNil End
-tyCheck (Cnf3 c _) = error $  "Conflict detected: " ++ show c
-tyCheck (Del3 x e) = 
-  case tyCheck e of
-    Right (WES ty e') -> Right $ WES ty (Del x e')
-    Left tyErr -> Left tyErr
-tyCheck (Ins3 x e) = 
-  case tyCheck e of
-    Right (WES ty e') -> 
-      let xs = argsTy x in
-      case xs `isTyPrefixOf` ty of
-        Just (Prefix xsys Refl) -> Right $ WES (TCons Proxy xsys) (Ins x e')
-        Nothing -> Left $ TyErr (ET xs) undefined
-    Left tyErr -> Left tyErr
-tyCheck (Upd3 x y e) = 
-  case tyCheck e of
-    Right (WES ty e') ->
-      let ys = argsTy y in
-      case ys `isTyPrefixOf` ty of
-        Just (Prefix yszs Refl) -> Right $ WES (TCons Proxy yszs) (Upd x y e')
-        Nothing -> Left $ TyErr (ET ys) undefined
-    Left tyErr -> Left tyErr
-
-
--- Debugging
-tys :: Family f => FList f xs -> String
-tys fs = "[" ++ intercalate "," (go fs) ++ "]"
-  where go :: Family f => FList f xs -> [String]
-        go FNil = []
-        go (FCons x xs) = string x : go xs
-
---------------------------------------------------------------------------------
--- Auxiliary functions and data-types used in the merge3 algorithm
---------------------------------------------------------------------------------
-
--- TODO are these needed anymore?
-
-fappend :: FList f xs -> FList f ys -> FList f (xs :++: ys)
-fappend FNil f = f
-fappend (FCons x f1) f2 = FCons x (f1 `fappend` f2)
-
-fTake :: SList xs -> g ys -> FList f (xs :++: ys) -> FList f xs
-fTake SNil _ _ = FNil
-fTake (SCons s1) s2 (FCons x xs) = FCons x (fTake s1 s2 xs)
-
-fTail :: FList f (a ': xs) -> FList f xs
-fTail (FCons _ xs) = xs
-
-
-eq :: Family f => FList f xs -> FList f ys -> Maybe (xs :~: ys)
-eq FNil FNil = Just Refl
-eq (FCons _ _) FNil = Nothing
-eq FNil (FCons _ _) = Nothing
-eq (FCons x xs) (FCons y ys) = 
-  case (decEq x y, eq xs ys) of
-    (Just Refl, Just Refl) -> Just Refl
-    _ -> Nothing
-
-data FList f xs where
-  FNil :: FList f '[]
-  FCons :: (a :<: f) => f as a -> FList f xs -> FList f (a ': xs)
-
-fdrop :: SList xs -> FList f (xs :++: ys) -> FList f ys
-fdrop SNil fs = fs
-fdrop (SCons s) (FCons _ fs) = fdrop s fs
 
 --------------------------------------------------------------------------------
 instance Family f => Show (ES3 f xs) where
