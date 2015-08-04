@@ -9,12 +9,11 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Repo.Diff3 where
+module Data.DiffUtils.Diff3.Core where
 
 import Data.TypeList.DList
 import Data.Type.Equality
-import Repo.Core
-import Repo.Diff
+import Data.DiffUtils.Diff
 
 -- An edit script @ES3 f xs@ represents a merged edit script.
 -- It is well-typed with respect to the source object, but

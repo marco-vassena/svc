@@ -3,12 +3,11 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE PolyKinds #-}
 
-module Repo.Diff where
+module Data.DiffUtils.Diff where
 
 import Data.Proxy
 import Data.Type.Equality
 import Data.TypeList.DList
-import Repo.Core
 
 --------------------------------------------------------------------------------
 

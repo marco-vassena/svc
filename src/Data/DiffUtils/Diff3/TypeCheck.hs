@@ -3,14 +3,14 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PolyKinds #-}
 
-module Repo.TypeCheck where
+module Data.DiffUtils.Diff3.TypeCheck where
 
 import Data.Type.Equality
 import Data.Proxy
 import Data.TypeList.SList
 import Data.TypeList.DList
-import Repo.Diff hiding (IES)
-import Repo.Diff3
+import Data.DiffUtils.Diff hiding (IES)
+import Data.DiffUtils.Diff3.Core
 
 -- A simple wrapper for the type exected while type-checking.
 newtype ExpectedType f xs = ET (TList f xs)

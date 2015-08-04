@@ -10,8 +10,8 @@ module Csv where
 
 --import Data.TypeList.HList
 import Data.TypeList.DList
-import Repo.Diff
-import Repo.Diff3
+import Data.DiffUtils.Diff
+import Data.DiffUtils.Diff3
 import Data.Proxy
 import Data.Type.Equality
 

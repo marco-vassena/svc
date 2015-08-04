@@ -17,8 +17,12 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:     src
+                      
                       -- TODO clean up this section, what needs to be exposed?
   exposed-modules:    
+        
+                      Data.DiffUtils, Data.DiffUtils.Diff, Data.DiffUtils.Diff3
+
                       -- Type level lists and similars
                       Data.TypeList.HList, Data.TypeList.DList, 
 
@@ -38,8 +42,12 @@ library
               
   other-modules:      Format.Combinator.Base, Format.Combinator.Prim, 
 
+                      -- DiffUtils internals
+                      Data.DiffUtils.Diff3.Core, Data.DiffUtils.Diff3.TypeCheck,
+  
+
                       -- Repository
-                      Repo.Path, Repo.Head, Repo.Diff, Repo.Diff3, Repo.Core, Repo.TypeCheck
+                      Repo.Path, Repo.Head, Repo.Core
 
   build-depends:      base >=4.7 && <4.8, mtl >=2.2, transformers >= 0.3, 
 
