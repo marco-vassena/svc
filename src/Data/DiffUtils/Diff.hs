@@ -84,6 +84,20 @@ patch p (Del x e)   =            patch p e . delete p x
 patch p (Upd x y e) = insert y . patch p e . delete p x
 patch p End         = id
 
+-- Safe alternative to patch
+target :: Family f => ES f xs ys -> DList f ys
+target (Ins x e) = insert x (target e)
+target (Del x e) = target e
+target (Upd x y e) = insert y (target e)
+target End = DNil
+
+source :: Family f => ES f xs ys -> DList f xs
+source (Ins x e) = source e
+source (Del x e) = insert x (source e)
+source (Upd x y e) = insert x (source e)
+source End = DNil
+
+
 insert :: (Family f, a :<: f) => f xs a -> DList f (xs :++: ys) -> DList f (a ': ys)
 insert f ds = DCons (build f ds1) ds2
   where (ds1, ds2) = dsplit (reifyArgs f) ds

@@ -14,6 +14,7 @@ module Data.TypeList.DList (
   , module Data.TypeList.SList
   , dappend
   , dsplit
+  , dHead
   , View(..)
   , DList(..)
   , Elem(..)
@@ -27,6 +28,7 @@ module Data.TypeList.DList (
   , KnownTList(..)
   , proxyOfTL
   , tyEq
+  , tysEq
   , inject
   ) where
 
@@ -48,6 +50,9 @@ dsplit SNil ds = (DNil, ds)
 dsplit (SCons s) (DCons x ds) = (DCons x ds1, ds2)
   where (ds1, ds2) = dsplit s ds
 
+dHead :: DList f (a ': xs) -> a
+dHead (DCons x _) = x
+
 --------------------------------------------------------------------------------
 -- TODO can we avoid View at all? rather prefer the 
 -- DList and DTree safer version ?
@@ -62,6 +67,10 @@ data View f a where
 class a :<: (f :: [ * ] -> * -> *) where
   view :: Proxy f -> a -> View f a
   getElem :: Proxy f -> Elem f a (TypesOf f)
+
+  -- TODO can we use a single proxy? Proxy (a ,f) and store this in TList?
+  stringOfTy :: Proxy a -> Proxy f -> String
+
   -- TODO string representation of Type
 
 class Family f where
@@ -115,6 +124,14 @@ tyEq p x y = cmp (getElem p) (getElem p)
         cmp Here Here = Just Refl
         cmp (There i) (There j) = cmp i j
         cmp _ _ = Nothing
+
+tysEq :: Proxy f -> TList f xs -> TList f ys -> Maybe (xs :~: ys)
+tysEq p TNil TNil = Just Refl
+tysEq p (TCons x xs) (TCons y ys) =
+  case (tyEq p x y, tysEq p xs ys) of
+    (Just Refl, Just Refl) -> Just Refl
+    _ -> Nothing
+tysEq _ _ _ = Nothing
 
 instance Show (Elem f x xs) where
   show Here = "Here"

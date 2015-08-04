@@ -27,7 +27,7 @@ data ES3 f xs where
   -- | Replaces something in the original tree
   Upd3 :: (a :<: f) => f xs a -> f ys a -> ES3 f (xs :++: zs) -> ES3 f (a ': zs)
   -- | A conflict between the two edit script
-  Cnf3 :: Conflict f -> ES3 f xs -> ES3 f ys -- TODO remark that it is not worth to make this case well-typed
+  Cnf3 :: VConflict f -> ES3 f xs -> ES3 f ys -- TODO remark that it is not worth to make this case well-typed
   -- | Terminates the edit script
   End3 :: ES3 f '[]
 
@@ -46,20 +46,21 @@ data ES3 f xs where
 --  ETyErr :: Edit f as bs cs ds -> Edits f xs ys -> Edits f zs ws
 -------------------------------------------------------------------------------- 
 
--- Represents what kind of conflict has been detected.
-data Conflict f where
-  InsIns :: f xs a -> f ys b -> Conflict f
-  UpdDel :: f xs a -> f ys a -> Conflict f
-  DelUpd :: f xs a -> f ys a -> Conflict f
-  UpdUpd :: f xs a -> f ys a -> f zs a -> Conflict f
+-- It represents value related conflicts.
+-- Each constructor denotes the edits that caused the conflict.
+data VConflict f where
+  InsIns :: f xs a -> f ys b -> VConflict f
+  UpdDel :: f xs a -> f ys a -> VConflict f
+  DelUpd :: f xs a -> f ys a -> VConflict f
+  UpdUpd :: f xs a -> f ys a -> f zs a -> VConflict f
 
 -- Collects the conflict that may be present in the edit script.
-getConflicts :: ES3 f xs -> [Conflict f]
-getConflicts (Upd3 _ _ e) = getConflicts e
-getConflicts (Ins3 _ e) = getConflicts e
-getConflicts (Del3 _ e) = getConflicts e
-getConflicts (Cnf3 c e) = c : getConflicts e
-getConflicts End3 = []
+getVConflicts :: ES3 f xs -> [VConflict f]
+getVConflicts (Upd3 _ _ e) = getVConflicts e
+getVConflicts (Ins3 _ e) = getVConflicts e
+getVConflicts (Del3 _ e) = getVConflicts e
+getVConflicts (Cnf3 c e) = c : getVConflicts e
+getVConflicts End3 = []
 
 --------------------------------------------------------------------------------
 
@@ -112,7 +113,7 @@ instance Family f => Show (ES3 f xs) where
   show (Upd3 x y xs) = "Upd3 " ++ string x ++ " " ++ string y ++ " $ " ++ show xs
   show (Cnf3 x xs) = "Cnf " ++ show x ++ " $ " ++ show xs
 
-instance Family f => Show (Conflict f) where
+instance Family f => Show (VConflict f) where
   show (InsIns a b) = "InsIns " ++ string a ++ " " ++ string b
   show (UpdDel a b) = "UpdDel " ++ string a ++ " " ++ string b
   show (DelUpd a b) = "DelUpd " ++ string a ++ " " ++ string b

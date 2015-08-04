@@ -41,6 +41,10 @@ toTList INil = TNil
 toTList (ICons p i) = TCons p (toTList i)
 toTList Top = error "toTList: InferredType contains Top"
 
+toInferredType :: TList f xs -> InferredType f xs
+toInferredType TNil = INil
+toInferredType (TCons p t) = ICons p (toInferredType t)
+
 --------------------------------------------------------------------------------
 data Unify a b where
   Same :: Unify a a
@@ -63,8 +67,19 @@ isTyPrefixOf (TCons x s1) (ICons y s2) =
 
 --------------------------------------------------------------------------------
 
+-- This data-type includes the two kind of conflicts that
+-- can be detected while merging.
+-- The first constructor @VConf@ is about value related conflicts, 
+-- i.e. two aligned incompatible edits have been made.
+-- The second constructor @TConf@ denotes that a properly
+-- merged edit cannot be included in the merged edit script,
+-- because of a type-mismatch.
+data Conflict f = VConf (VConflict f)
+                | TConf (TypeError f)
+  deriving (Show)
+
 -- Use type check and report left if there is at least one error.
-typeCheck :: Family f => ES3 f xs -> Either [TypeError f] (WES f xs)
+typeCheck :: Family f => ES3 f xs -> Either [Conflict f] (WES f xs)
 typeCheck e = 
   case tyCheck e of
     ([]  , IES ty e') -> Right $ WES (toTList ty) e'
@@ -72,11 +87,11 @@ typeCheck e =
 
 -- Exploiting laziness, we can pair a IES with type error.
 -- The script IES is fully defined only if no errors are reported.
-tyCheck :: Family f => ES3 f xs -> ([TypeError f], IES f xs)
+tyCheck :: Family f => ES3 f xs -> ([Conflict f], IES f xs)
 tyCheck End3 = ([], IES INil End)
 tyCheck (Cnf3 c e) = 
   case tyCheck e of 
-    (tyErr, IES ty e') -> (tyErr, IES Top undefined) -- TODO we should report conflicts and type errors.
+    (tyErr, IES ty e') -> (VConf c : tyErr, IES Top undefined)
 tyCheck (Del3 x e) = 
   case tyCheck e of
     (tyErr, IES ty e') -> (tyErr, IES ty (Del x e'))
@@ -89,7 +104,7 @@ tyCheck (Ins3 x e) =
         -- TODO better error message
         -- TODO return part of the edit script, or just undefined?
         Just (Prefix xsys Failed) -> (tyErr, IES (ICons Proxy xsys) (Ins x undefined))
-        Nothing -> (TyErr (ET xs) ty : tyErr, IES (ICons Proxy Top) (Ins x undefined))
+        Nothing -> (TConf (TyErr (ET xs) ty) : tyErr, IES (ICons Proxy Top) (Ins x undefined))
 tyCheck (Upd3 x y e) = 
   case tyCheck e of
     (tyErr, IES ty e') ->
@@ -99,4 +114,26 @@ tyCheck (Upd3 x y e) =
         -- TODO better error message
         -- TODO return part of the edit script, or just undefined?
         Just (Prefix yszs Failed) -> (tyErr, IES (ICons Proxy yszs) (Upd x y undefined))
-        Nothing -> (TyErr (ET ys) ty : tyErr, IES (ICons Proxy Top) (Upd x y undefined))
+        Nothing -> (TConf (TyErr (ET ys) ty) : tyErr, IES (ICons Proxy Top) (Upd x y undefined))
+
+--------------------------------------------------------------------------------
+
+instance Family f => Show (TypeError f) where
+  show (TyErr expected inferred) = "TyErr " ++ show expected ++ " " ++ show inferred 
+
+instance Family f => Show (InferredType f xs) where
+  show is = "[" ++ showIType is Proxy ++ "]"
+ 
+showIType :: Family f => InferredType f xs -> Proxy f -> String
+showIType INil _ = ""
+showIType (ICons x INil) p = stringOfTy x p
+showIType (ICons x is) p = stringOfTy x p ++ ", " ++ showIType is p
+showIType Top _ = "Top"
+
+instance Family f => Show (ExpectedType f xs) where
+  show (ET ts) = "[" ++ showTList ts Proxy ++ "]"
+
+showTList :: Family f => TList f xs -> Proxy f -> String
+showTList TNil _ = ""
+showTList (TCons x TNil) p = stringOfTy x p
+showTList (TCons x ts) p = stringOfTy x p ++ ", " ++ showTList ts p

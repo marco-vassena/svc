@@ -77,6 +77,25 @@ c2PatchFail = case patch Proxy d02 (DCons c1 DNil) of
 
 -- TODO update examples, choose which interface to follow: diff3 or merge3?
 
+-- returns the merged object if the merge is successful,
+-- otherwise fails with error printing the conflicts.
+diff3Target :: (Family f, Metric f, a :<: f, b :<: f)
+            => b -> a -> b -> DList f '[ b ]
+diff3Target x o y = 
+  case diff3 x o y of
+    Left errs -> error (show errs)
+    Right e -> target e
+
+mergeCsv :: Csv -> Csv -> Csv -> DList CsvF '[Csv]
+mergeCsv = diff3Target 
+
+c012 :: Csv
+c012 = dHead $ mergeCsv c1 c0 c2 
+ 
+
+c023 :: Csv
+c023 = dHead $ mergeCsv c2 c0 c3
+   
 -- Changes merged with no conflicts
 --d012 :: ES3 CsvF '[Csv] '[Csv]
 --d012 = diff3 d01 d02
@@ -144,12 +163,14 @@ instance Family CsvF where
   argsTy ConsRow' = tlist
   argsTy NilInt' = tlist
   argsTy ConsInt' = tlist
+  argsTy (Int' _) = tlist
   
   outputTy NilRow' = tlist
   outputTy ConsRow' = tlist
   outputTy NilInt' = tlist
   outputTy ConsInt' = tlist
-  
+  outputTy (Int' _) = tlist
+
 instance Metric CsvF where
   distance (Int' x) (Int' y) = if x == y then 0 else 1
   distance NilRow'  NilRow' = 0
@@ -166,15 +187,19 @@ instance Csv :<: CsvF where
 
   getElem _ = inject
 
+  stringOfTy _ _ = "Csv"
+
 instance [Int] :<: CsvF where
   view _ [] = View NilInt' DNil
   view _ (x:xs) = View ConsInt' (DCons x (DCons xs DNil))
 
   getElem _ = inject
 
+  stringOfTy _ _ = "[Int]"
+
 instance Int :<: CsvF where
   view _ i = View (Int' i) DNil
   
   getElem _ = inject
 
---------------------------------------------------------------------------------
+  stringOfTy _ _ = "Int"
