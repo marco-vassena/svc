@@ -25,13 +25,23 @@ data InferredType f xs where
 data IES f xs where
   IES :: InferredType f ys -> ES f xs ys -> IES f xs
 
+-- Well typed edit script
+data WES f xs where
+  WES :: TList f ys -> ES f xs ys -> WES f xs
+
 -- Represents a failure in the type-checker algorithm.
 data TypeError f where
   -- TODO include slice of ES3 ?
   TyErr :: ExpectedType f xs -> InferredType f ys -> TypeError f
 
+-- Converts an InferredType in TList. 
+-- It fails with error if InferredType contains Top
+toTList :: InferredType f xs -> TList f xs
+toTList INil = TNil
+toTList (ICons p i) = TCons p (toTList i)
+toTList Top = error "toTList: InferredType contains Top"
+
 --------------------------------------------------------------------------------
--- Explicit poly kinds?
 data Unify a b where
   Same :: Unify a a
   Failed :: Unify a b -- a and b are different
@@ -55,36 +65,38 @@ isTyPrefixOf (TCons x s1) (ICons y s2) =
 -- Prefix would report TyErr whenever a or b comes from Top
 
 -- Use type check and report left if there is at least one error.
-typeCheck :: Family f => ES3 f xs -> Either [TypeError f] (IES f xs)
-typeCheck = undefined
+typeCheck :: Family f => ES3 f xs -> Either [TypeError f] (WES f xs)
+typeCheck e = 
+  case tyCheck e of
+    ([]  , IES ty e') -> Right $ WES (toTList ty) e'
+    (errs, _        ) -> Left $ errs
 
 -- TODO multiple type error report?
 -- Exploiting laziness, we can pair a IES with type error.
 -- IES is fully defined only if no errors are reported.
-tyCheck :: Family f => ES3 f xs -> Either (TypeError f) (IES f xs)
-tyCheck End3 = Right $ IES INil End
-tyCheck (Cnf3 c _) = error $  "Conflict detected: " ++ show c
+tyCheck :: Family f => ES3 f xs -> ([TypeError f], IES f xs)
+tyCheck End3 = ([], IES INil End)
+tyCheck (Cnf3 c e) = error $ "Conflict detected: " ++ show c
 tyCheck (Del3 x e) = 
   case tyCheck e of
-    Right (IES ty e') -> Right $ IES ty (Del x e')
-    Left tyErr -> Left tyErr
+    (tyErr, IES ty e') -> (tyErr, IES ty (Del x e'))
 tyCheck (Ins3 x e) = 
   case tyCheck e of
-    Right (IES ty e') -> 
+    (tyErr, IES ty e') -> 
       let xs = argsTy x in
       case xs `isTyPrefixOf` ty of
-        Just (Prefix xsys Same) -> Right $ IES (ICons Proxy xsys) (Ins x e')
+        Just (Prefix xsys Same) -> (tyErr, IES (ICons Proxy xsys) (Ins x e'))
         -- TODO better error message
-        Just (Prefix xsys Failed) -> Right $ IES (ICons Proxy xsys) (Ins x undefined) 
-        Nothing -> Left $ TyErr (ET xs) ty
-    Left tyErr -> Left tyErr
+        -- TODO return part of the edit script, or just undefined?
+        Just (Prefix xsys Failed) -> (tyErr, IES (ICons Proxy xsys) (Ins x undefined))
+        Nothing -> (TyErr (ET xs) ty : tyErr, IES (ICons Proxy Top) (Ins x undefined))
 tyCheck (Upd3 x y e) = 
   case tyCheck e of
-    Right (IES ty e') ->
+    (tyErr, IES ty e') ->
       let ys = argsTy y in
       case ys `isTyPrefixOf` ty of
-        Just (Prefix yszs Same) -> Right $ IES (ICons Proxy yszs) (Upd x y e')
+        Just (Prefix yszs Same) -> (tyErr, IES (ICons Proxy yszs) (Upd x y e'))
         -- TODO better error message
-        Just (Prefix yszs Failed) -> Right $ IES (ICons Proxy yszs) (Upd x y undefined)
-        Nothing -> Left $ TyErr (ET ys) ty
-    Left tyErr -> Left tyErr
+        -- TODO return part of the edit script, or just undefined?
+        Just (Prefix yszs Failed) -> (tyErr, IES (ICons Proxy yszs) (Upd x y undefined))
+        Nothing -> (TyErr (ET ys) ty : tyErr, IES (ICons Proxy Top) (Upd x y undefined))
