@@ -6,6 +6,8 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE FlexibleContexts #-} -- For automatic inj'ion
+{-# LANGUAGE OverlappingInstances #-}
 
 module Data.TypeList.DList (
     module Data.TypeList.Core
@@ -25,6 +27,7 @@ module Data.TypeList.DList (
   , KnownTList(..)
   , proxyOfTL
   , tyEq
+  , inject
   ) where
 
 import Data.TypeList.Core
@@ -32,9 +35,6 @@ import Data.TypeList.SList
 import Data.Proxy
 import Data.Type.Equality
 
--- DList and similar
-
--- TODO maybe move to Data.DList
 data DList f xs where
   DNil :: DList f '[]
   DCons :: (x :<: f) => x -> DList f xs -> DList f (x ': xs)
@@ -61,12 +61,12 @@ data View f a where
 -- Belongs to relation
 class a :<: (f :: [ * ] -> * -> *) where
   view :: Proxy f -> a -> View f a
-  getElem :: Proxy f -> Proxy a -> Elem f a (TypesOf f)
+  getElem :: Proxy f -> Elem f a (TypesOf f)
 
 class Family f where
   
   -- Succeds only if the singleton types represents exactly the same constructor
-  (=?=) :: f xs a -> f ys b -> Maybe ( a :~: b , xs :~: ys )
+  (=?=) :: f xs a -> f ys b -> Maybe (a :~: b , xs :~: ys)
 
   -- TODO
   -- Can we use DList and DTree instead of single DList with Maybe?
@@ -77,7 +77,6 @@ class Family f where
   
   string :: f xs a -> String
 
-  -- TODO insert instead
   argsTy :: f xs a -> TList f xs
   outputTy :: f xs a -> TList f '[ a ]
 
@@ -104,29 +103,40 @@ data Elem f x xs where
   Here :: Elem f x (x ': xs) -- Maybe x :<: f
   There :: (y :<: f) => Elem f x ys -> Elem f x (y ': ys)
 
--- TODO I just hope that all these Proxy won't make problems
+-- Computes decidable type equality for types belonging to a certain
+-- family of recursive data types.
+-- It requires a time proportional to the number types that form the family,
+-- but for all practical purposes it should be considered as constant time,
+-- since their number is fixed at compile time and typically small. 
 tyEq :: (a :<: f, b :<: f) => Proxy f -> Proxy a -> Proxy b -> Maybe (a :~: b)
-tyEq p x y = cmp (getElem p x) (getElem p y)
+tyEq p x y = cmp (getElem p) (getElem p)
   where cmp :: Elem f a xs -> Elem f b xs -> Maybe (a :~: b)
         cmp Here Here = Just Refl
         cmp (There i) (There j) = cmp i j
         cmp _ _ = Nothing
 
+instance Show (Elem f x xs) where
+  show Here = "Here"
+  show (There Here) = "There Here"
+  show (There i) = "There (" ++ show i ++ ")"
+
 --------------------------------------------------------------------------------
 
--- TODO with some type features it should be possible
--- to automatically inject the proof, similarly to KnownList
--- However the problem at call sites is that there are overlapping
--- matching instances. Can we rewrite them to be exclusive?
+-- This type class automatically produce Elem proofs
+-- for type level lists xs instantiated with ground types.
+-- It requires OverlappingInstances, but the more
+-- specific instance is always properly chosen.
 class In f x xs where
-  -- TODO do we need the proxy ?
-  isIn :: Proxy f -> Proxy x -> SList xs -> Elem f x xs
+  inj' :: Proxy f -> Elem f x xs
 
 instance In f x (x ': xs) where
-  isIn _ _ _ = Here
+  inj' _  = Here
 
 instance (y :<: f, In f x ys) => In f x (y ': ys) where
-  isIn p1 p2 (SCons s)= There $ isIn p1 p2 s
+  inj' p1 = There $ inj' p1 
+
+inject :: In f x (TypesOf f) => Elem f x (TypesOf f)
+inject = inj' Proxy
 
 --------------------------------------------------------------------------------
 -- TODO move to its own module
@@ -150,4 +160,5 @@ instance KnownTList f '[] where
 
 instance (x :<: f, KnownTList f xs) => KnownTList f (x ': xs) where
   tlist = TCons Proxy tlist
+
 --------------------------------------------------------------------------------

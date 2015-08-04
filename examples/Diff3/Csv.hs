@@ -150,7 +150,6 @@ instance Family CsvF where
   outputTy NilInt' = tlist
   outputTy ConsInt' = tlist
   
-  
 instance Metric CsvF where
   distance (Int' x) (Int' y) = if x == y then 0 else 1
   distance NilRow'  NilRow' = 0
@@ -165,17 +164,17 @@ instance Csv :<: CsvF where
   view _ [] = View NilRow' DNil
   view _ (x:xs) = View ConsRow' (DCons x (DCons xs DNil))
 
-  getElem p1 p2 = There $ There $ Here
+  getElem _ = inject
 
 instance [Int] :<: CsvF where
   view _ [] = View NilInt' DNil
   view _ (x:xs) = View ConsInt' (DCons x (DCons xs DNil))
 
-  getElem _ _ = There $ Here
+  getElem _ = inject
 
 instance Int :<: CsvF where
   view _ i = View (Int' i) DNil
   
-  getElem _ _ = Here
+  getElem _ = inject
 
 --------------------------------------------------------------------------------
