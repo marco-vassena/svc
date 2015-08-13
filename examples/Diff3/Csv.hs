@@ -22,7 +22,7 @@ r0 = [1,2,3,4,5,6]
 r1 = [1,4,5,2,3,6]
 r2 = [1,2,4,5,3,6]
 
-r01, r02 :: ES CsvF '[Row] '[Row]
+r01, r02 :: ES '[Row] '[Row]
 r01 = gdiff r0 r1
 r02 = gdiff r0 r2
 
@@ -58,7 +58,7 @@ c4 = [[1,0,0,2,3],
       [4,9,9,5,6],
       [7,3,3,8,9]]
 
-d01, d02, d03 :: ES CsvF '[Csv] '[Csv]
+d01, d02, d03 :: ES '[Csv] '[Csv]
 d01 = gdiff c0 c1
 d02 = gdiff c0 c2
 d03 = gdiff c0 c3
@@ -70,8 +70,7 @@ d03 = gdiff c0 c3
 
 -- returns the merged object if the merge is successful,
 -- otherwise fails with error printing the conflicts.
-diff3Target :: (Family f, Metric f, a :<: f, b :<: f)
-            => b -> a -> b -> DList f '[ b ]
+diff3Target :: (Metric a, Metric b) => b -> a -> b -> DList '[ b ]
 diff3Target x o y = 
   case diff3 x o y of
     Left errs -> error (show errs)
@@ -79,12 +78,12 @@ diff3Target x o y =
 
 mergeCsv :: Csv -> Csv -> Csv -> Csv
 mergeCsv x o y = fromDTree (dHead d)
-  where d :: DList CsvF '[Csv] 
+  where d :: DList '[Csv] 
         d = diff3Target x o y
 
 mergeRow :: Row -> Row -> Row -> Row
 mergeRow x o y = fromDTree (dHead d)
-  where d :: DList CsvF '[Row]
+  where d :: DList '[Row]
         d = diff3Target x o y
 
 c012 :: Csv
@@ -122,69 +121,55 @@ c023 = mergeCsv c2 c0 c3
 --          DCons x DNil -> x
 
 --------------------------------------------------------------------------------
-data CsvF xs a where
-  Int' :: Int -> CsvF '[] Int
-  NilRow' :: CsvF '[] [[Int]]
-  ConsRow' :: CsvF '[[Int], [[Int]]] [[Int]]
-  NilInt' :: CsvF '[] [Int]
-  ConsInt' :: CsvF '[Int, [Int]] [Int]
+-- List instance
 
-instance Family CsvF where
-  string (Int' i) = show i
-  string NilRow' = "[]"
-  string ConsRow' = "(:)"
-  string NilInt' = "[]"
-  string ConsInt' = "(:)"
+data ListF xs a where
+  Nil :: ListF '[] [a]
+  Cons :: ListF '[ a, [a] ] [a]
+
+instance Metric a => TreeLike [a] where
+  type FamilyOf [a] = ListF
   
-  (Int' x) =?= (Int' y) = if (x == y) then Just (Refl, Refl) else Nothing
-  NilRow'  =?= NilRow' = Just (Refl, Refl)
-  ConsRow' =?= ConsRow' = Just (Refl, Refl)
-  NilInt'  =?= NilInt' = Just (Refl, Refl)
-  ConsInt' =?= ConsInt' = Just (Refl, Refl)
+  string Nil = "[]"
+  string Cons = "(:)"
+ 
+  Nil =?= Nil = Just Refl
+  Cons =?= Cons = Just Refl
   _ =?= _ = Nothing
 
-  argsTy NilRow' = tlist
-  argsTy ConsRow' = tlist
-  argsTy NilInt' = tlist
-  argsTy ConsInt' = tlist
-  argsTy (Int' _) = tlist
-  
-  outputTy NilRow' = tlist
-  outputTy ConsRow' = tlist
-  outputTy NilInt' = tlist
-  outputTy ConsInt' = tlist
-  outputTy (Int' _) = tlist
+  fromDTree (Node Nil DNil) = []
+  fromDTree (Node Cons (DCons x (DCons xs DNil))) = fromDTree x : fromDTree xs
 
-instance Metric CsvF where
-  distance (Int' x) (Int' y) = if x == y then 0 else 1
-  distance NilRow'  NilRow' = 0
-  distance ConsRow' ConsRow' = 0
-  distance NilInt'  NilInt' = 0
-  distance ConsInt' ConsInt' = 0
+  toDTree [] = Node Nil DNil
+  toDTree (x:xs) = Node Cons ds 
+    where ds = DCons (toDTree x) $ DCons (toDTree xs) DNil
+
+  argsTy Nil = tlist
+  argsTy Cons = tlist
+ 
+instance Metric a => Metric [a] where
+  distance Nil Nil = 0
+  distance Cons Cons = 0
   distance _ _ = 1
 
-type instance TypesOf CsvF = '[Int, [Int], [[Int]]]
+--------------------------------------------------------------------------------
+-- Int instances
 
-instance Csv :<: CsvF where
-  getElem _ = inject
-  fromDTree (Node NilRow' DNil) = []
-  fromDTree (Node ConsRow' (DCons x (DCons xs DNil))) = fromDTree x : fromDTree xs
-  toDTree [] = Node NilRow' DNil
-  toDTree (x:xs) = Node ConsRow' ds 
-    where ds = DCons (toDTree x) $ DCons (toDTree xs) DNil
-  stringOfTy _ _ = "Csv"
+data IntF xs a where
+  Int' :: Int -> IntF '[] Int
 
-instance [Int] :<: CsvF where
-  getElem _ = inject
-  fromDTree (Node NilInt' DNil) = []
-  fromDTree (Node ConsInt' (DCons x (DCons xs DNil))) = fromDTree x : fromDTree xs
-  toDTree [] = Node NilInt' DNil
-  toDTree (x:xs) = Node ConsInt' ds
-    where ds = DCons (toDTree x) $ DCons (toDTree xs) DNil
-  stringOfTy _ _ = "[Int]"
+instance TreeLike Int where
+  type FamilyOf Int = IntF
 
-instance Int :<: CsvF where
-  getElem _ = inject
+  string (Int' i) = show i
+
+  (Int' x) =?= (Int' y) = if x == y then Just Refl else Nothing
+
   fromDTree (Node (Int' n) DNil) = n
   toDTree n = Node (Int' n) DNil
-  stringOfTy _ _ = "Int"
+  
+  argsTy (Int' _) = TNil
+
+
+instance Metric Int where
+  distance (Int' x) (Int' y) = if x == y then 0 else 1

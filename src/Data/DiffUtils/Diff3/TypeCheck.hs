@@ -5,43 +5,42 @@
 
 module Data.DiffUtils.Diff3.TypeCheck where
 
-import Data.Type.Equality
-import Data.Proxy
 import Data.TypeList.SList
 import Data.TypeList.DList
 import Data.DiffUtils.Diff hiding (IES)
 import Data.DiffUtils.Diff3.Core
+import Data.Typeable
 
 -- A simple wrapper for the type exected while type-checking.
-newtype ExpectedType f xs = ET (TList f xs)
+newtype ExpectedType xs = ET (TList xs)
 
 -- Represents a type inferred in typeCheck
-data InferredType f xs where
-  INil :: InferredType f '[]
-  ICons :: (x :<: f) => Proxy x -> InferredType f xs -> InferredType f (x ': xs)
-  Top :: InferredType f xs -- Can be anything, because of previous type errors
+data InferredType xs where
+  INil :: InferredType '[]
+  ICons :: Typeable x => Proxy x -> InferredType xs -> InferredType (x ': xs)
+  Top :: InferredType xs -- Can be anything, because of previous type errors
 
 -- Inferred type for an edit script
-data IES f xs where
-  IES :: InferredType f ys -> ES f xs ys -> IES f xs
+data IES xs where
+  IES :: InferredType ys -> ES xs ys -> IES xs
 
 -- Well typed edit script
-data WES f xs where
-  WES :: TList f ys -> ES f xs ys -> WES f xs
+data WES xs where
+  WES :: TList ys -> ES xs ys -> WES xs
 
 -- Represents a failure in the type-checker algorithm.
-data TypeError f where
+data TypeError where
   -- TODO include slice of ES3 ?
-  TyErr :: ExpectedType f xs -> InferredType f ys -> TypeError f
+  TyErr :: ExpectedType xs -> InferredType ys -> TypeError
 
 -- Converts an InferredType in TList. 
 -- It fails with error if InferredType contains Top
-toTList :: InferredType f xs -> TList f xs
+toTList :: InferredType xs -> TList xs
 toTList INil = TNil
 toTList (ICons p i) = TCons p (toTList i)
 toTList Top = error "toTList: InferredType contains Top"
 
-toInferredType :: TList f xs -> InferredType f xs
+toInferredType :: TList xs -> InferredType xs
 toInferredType TNil = INil
 toInferredType (TCons p t) = ICons p (toInferredType t)
 
@@ -50,20 +49,20 @@ data Unify a b where
   Same :: Unify a a
   Failed :: Unify a b -- a and b are different
 
--- The type @IsPrefixOf f xs zs@ is the proof that the types xs are a prefix of zs,
+-- The type @IsPrefixOf xs zs@ is the proof that the types xs are a prefix of zs,
 -- according to some unifier, denoted by Unify.
-data IsPrefixOf f xs zs where
-  Prefix :: InferredType f ys -> Unify (xs :++: ys) zs -> IsPrefixOf f xs zs
+data IsPrefixOf xs zs where
+  Prefix :: InferredType ys -> Unify (xs :++: ys) zs -> IsPrefixOf xs zs
 
 -- Checks whether a list is a prefix of the other
-isTyPrefixOf :: Family f => TList f as -> InferredType f bs -> Maybe (IsPrefixOf f as bs)
-isTyPrefixOf TNil s = Just $ Prefix s Same
-isTyPrefixOf s Top = Just $ Prefix Top Failed
-isTyPrefixOf (TCons _ _) INil = Nothing
-isTyPrefixOf (TCons x s1) (ICons y s2) =
-  case (tyEq (proxyOfTL s1) x y, isTyPrefixOf s1 s2) of
+isPrefixOfTy :: TList as -> InferredType bs -> Maybe (IsPrefixOf as bs)
+isPrefixOfTy TNil s = Just $ Prefix s Same
+isPrefixOfTy s Top = Just $ Prefix Top Failed
+isPrefixOfTy (TCons _ _) INil = Nothing
+isPrefixOfTy (TCons x s1) (ICons y s2) =
+  case (tyEq x y, isPrefixOfTy s1 s2) of
     (Just Refl, Just (Prefix s Same)) -> Just $ Prefix s Same
-    (Just Refl, Just (Prefix s Failed)) -> Just $ Prefix s Failed
+    (Just Refl, Just (Prefix s Failed)) -> Just $ Prefix s Failed -- TODO is it s or ICons x s
     _ -> Nothing
 
 --------------------------------------------------------------------------------
@@ -75,20 +74,20 @@ isTyPrefixOf (TCons x s1) (ICons y s2) =
 -- The second constructor @TConf@ denotes that a properly
 -- merged edit cannot be included in the merged edit script,
 -- because of a type-mismatch.
-data Conflict f = VConf (VConflict f)
-                | TConf (TypeError f)
+data Conflict = VConf (VConflict)
+              | TConf (TypeError)
   deriving (Show)
 
 -- Use type check and report left if there is at least one error.
-typeCheck :: Family f => ES3 f xs -> Either [Conflict f] (WES f xs)
+typeCheck ::  ES3 xs -> Either [Conflict] (WES xs)
 typeCheck e = 
   case tyCheck e of
     ([]  , IES ty e') -> Right $ WES (toTList ty) e'
-    (errs, _        ) -> Left $ errs
+    (errs, _        ) -> Left errs
 
 -- Exploiting laziness, we can pair a IES with type error.
 -- The script IES is fully defined only if no errors are reported.
-tyCheck :: Family f => ES3 f xs -> ([Conflict f], IES f xs)
+tyCheck ::  ES3 xs -> ([Conflict], IES xs)
 tyCheck End3 = ([], IES INil End)
 tyCheck (Cnf3 c e) = 
   case tyCheck e of 
@@ -100,7 +99,7 @@ tyCheck (Ins3 x e) =
   case tyCheck e of
     (tyErr, IES ty e') -> 
       let xs = argsTy x in
-      case xs `isTyPrefixOf` ty of
+      case xs `isPrefixOfTy` ty of
         Just (Prefix xsys Same) -> (tyErr, IES (ICons Proxy xsys) (Ins x e'))
         -- TODO better error message
         -- TODO return part of the edit script, or just undefined?
@@ -110,7 +109,7 @@ tyCheck (Upd3 x y e) =
   case tyCheck e of
     (tyErr, IES ty e') ->
       let ys = argsTy y in
-      case ys `isTyPrefixOf` ty of
+      case ys `isPrefixOfTy` ty of
         Just (Prefix yszs Same) -> (tyErr, IES (ICons Proxy yszs) (Upd x y e'))
         -- TODO better error message
         -- TODO return part of the edit script, or just undefined?
@@ -119,22 +118,22 @@ tyCheck (Upd3 x y e) =
 
 --------------------------------------------------------------------------------
 
-instance Family f => Show (TypeError f) where
+instance  Show TypeError where
   show (TyErr expected inferred) = "TyErr " ++ show expected ++ " " ++ show inferred 
 
-instance Family f => Show (InferredType f xs) where
-  show is = "[" ++ showIType is Proxy ++ "]"
+instance  Show (InferredType xs) where
+  show is = "[" ++ showIType is ++ "]"
  
-showIType :: Family f => InferredType f xs -> Proxy f -> String
-showIType INil _ = ""
-showIType (ICons x INil) p = stringOfTy x p
-showIType (ICons x is) p = stringOfTy x p ++ ", " ++ showIType is p
-showIType Top _ = "Top"
+showIType :: InferredType xs -> String
+showIType INil = ""
+showIType (ICons x INil) = showTy x 
+showIType (ICons x is) = showTy x ++ ", " ++ showIType is
+showIType Top = "Top"
 
-instance Family f => Show (ExpectedType f xs) where
-  show (ET ts) = "[" ++ showTList ts Proxy ++ "]"
+instance Show (ExpectedType xs) where
+  show (ET ts) = "[" ++ showTList ts ++ "]"
 
-showTList :: Family f => TList f xs -> Proxy f -> String
-showTList TNil _ = ""
-showTList (TCons x TNil) p = stringOfTy x p
-showTList (TCons x ts) p = stringOfTy x p ++ ", " ++ showTList ts p
+showTList :: TList xs -> String
+showTList TNil = ""
+showTList (TCons x TNil) = showTy x
+showTList (TCons x ts) = showTy x ++ ", " ++ showTList ts

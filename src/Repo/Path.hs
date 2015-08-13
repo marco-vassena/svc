@@ -13,7 +13,7 @@ import Data.Set (Set)
 type Depth = Int
 
 -- Kept abstract to enforce the invariants
-data  Path a = Root a
+data Path a = Root a
              | Node  (Path a) !Depth EditScript
              | Merge (Path a) (Path a) !Depth EditScript
   deriving (Show, Generic)

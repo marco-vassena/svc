@@ -24,7 +24,7 @@ library
                       Data.DiffUtils, Data.DiffUtils.Diff, Data.DiffUtils.Diff3
 
                       -- Type level lists and similars
-                      Data.TypeList.HList, Data.TypeList.DList, 
+                      Data.TypeList.HList, Data.TypeList.DList, Data.TypeList.TList,
 
                       -- Auxiliary iso staff
                       Control.Isomorphism.Partial.Prim, Control.Isomorphism.Partial.Constructors,

@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE ConstraintKinds #-}
 
 module Data.DiffUtils.Diff where
 
@@ -11,81 +12,70 @@ import Data.TypeList.DList
 
 --------------------------------------------------------------------------------
 
--- Represents the fact that a type a belongs to a particular
--- family of mutually recursive data-types
-class Metric f where
-  -- Laws:
-  --  d x y = d y x             (symmetry)
-  --  d x y >= 0                (non-negativity)
-  --  d x x = 0                 (identity)
-  --  d x z <= d x y + d y z    (triangle inequality)
-  distance :: f xs a -> f ys a -> Int
-
 --------------------------------------------------------------------------------
 
 -- | A well-typed edit script that maps transforms xs values in ys values,
 -- by means of insert, delete and update.
-data ES f xs ys where
+data ES xs ys where
   -- | Inserts something new in the tree
-  Ins :: (a :<: f) => f xs a -> ES f ys (xs :++: zs) -> ES f ys (a ': zs)
+  Ins :: Metric a => F xs a -> ES ys (xs :++: zs) -> ES ys (a ': zs)
   -- | Removes something from the original tree
-  Del :: (a :<: f) => f xs a -> ES f (xs :++: ys) zs -> ES f (a ': ys) zs  
+  Del :: Metric a => F xs a -> ES (xs :++: ys) zs -> ES (a ': ys) zs  
   -- | Replaces something in the original tree
-  Upd :: (a :<: f) => f xs a -> f ys a -> ES f (xs :++: zs) (ys :++: ws) -> ES f (a ': zs) (a ': ws)
+  Upd :: Metric a => F xs a -> F ys a -> ES (xs :++: zs) (ys :++: ws) -> ES (a ': zs) (a ': ws)
   -- | Terminates the edit script
-  End :: ES f '[] '[]
+  End :: ES '[] '[]
 
 --------------------------------------------------------------------------------
 -- TODO probably we want to store the cost with the edit script
-cost :: Metric f => ES f xs ys -> Int
+cost :: ES xs ys -> Int
 cost End = 0
 cost (Ins x xs) = 1 + cost xs
 cost (Del x xs) = 1 + cost xs
 cost (Upd f g xs) = distance f g + cost xs
 
 -- Returns the best edit tree (least distance)
-(&) :: Metric f => ES f xs ys -> ES f xs ys -> ES f xs ys
+(&) :: ES xs ys -> ES xs ys -> ES xs ys
 x & y = if cost x <= cost y then x else y
 
 --------------------------------------------------------------------------------
 
 -- Entry point, still needs type annotations for @f@.
-gdiff :: (Family f, Metric f, a :<: f, b :<: f) => a -> b -> ES f '[ a ] '[ b ]
-gdiff x y = getDiff $ diffT Proxy (toDList x) (toDList y)
+gdiff :: (Metric a, Metric b) => a -> b -> ES '[ a ] '[ b ]
+gdiff x y = getDiff $ diffT (toDList x) (toDList y)
 
-diff :: (Family f, Metric f) 
-     => Proxy f -> DList f xs -> DList f ys -> ES f xs ys
-diff _ DNil DNil = End
-diff p (DCons (Node a as) xs) DNil = Del a $ diff p (dappend as xs) DNil
-diff p DNil (DCons (Node b bs) ys) = Ins b $ diff p DNil (dappend bs ys)
-diff p (DCons x@(Node a as) xs) (DCons y@(Node b bs) ys) =
-  let i = Ins b $ diff p (DCons x xs) (dappend bs ys) 
-      d = Del a $ diff p (dappend as xs) (DCons y ys) in 
+diff :: DList xs -> DList ys -> ES xs ys
+diff DNil DNil = End
+diff (DCons (Node a as) xs) DNil = Del a $ diff (dappend as xs) DNil
+diff DNil (DCons (Node b bs) ys) = Ins b $ diff DNil (dappend bs ys)
+diff (DCons x@(Node a as) xs) (DCons y@(Node b bs) ys) =
+  let i = Ins b $ diff (DCons x xs) (dappend bs ys) 
+      d = Del a $ diff (dappend as xs) (DCons y ys) in 
   case decEq a b of
     Nothing -> i & d
     Just Refl -> i & d & u
-      where u = Upd a b $ diff p (dappend as xs) (dappend bs ys)
+      where u = Upd a b $ diff (dappend as xs) (dappend bs ys)
 
 --------------------------------------------------------------------------------
 -- Patch
 --------------------------------------------------------------------------------
 
 -- Return the target object, equivalent to patch
-target :: Family f => ES f xs ys -> DList f ys
+target :: ES xs ys -> DList ys
 target (Ins x e) = insert x (target e)
 target (Del x e) = target e
 target (Upd x y e) = insert y (target e)
 target End = DNil
 
 -- Returns the source object
-source :: Family f => ES f xs ys -> DList f xs
+source :: ES xs ys -> DList xs
 source (Ins x e) = source e
 source (Del x e) = insert x (source e)
 source (Upd x y e) = insert x (source e)
 source End = DNil
 
 
-insert :: (Family f, a :<: f) => f xs a -> DList f (xs :++: ys) -> DList f (a ': ys)
+insert :: Metric a => F xs a -> DList (xs :++: ys) -> DList (a ': ys)
 insert f ds = DCons (Node f ds1) ds2
   where (ds1, ds2) = dsplit (reifyArgs f) ds
 
@@ -94,46 +84,46 @@ insert f ds = DCons (Node f ds1) ds2
 --------------------------------------------------------------------------------
 
 -- Memoization table
-data EST f xs ys where
-  CC :: (a :<: f, b :<: f) => f xs a -> f ys b 
-     -> ES f (a ': zs) (b ': ws) 
-     -> EST f (a ': zs) (ys :++: ws)
-     -> EST f (xs :++: zs) (b ': ws)
-     -> EST f (xs :++: zs) (ys :++: ws)
-     -> EST f (a ': zs) (b ': ws)
-  CN :: (a :<: f) => f xs a -> ES f (a ': ys) '[] 
-     -> EST f (xs :++: ys) '[]
-     -> EST f (a ': ys) '[]
-  NC :: (b :<: f) => f xs b -> ES f '[] (b ': ys) 
-     -> EST f '[] (xs :++: ys) 
-     -> EST f '[] (b ': ys)
-  NN :: ES f '[] '[] -> EST f '[] '[]
+data EST xs ys where
+  CC :: (Metric a, Metric b) => F xs a -> F ys b 
+     -> ES (a ': zs) (b ': ws) 
+     -> EST (a ': zs) (ys :++: ws)
+     -> EST (xs :++: zs) (b ': ws)
+     -> EST (xs :++: zs) (ys :++: ws)
+     -> EST (a ': zs) (b ': ws)
+  CN :: Metric a => F xs a -> ES (a ': ys) '[] 
+     -> EST (xs :++: ys) '[]
+     -> EST (a ': ys) '[]
+  NC :: Metric b => F xs b -> ES '[] (b ': ys) 
+     -> EST '[] (xs :++: ys) 
+     -> EST '[] (b ': ys)
+  NN :: ES '[] '[] -> EST '[] '[]
 
 -- Returns the edit script contained in an EST table.
-getDiff :: EST f xs ys -> ES f xs ys
+getDiff :: EST xs ys -> ES xs ys
 getDiff (CC _ _ e _ _ _) = e
 getDiff (CN _ e _) = e
 getDiff (NC _ e _) = e
 getDiff (NN e) = e
 
 -- Memoized version of diff
-diffT :: (Family f, Metric f) => Proxy f -> DList f xs -> DList f ys -> EST f xs ys
-diffT _ DNil DNil = NN End
-diffT p (DCons (Node a as) xs) DNil = CN a (Del a (getDiff d)) d 
-  where d = diffT p (dappend as xs) DNil
-diffT p DNil (DCons (Node b bs) ys) = NC b (Ins b (getDiff i)) i
-  where i = diffT p DNil (dappend bs ys)
-diffT p (DCons (Node a as) xs) (DCons (Node b bs) ys) = CC a b (best a b i d c) i d c
-  where c = diffT p (dappend as xs) (dappend bs ys)
-        i = extendI a xs c
-        d = extendD b ys c
+diffT :: DList xs -> DList ys -> EST xs ys
+diffT DNil DNil = NN End
+diffT (DCons (Node a as) xs) DNil = CN a (Del a (getDiff d)) d 
+  where d = diffT (dappend as xs) DNil
+diffT DNil (DCons (Node b bs) ys) = NC b (Ins b (getDiff i)) i
+  where i = diffT DNil (dappend bs ys)
+diffT (DCons (Node a as) xs) (DCons (Node b bs) ys) = CC a b (best a b i d u) i d u
+  where u = diffT (dappend as xs) (dappend bs ys)
+        i = extendI a xs u
+        d = extendD b ys u
 
-best :: (Metric f, Family f, a :<: f, b :<: f)
-     => f as a -> f bs b
-     -> EST f (a ': xs) (bs :++: ys)
-     -> EST f (as :++: xs) (b ': ys)
-     -> EST f (as :++: xs) (bs :++: ys)
-     -> ES f (a ': xs) (b ': ys)
+best :: (Metric a, Metric b)
+     => F as a -> F bs b
+     -> EST (a ': xs) (bs :++: ys)
+     -> EST (as :++: xs) (b ': ys)
+     -> EST (as :++: xs) (bs :++: ys)
+     -> ES (a ': xs) (b ': ys)
 best f g i d c = 
   case decEq f g of
     Just Refl -> ab & (Upd f g (getDiff c))
@@ -146,49 +136,52 @@ best f g i d c =
 -- Auxiliary functions and datatypes used in diffT.
 --------------------------------------------------------------------------------
 
-data IES f b xs ys where
-  IES :: f zs b -> ES f xs (b ': ys) -> EST f xs (zs :++: ys) -> IES f b xs ys
+-- TODO swap names
 
-data DES f a xs ys where
-  DES :: f zs a -> ES f (a ': xs) ys -> EST f (zs :++: xs) ys -> DES f a xs ys
+data IES b xs ys where
+  IES :: F zs b -> ES xs (b ': ys) -> EST xs (zs :++: ys) -> IES b xs ys
 
-extractI :: EST f xs (b ': ys) -> IES f b xs ys
+data DES a xs ys where
+  DES :: F zs a -> ES (a ': xs) ys -> EST (zs :++: xs) ys -> DES a xs ys
+
+extractI :: EST xs (b ': ys) -> IES b xs ys
 extractI (NC f e i) = IES f e i
 extractI (CC f g e i _ _) = IES g e i
 
-extractD :: EST f (a ': xs) ys -> DES f a xs ys
+extractD :: EST (a ': xs) ys -> DES a xs ys
 extractD (CN g e i) = DES g e i
 extractD (CC f g e _ i _) = DES f e i
 
-extendI :: (Metric f, Family f, a :<: f) 
-        => f xs a -> DList f ys -> EST f (xs :++: ys) zs -> EST f (a ': ys) zs
+extendI :: Metric a
+        => F xs a -> DList ys -> EST (xs :++: ys) zs -> EST (a ': ys) zs
 extendI f _ d@(NN e) = CN f (Del f e) d
 extendI f _ d@(CN _ e _) = CN f (Del f e) d
-extendI f _ d@(NC _ e _) = 
+extendI f _ d@(NC _ _ _) = 
   case extractI d of
     IES g e c -> CC f g (best f g i d c) i d c
       where i = extendI f undefined c
-extendI f _ d@(CC _ _ e _ _ _) = 
+extendI f _ d@(CC _ _ _ _ _ _) = 
   case extractI d of
     IES g e c -> CC f g (best f g i d c) i d c
       where i = extendI f undefined c
 
-extendD :: (Metric f, Family f, a :<: f) 
-        => f xs a -> DList f ys -> EST f zs (xs :++: ys) -> EST f zs (a ': ys)
+
+extendD :: Metric a
+        => F xs a -> DList ys -> EST zs (xs :++: ys) -> EST zs (a ': ys)
 extendD f _ i@(NN e) = NC f (Ins f e) i
 extendD f _ i@(NC _ e _) = NC f (Ins f e) i 
-extendD f _ i@(CN _ e _) = 
+extendD f _ i@(CN _ _ _) = 
   case extractD i of
     DES g e c -> CC g f (best g f i d c) i d c
       where d = extendD f undefined c
-extendD f _ i@(CC _ _ e _ _ _) = 
+extendD f _ i@(CC _ _ _ _ _ _) = 
   case extractD i of
     DES g e c -> CC g f (best g f i d c) i d c
       where d = extendD f undefined c
 
 --------------------------------------------------------------------------------
 
-instance Family f => Show (ES f xs ys) where
+instance Show (ES xs ys) where
   show End = "End"
   show (Ins x xs) = "Ins " ++ string x ++ " $ " ++ show xs
   show (Del x xs) = "Del " ++ string x ++ " $ " ++ show xs
