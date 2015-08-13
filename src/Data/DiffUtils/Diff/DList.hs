@@ -88,4 +88,5 @@ outputProxy _ = Proxy
 
 showTy :: Typeable a => Proxy a -> String
 showTy = show . typeRep
+
 --------------------------------------------------------------------------------

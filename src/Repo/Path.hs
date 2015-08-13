@@ -1,21 +1,30 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DataKinds #-}
 
 module Repo.Path where
 
 import GHC.Generics (Generic)
-import Generics.Instant.GDiff
 import Data.Hashable
+import Data.DiffUtils hiding (Node)
 import Data.List
 import qualified Data.Set as S
 import Data.Set (Set)
 
+instance Hashable (ES xs ys) where
+  -- A proper instance for hashable would need
+  -- to include additional constraints in the ES data type, cluttering the code.
+  -- Therefore I am using this dummy instance
+  hashWithSalt x e = hashWithSalt x (show e)
+
 -- A positive number that represents the length of a path from the Root.
 type Depth = Int
 
+type Delta a = ES '[ a ] '[ a ]
+
 -- Kept abstract to enforce the invariants
 data Path a = Root a
-             | Node  (Path a) !Depth EditScript
-             | Merge (Path a) (Path a) !Depth EditScript
+             | Node  (Path a) !Depth (Delta a)
+             | Merge (Path a) (Path a) !Depth (Delta a)
   deriving (Show, Generic)
 
 instance Hashable a => Hashable (Path a) where
@@ -30,11 +39,11 @@ depth (Merge _ _ d _) = d
 root :: a ->  Path a
 root = Root
 
-node ::  Path a -> EditScript ->  Path a
+node ::  Path a -> Delta a ->  Path a
 node p = Node p (depth p + 1)
 
 -- Merges The path with the lowest hash is always put to the left.
-merge :: Hashable a => Path a ->  Path a -> EditScript ->  Path a
+merge :: Hashable a => Path a ->  Path a -> Delta a ->  Path a
 merge p1 p2 e | hash p1 < hash p2 = Merge p1 p2 (max (depth p1) (depth p2) + 1) e
 merge p1 p2 e | otherwise         = merge p2 p1 e
 

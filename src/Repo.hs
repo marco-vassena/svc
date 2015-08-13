@@ -17,6 +17,3 @@ module Repo (
 
 import Repo.Path
 import Repo.Head
-
--- TODO move Diff3 and Diff to separate modules
-
