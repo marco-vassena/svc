@@ -5,8 +5,7 @@
 
 module Data.DiffUtils.Diff3.TypeCheck where
 
-import Data.TypeList.SList
-import Data.TypeList.DList
+import Data.TypeList.TList
 import Data.DiffUtils.Diff hiding (IES)
 import Data.DiffUtils.Diff3.Core
 import Data.Typeable

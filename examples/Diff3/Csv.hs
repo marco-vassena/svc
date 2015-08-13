@@ -8,8 +8,6 @@
 
 module Csv where
 
---import Data.TypeList.HList
-import Data.TypeList.DList
 import Data.DiffUtils.Diff
 import Data.DiffUtils.Diff3
 import Data.Proxy
@@ -70,7 +68,7 @@ d03 = gdiff c0 c3
 
 -- returns the merged object if the merge is successful,
 -- otherwise fails with error printing the conflicts.
-diff3Target :: (Metric a, Metric b) => b -> a -> b -> DList '[ b ]
+diff3Target :: (Diff a, Diff b) => b -> a -> b -> DList '[ b ]
 diff3Target x o y = 
   case diff3 x o y of
     Left errs -> error (show errs)
@@ -127,7 +125,7 @@ data ListF xs a where
   Nil :: ListF '[] [a]
   Cons :: ListF '[ a, [a] ] [a]
 
-instance Metric a => TreeLike [a] where
+instance Diff a => Diff [a] where
   type FamilyOf [a] = ListF
   
   string Nil = "[]"
@@ -147,7 +145,6 @@ instance Metric a => TreeLike [a] where
   argsTy Nil = tlist
   argsTy Cons = tlist
  
-instance Metric a => Metric [a] where
   distance Nil Nil = 0
   distance Cons Cons = 0
   distance _ _ = 1
@@ -158,7 +155,7 @@ instance Metric a => Metric [a] where
 data IntF xs a where
   Int' :: Int -> IntF '[] Int
 
-instance TreeLike Int where
+instance Diff Int where
   type FamilyOf Int = IntF
 
   string (Int' i) = show i
@@ -166,10 +163,9 @@ instance TreeLike Int where
   (Int' x) =?= (Int' y) = if x == y then Just Refl else Nothing
 
   fromDTree (Node (Int' n) DNil) = n
+  
   toDTree n = Node (Int' n) DNil
   
   argsTy (Int' _) = TNil
 
-
-instance Metric Int where
   distance (Int' x) (Int' y) = if x == y then 0 else 1

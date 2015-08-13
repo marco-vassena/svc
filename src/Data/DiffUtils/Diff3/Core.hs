@@ -4,16 +4,12 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Data.DiffUtils.Diff3.Core where
 
-import Data.TypeList.DList
-import Data.Type.Equality
+import Data.TypeList.Core
 import Data.DiffUtils.Diff
+import Data.Type.Equality
 
 -- An edit script @ES3 xs@ represents a merged edit script.
 -- It is well-typed with respect to the source object, but
@@ -21,11 +17,11 @@ import Data.DiffUtils.Diff
 -- or it might contain value-related conflicts.
 data ES3 xs where
   -- | Inserts something new in the tree
-  Ins3 :: Metric a => F xs a -> ES3 ys -> ES3 ys
+  Ins3 :: Diff a => F xs a -> ES3 ys -> ES3 ys
   -- | Removes something from the original tree
-  Del3 :: Metric a => F xs a -> ES3 (xs :++: ys) -> ES3 (a ': ys)
+  Del3 :: Diff a => F xs a -> ES3 (xs :++: ys) -> ES3 (a ': ys)
   -- | Replaces something in the original tree
-  Upd3 :: Metric a => F xs a -> F ys a -> ES3 (xs :++: zs) -> ES3 (a ': zs)
+  Upd3 :: Diff a => F xs a -> F ys a -> ES3 (xs :++: zs) -> ES3 (a ': zs)
   -- | A conflict between the two edit script
   Cnf3 :: VConflict -> ES3 xs -> ES3 ys -- TODO remark that it is not worth to make this case well-typed
   -- | Terminates the edit script
@@ -36,10 +32,10 @@ data ES3 xs where
 -- It represents value related conflicts.
 -- Each constructor denotes the edits that caused the conflict.
 data VConflict where
-  InsIns :: (Metric a, Metric b) => F xs a -> F ys b -> VConflict
-  UpdDel :: Metric a => F xs a -> F ys a -> VConflict
-  DelUpd :: Metric a => F xs a -> F ys a -> VConflict
-  UpdUpd :: Metric a => F xs a -> F ys a -> F zs a -> VConflict
+  InsIns :: (Diff a, Diff b) => F xs a -> F ys b -> VConflict
+  UpdDel :: Diff a => F xs a -> F ys a -> VConflict
+  DelUpd :: Diff a => F xs a -> F ys a -> VConflict
+  UpdUpd :: Diff a => F xs a -> F ys a -> F zs a -> VConflict
 
 -- Collects the conflict that may be present in the edit script.
 getVConflicts :: ES3 xs -> [VConflict]
@@ -89,7 +85,7 @@ merge3 End End = End3
 
 -- Checks whether the two witnesses are the same,
 -- and fails if this is not the case.
-aligned :: (Metric a, Metric b) => F xs a -> F ys b -> (xs :~: ys , a :~: b)
+aligned :: (Diff a, Diff b) => F xs a -> F ys b -> (xs :~: ys , a :~: b)
 aligned a b =
   case decEq a b of
     Just Refl -> 

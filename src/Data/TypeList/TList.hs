@@ -2,7 +2,13 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 
-module Data.TypeList.TList where
+module Data.TypeList.TList (
+  module Data.TypeList.SList
+  , TList(..)
+  , tyEq
+  , tysEq
+  , KnownTList(..)
+  ) where
 
 import Data.Typeable
 import Data.TypeList.SList
