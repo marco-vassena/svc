@@ -198,6 +198,12 @@ split SNil s hs = (Nil, hs)
 split (SCons s1) s2 (Cons h hs) = (Cons h hs1, hs2)
   where (hs1, hs2) = split s1 s2 hs
 
+-- TODO use this maybe?
+split' :: SList xs -> HList (xs :++: ys) -> (HList xs, HList ys)
+split' SNil hs = (Nil, hs)
+split' (SCons s1) (Cons h hs) = (Cons h hs1, hs2)
+  where (hs1, hs2) = split' s1 hs
+
 -- @'HFun' xs c@ is the type of a function taking @xs@ arguments
 -- and returning something of type @c@.
 -- For instance 

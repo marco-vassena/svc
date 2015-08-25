@@ -78,10 +78,13 @@ reifyArgs = toSList . argsTy
 toDList :: Diff a => a -> DList '[ a ]
 toDList x = DCons (toDTree x) DNil
 
+fromDList :: Diff a => DList '[ a ] -> a
+fromDList (DCons x DNil) = fromDTree x
+
 -- TODO rename to sameOutputTy
 -- TODO maybe move to Diff
 decEq :: (Diff a, Diff b) => F xs a -> F ys b -> Maybe (a :~: b)
-decEq x y = tyEq (outputProxy x) (outputProxy y)
+decEq x y = tyEq Proxy Proxy -- (outputProxy x) (outputProxy y)
 
 outputProxy :: f xs a -> Proxy a
 outputProxy _ = Proxy

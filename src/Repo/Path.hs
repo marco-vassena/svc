@@ -23,8 +23,8 @@ type Delta a = ES '[ a ] '[ a ]
 
 -- Kept abstract to enforce the invariants
 data Path a = Root a
-             | Node  (Path a) !Depth (Delta a)
-             | Merge (Path a) (Path a) !Depth (Delta a)
+            | Node  (Path a) !Depth (Delta a)
+            | Merge (Path a) (Path a) !Depth (Delta a)
   deriving (Show, Generic)
 
 instance Hashable a => Hashable (Path a) where
@@ -43,14 +43,20 @@ node ::  Path a -> Delta a ->  Path a
 node p = Node p (depth p + 1)
 
 -- Merges The path with the lowest hash is always put to the left.
-merge :: Hashable a => Path a ->  Path a -> Delta a ->  Path a
-merge p1 p2 e | hash p1 < hash p2 = Merge p1 p2 (max (depth p1) (depth p2) + 1) e
-merge p1 p2 e | otherwise         = merge p2 p1 e
+mergePaths :: Hashable a => Path a -> Path a -> Delta a ->  Path a
+mergePaths p1 p2 e | hash p1 <= hash p2 = Merge p1 p2 (max (depth p1) (depth p2) + 1) e
+mergePaths p1 p2 e | otherwise          = Merge p2 p1 (max (depth p1) (depth p2) + 1) e
+
+currentValue :: Diff a => Path a -> a
+currentValue (Root x) = x
+currentValue (Node _ _ e) = patch e
+currentValue (Merge _ _ _ e) = patch e
+
 
 --------------------------------------------------------------------------------
 
 -- Wrapper of Path used to overload Hash-based operations.
-newtype HPath a = HPath {dpath :: Path a}
+newtype HPath a = HPath {hpath :: Path a}
 
 -- Ord and Eq instance use the hash of the  Path a
 instance Hashable a => Eq (HPath a) where
@@ -86,8 +92,8 @@ lca p1 p2 =
   case find (not . S.null) (zipWith common ls1 ls2) of
     Just s -> 
       case S.toList s of
-        [ r ] -> One (dpath r)
-        [r0, r1] -> Two (dpath r0) (dpath r1)
+        [ r ] -> One (hpath r)
+        [r0, r1] -> Two (hpath r0) (hpath r1)
         _ -> error "lca: More than 2 common ancestors found"
     Nothing -> error "lca: No common ancestor found"
   where d = min (depth p1) (depth p2)

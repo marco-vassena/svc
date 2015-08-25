@@ -10,9 +10,9 @@ module Repo (
   , mkHead
   , value
   , path
-  , add
-  , mergeHeads 
- 
+  , commit
+  , merge
+  , initBranch
   ) where
 
 import Repo.Path

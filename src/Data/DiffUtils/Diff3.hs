@@ -27,3 +27,10 @@ diff3 x o y =
 
 proxyOf :: a -> Proxy a
 proxyOf _ = Proxy
+
+diff3Patch :: (Diff a, Diff b) => b -> a -> b -> Either [Conflict] b
+diff3Patch x o y = 
+  case diff3 x o y of
+    Left errs -> Left errs
+    Right e -> Right (patch e)
+

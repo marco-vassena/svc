@@ -19,6 +19,7 @@ import GHC.Exts
 -- in order to provide default obvious implementations.
 --  * Add return
 --  * Add empty
+-- TODO can we group constructors of the same class?
 
 data Format c (m :: * -> *) (i :: *) (xs :: [*]) where
   Format :: (Reify (a m i), c m i a) => a m i xs -> Format c m i xs

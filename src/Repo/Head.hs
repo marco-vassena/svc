@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE GADTs #-}
 
 module Repo.Head where
 
@@ -9,38 +10,45 @@ import Repo.Path
 
 -- Abstract data type that tracks the diff of an object in a Path and 
 -- maintain the latest version of the object
-data Head a = Head a (Path a)
+data Head a = Head {value :: a, path :: (Path a) }
   deriving Show
 
 -- Smart constructor that creates an Head out of a path.
 mkHead :: (Hashable a, Diff a) => Path a -> Head a
 mkHead r@(Root z) = Head z r
 mkHead n@(Node p d e) = Head (patch e) n
-mkHead m@(Merge p q d e) = mkHeadFromLca (lca p q) k
-  where k h =  Head (patch e) m
+mkHead m@(Merge p q d e) = Head (patch e) m
 
-mkHeadFromLca :: (Hashable a, Diff a) => Lca a -> (Head a -> Head a) -> Head a
-mkHeadFromLca (One r)     k = k (mkHead r)
-mkHeadFromLca (Two r0 r1) k = mkHeadFromLca (lca r0 r1) k
-
-value :: Head a -> a
-value (Head x p) = x
-
-path :: Head a -> Path a
-path (Head x p) = p
+initBranch :: (Hashable a, Diff a) => a -> Head a
+initBranch = mkHead . root
 
 -- Used to intuitively track the history of changes
 -- Adds a new version
-add :: Diff a => a -> Head a -> Head a
-add x (Head y p) = Head x (node p d)
-  where d = gdiff y x
+commit :: Diff a => a -> Head a -> Head a
+commit n (Head o p) = Head n (node p d)
+  where d = gdiff o n
 
-mergeHeads :: (Hashable a, Diff a) => a -> Head a -> Head a -> Head a
-mergeHeads x (Head _ p) (Head _ q) = Head x (mergeWith x p q)
-
--- Maybe this should be the default smart constructor for
--- merge rather than merge.
-mergeWith :: (Hashable a, Diff a) => a -> Path a -> Path a -> Path a
-mergeWith x p1 p2 = merge p1 p2 (gdiff v x)
-  where v = value h 
-        h = mkHeadFromLca (lca p1 p2) id
+-- TODO remove show constraint.
+merge :: (Show a, Hashable a, Diff a) => Head a -> Head a -> Either [Conflict] (Head a)
+merge (Head x p) (Head y q) = 
+  case recursive3WayMerge p q of
+    Left err -> Left err
+    Right p -> Right $ mkHead p
+    
+mergeWithAncestor :: (Show a, Hashable a, Diff a) => Path a -> Path a -> Path a -> Either [Conflict] (Path a)
+mergeWithAncestor p q a = 
+  case diff3 x o y of
+    Left err -> Left err
+    Right e -> Right (mergePaths p q e)
+  where x = currentValue p
+        y = currentValue q
+        o = currentValue a
+    
+recursive3WayMerge :: (Show a, Hashable a, Diff a) => Path a -> Path a -> Either [Conflict] (Path a)
+recursive3WayMerge p q =
+  case lca p q of
+    One a -> mergeWithAncestor p q a
+    Two a b -> 
+      case recursive3WayMerge a b of
+        Left err -> Left err
+        Right c -> mergeWithAncestor p q c

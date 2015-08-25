@@ -68,21 +68,18 @@ d03 = gdiff c0 c3
 
 -- returns the merged object if the merge is successful,
 -- otherwise fails with error printing the conflicts.
-diff3Target :: (Diff a, Diff b) => b -> a -> b -> DList '[ b ]
+
+diff3Target :: (Diff a, Diff b) => b -> a -> b -> b
 diff3Target x o y = 
   case diff3 x o y of
     Left errs -> error (show errs)
-    Right e -> target e
+    Right e -> patch e
 
 mergeCsv :: Csv -> Csv -> Csv -> Csv
-mergeCsv x o y = fromDTree (dHead d)
-  where d :: DList '[Csv] 
-        d = diff3Target x o y
+mergeCsv = diff3Target 
 
 mergeRow :: Row -> Row -> Row -> Row
-mergeRow x o y = fromDTree (dHead d)
-  where d :: DList '[Row]
-        d = diff3Target x o y
+mergeRow = diff3Target
 
 c012 :: Csv
 c012 = mergeCsv c1 c0 c2 
