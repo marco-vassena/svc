@@ -6,7 +6,8 @@
 
 module NetPbm where
 
-import Prelude hiding ((>>=))
+import Prelude hiding ((>>=), return)
+import qualified Prelude as P
 import Control.Isomorphism.Partial
 import qualified Control.Applicative as A
 import qualified Control.Monad as M
@@ -50,14 +51,14 @@ pbm = Iso (hsingleton . happly Pbm) f (SCons (SCons (SCons SNil))) (SCons SNil)
 --------------------------------------------------------------------------------
 
 -- | Format that targets the 'Pbm' data type.
-pbmFormat :: (Use Bind     c m Char, 
+pbmFormat :: (MonadC c m Char,
               FormatC      c m     ,
               AlternativeC c m Char) 
           => SFormat c m Char Pbm
 pbmFormat = pbm <$> pbmRawFormat
 
 -- | Format that recognizes the essential elements of a pbm image.
-pbmRawFormat :: (Use Bind     c m Char, 
+pbmRawFormat :: (MonadC c m Char,
                  FormatC      c m     ,
                  AlternativeC c m Char) 
              => Format c m Char '[Int, Int, [[Char]]]
@@ -87,7 +88,7 @@ roundtrip :: ByteString -> IO ByteString
 roundtrip s = do 
   case parse pbmParser "" s of
     Left e -> fail (show e) 
-    Right p -> print p >> maybe (fail "Printer Failed") return (pbmPrinter p)
+    Right p -> print p >> maybe (fail "Printer Failed") P.return (pbmPrinter p)
 
 test :: String -> IO ()
 test s = B.readFile s M.>>= roundtrip M.>>= B.putStrLn

@@ -12,10 +12,7 @@ import Format.Syntax.Base
 data Help c m i xs where
   Help :: (Reify (a m i), c m i a) => a m i xs -> String -> Help c m i xs
 
-(<?>) :: (Use Help c m i,  
-          Use    a c m i,
-          Reify (a c m i)) 
-      => a c m i xs -> String -> Format c m i xs
+(<?>) :: (Use Format c m i, Use Help c m i) => Format c m i xs -> String -> Format c m i xs
 f <?> msg = format (Help f msg)
 
 instance Reify (Help c m i) where

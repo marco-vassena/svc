@@ -12,10 +12,7 @@ import Format.Syntax.Base
 data Try c m i xs where
   Try :: (Reify (a m i), c m i a) => a m i xs -> Try c m i xs
 
-try :: (Use Try c m i,  
-        Use a   c m i,
-        Reify (a c m i)) 
-      => a c m i xs -> Format c m i xs
+try :: (Use Format c m i, Use Try c m i) => Format c m i xs -> Format c m i xs
 try = format . Try
 
 instance Reify (Try c m i) where

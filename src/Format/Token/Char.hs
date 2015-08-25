@@ -22,10 +22,8 @@ type FormatC c m = (Use Satisfy c m Char, Use Format c m Char, Use Help c m Char
 char :: MatchC c m Char => Char -> Format c m Char '[]
 char c = match c <?> show [c]
 
-anyChar :: Use Satisfy c m Char => SFormat c m Char Char
+anyChar :: MatchC c m Char => SFormat c m Char Char
 anyChar = token
-
--- TODO add spaces
 
 space :: FormatC c m => SFormat c m Char Char
 space = satisfy isSpace <?> "space"

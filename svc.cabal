@@ -30,8 +30,17 @@ library
                       Control.Isomorphism.Partial.Prim, Control.Isomorphism.Partial.Constructors,
                       Control.Isomorphism.Partial.Base, 
 
-                      -- Formats staff
-                      Format, Format.Syntax, Format.Syntax.Base, Format.Syntax.Help, Format.Syntax.Try
+                      -- Formats modules
+                      Format, 
+                        Format.Syntax, 
+                          Format.Syntax.Base, 
+                          Format.Syntax.Functor,
+                          Format.Syntax.Applicative,
+                          Format.Syntax.Alternative,
+                          Format.Syntax.Monad,
+                          Format.Syntax.Help, 
+                          Format.Syntax.Try
+
                       Format.Parser, Format.Printer, Format.Printer.Naive, Format.Printer.Base, 
                       Format.Parser.Naive, Format.Parser.UU, Format.Parser.Parsec, Format.Parser.Attoparsec,
                       Format.Parser.Base, Format.Token, Format.Token.Char, Format.Combinator
@@ -39,7 +48,7 @@ library
 
                       -- Version control
                       Repo
-              
+  
   other-modules:      Format.Combinator.Base, Format.Combinator.Prim, 
 
                       -- DiffUtils internals

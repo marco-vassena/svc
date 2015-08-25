@@ -5,7 +5,8 @@
 
 module Main where
 
-import Prelude hiding ((>>=))
+import Prelude hiding ((>>=), return)
+import qualified Prelude as P
 import Data.TypeList.HList
 import Format.Syntax
 import Format.Combinator
@@ -39,7 +40,7 @@ ids = ["a", "bc", "A", "foo", "bar"]
 parse1 :: Parser i (HList '[ a ]) -> Parser i a
 parse1 p = do
   (Cons x _) <- p
-  return x
+  P.return x
 
 testTrueIds :: Test 
 testTrueIds = TestLabel "True Identifiers" $ TestList $
@@ -136,14 +137,14 @@ testFalseDots = TestLabel "False Dots" $ TestList $
 -- Test Binding
 
 -- Expect the char next to the first read
-formatCharSChar :: (Use Satisfy c m Char, Use Bind c m Char, Use Format c m Char) 
+formatCharSChar :: (Use Satisfy c m Char, MonadC c m Char)
                 => Format c m Char '[Char, Char]
 formatCharSChar = satisfy (const True) >>= \(Cons c Nil) -> satisfy (== succ c) 
 
 parseCharSChar :: Parser Char String
 parseCharSChar = do 
   Cons c1 (Cons c2 _) <- mkParser formatCharSChar
-  return [c1, c2]
+  P.return [c1, c2]
 
 printCharSChar :: String -> Maybe String
 printCharSChar [c1, c2] = mkPrinter formatCharSChar $ Cons c1 (Cons c2 Nil)
@@ -243,4 +244,4 @@ main = do
   c <- runTestTT tests
   if hasFailed c
     then exitFailure
-    else return ()
+    else P.return ()

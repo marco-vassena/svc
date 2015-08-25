@@ -10,7 +10,7 @@ module Expr where
 
 import Data.TypeList.HList
 
-import Format.Syntax hiding ((>>=), fail)
+import Format.Syntax hiding ((>>=), fail, return)
 import Format.Combinator
 import Format.Token.Char
 import Format.Printer.Naive
