@@ -25,7 +25,6 @@ import Control.Isomorphism.Partial hiding (foldr)
 
 import Text.ParserCombinators.UU.Utils
 import Text.ParserCombinators.UU.BasicInstances
-import Util
 
 -------------------------------------------------------------------------------
 data Expr = Var String
@@ -104,7 +103,7 @@ fact :: (Use Satisfy c m Char,
          Use Help c m Char, 
          AlternativeC c m Char) => SFormat c m Char Expr
 fact =  var <$> some letter
-    <|> lit <$> int
+    <|> lit <$> integer
     <|> parens expr                 -- When printing this may not terminate.
 
 --------------------------------------------------------------------------------

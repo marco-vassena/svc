@@ -8,7 +8,7 @@
 
 module Html where
 
-import Data.HList
+import Data.TypeList.HList
 import Format.Syntax hiding (fail)
 import Format.Token
 import qualified Format.Token as F
@@ -29,38 +29,31 @@ import Text.Parsec (Parsec, eof, parse)
 data Tag =
     Open String [Attribute]
   | Close String
---  | CChar Char
   | Content String
   | Comment String
   deriving Show
 
 -- Tag isomorphisms
 open :: Iso '[String, [Attribute]] '[Tag]
-open = Iso (Just . hsingleton . happly Open) from (SCons (SCons SNil)) (SCons SNil)
-  where from :: PFunction '[Tag] '[String, [Attribute]]
+open = Iso (hsingleton . happly Open) from (SCons (SCons SNil)) (SCons SNil)
+  where from :: HList '[Tag] -> Maybe (HList '[String, [Attribute]])
         from (Cons (Open s as) _) = Just $ Cons s (Cons as Nil)
         from _           = Nothing
 
 close :: Iso '[String] '[Tag]
-close = Iso (Just . hsingleton . happly Close) from (SCons SNil) (SCons SNil)
-  where from :: PFunction '[Tag] '[String]
+close = Iso (hsingleton . happly Close) from (SCons SNil) (SCons SNil)
+  where from :: HList '[Tag] -> Maybe (HList '[String])
         from (Cons (Close s) _) = Just $ Cons s Nil
         from _                  = Nothing
 
---cChar :: Iso '[Char] '[Tag]
---cChar = Iso (Just . hsingleton . happly CChar) from (SCons SNil) (SCons SNil)
---  where from :: PFunction '[Tag] '[Char]
---        from (Cons (CChar c) _) = Just $ Cons c Nil
---        from _                     = Nothing
-
 content :: Iso '[String] '[Tag]
-content = Iso (Just . hsingleton . happly Content) from (SCons SNil) (SCons SNil)
-  where from :: PFunction '[Tag] '[String]
+content = Iso (hsingleton . happly Content) from (SCons SNil) (SCons SNil)
+  where from :: HList '[Tag] -> Maybe (HList '[String])
         from (Cons (Content s) _) = Just $ Cons s Nil
 
 comment :: Iso '[String] '[Tag]
-comment = Iso (Just . hsingleton . happly Comment) from (SCons SNil) (SCons SNil)
-  where from :: PFunction '[Tag] '[String]
+comment = Iso (hsingleton . happly Comment) from (SCons SNil) (SCons SNil)
+  where from :: HList '[Tag] -> Maybe (HList '[String])
         from (Cons (Comment s) _) = Just $ Cons s Nil
         from _                    = Nothing
 
@@ -68,8 +61,8 @@ data Attribute = Attr String String
   deriving Show
 
 attr :: Iso '[String, String] '[Attribute]
-attr = Iso (Just . hsingleton . happly Attr) from (SCons (SCons SNil)) (SCons SNil)
-  where from :: PFunction '[Attribute] '[String, String]
+attr = Iso (hsingleton . happly Attr) from (SCons (SCons SNil)) (SCons SNil)
+  where from :: HList '[Attribute] -> Maybe (HList '[String, String])
         from (Cons (Attr k v) _) = Just $ Cons k (Cons v Nil)
 
 --------------------------------------------------------------------------------
@@ -83,7 +76,7 @@ name = cons <$> letter <*> rest
 
 openTag :: (AlternativeC c m Char, FormatC c m)
          => SFormat c m Char Tag
-openTag = open <$> char '<' *> name <*> (Pure (hsingleton [])) <* char '>' -- space *> sepBy attribute space)
+openTag = open <$> char '<' *> name <*> (pure (hsingleton [])) <* char '>'
 
 closeTag :: (AlternativeC c m Char, FormatC c m)
          => SFormat c m Char Tag
@@ -92,9 +85,6 @@ closeTag = close <$> string "</" *> name <* char '>'
 commentTag :: (AlternativeC c m Char, FormatC c m)
            => SFormat c m Char Tag
 commentTag = comment <$> string "<!--" *> manyTill token (string "-->")
-
---cCharTag :: SFormat c m Char Tag
---cCharTag = cChar <$> noneOf "<>!-"
 
 contentTag :: (AlternativeC c m Char, Use Satisfy c m Char) 
            => SFormat c m Char Tag

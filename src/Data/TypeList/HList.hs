@@ -9,7 +9,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 -- This module defines typed heterogeneous lists
--- and few basic functions to deal with them.
+-- and few basic functions to deal manipulate them.
 
 module Data.TypeList.HList (
     module Data.TypeList.Core
@@ -58,10 +58,6 @@ hmap :: (forall a . a -> f a) -> HList xs -> HList (Map f xs)
 hmap f Nil = Nil
 hmap f (Cons x xs) = Cons (f x) (hmap f xs)
 
-hmap' :: SList xs -> (forall a . f a -> f a) -> HList (Map f xs) -> HList (Map f xs)
-hmap' SNil f Nil = Nil
-hmap' (SCons s) f (Cons x xs) = Cons (f x) (hmap' s f xs)
-
 --------------------------------------------------------------------------------
 -- Folding HList as if they were normal lists.
 -- This functions convert the argument HList to a plain list 
@@ -70,23 +66,28 @@ hmap' (SCons s) f (Cons x xs) = Cons (f x) (hmap' s f xs)
 
 -- TODO quickcheck test : foldl/unfoldl not being inverse lead to subtle bugs
 
+-- Fold right for @HList@.
 hfoldr :: SList xs -> (HList xs -> b -> b) -> b -> HList (Map [] xs) -> b
 hfoldr s f z hs = foldr f z (toList s hs)
 
--- | Note that the base element is defined only if the unfolded list
+-- | Invert foldr.
+-- Note that the base element is defined only if the unfolded list
 -- is finite.
 hunfoldr :: SList xs -> (b -> Maybe (HList xs, b))
                       -> b -> (b, HList (Map [] xs))
 hunfoldr s f z = (e, unList s hs)
   where (e, hs) = unfoldr f z
 
+-- | Fold left for @HList@.
 hfoldl :: SList xs -> (b -> HList xs -> b) -> b -> HList (Map [] xs) -> b
 hfoldl s f z hs = foldl f z (toList s hs)
 
+-- | Invert foldl.
 hunfoldl :: SList xs -> (b -> Maybe (b, HList xs)) -> b -> (b, HList (Map [] xs))
 hunfoldl s f z = (e, unList s hs)
   where (e, hs) = unfoldl f z
 
+-- | Inverse of foldl for plain lists.
 unfoldl :: (b -> Maybe (b, a)) -> b -> (b, [a])
 unfoldl f z = go z []
   where go e xs = 
@@ -94,9 +95,9 @@ unfoldl f z = go z []
             Just (e', x) -> go e' (x:xs)
             Nothing      -> (e, xs)
 
--- Custom unfoldr because we need also the "zero" element
+-- | Custom unfoldr because we need also the "zero" element
 -- Note that unlike the correspondent function from Data.List
--- it will fail terminate only if the unfolded list is finite
+-- it won't terminate if the unfolded list is finite
 -- (as it happens for unfoldl).
 unfoldr :: (b -> Maybe (a, b)) -> b -> (b, [a])
 unfoldr f b = go b []
@@ -107,13 +108,15 @@ unfoldr f b = go b []
 
 
 --------------------------------------------------------------------------------
--- Returns a singleton 'HList'
+-- | Returns a singleton 'HList'
 hsingleton :: a -> HList '[ a ]
 hsingleton a = Cons a Nil
 
+-- | Retrieves the first element of a list.
 hHead :: HList (x ': xs) -> x
 hHead (Cons x _) = x
 
+-- | Retrieves the tail of a list.
 hTail :: HList (x ': xs) -> HList xs
 hTail (Cons x hs) = hs
 
@@ -130,7 +133,6 @@ instance Eq (HList '[]) where
 
 instance (Eq x, Eq (HList xs)) => Eq (HList (x ': xs)) where
   Cons x xs == Cons y ys = x == y && xs == ys 
-
 --------------------------------------------------------------------------------
 
 -- Concats a list of 'HList' in a single 'HList'.
@@ -177,7 +179,7 @@ toListMaybe (SCons SNil) (Cons xs Nil) = Just $ zipWith Cons xs (repeat Nil)
 toListMaybe (SCons s) (Cons xs xss) = toListMaybe s xss >>= zipWithMaybe Cons xs 
 
 
--- Partial version of @'zipWith'@. It fails if the lists have different lengths.
+-- | Partial version of @'zipWith'@. It fails if the lists have different lengths.
 zipWithMaybe :: (a -> b -> c) -> [a] -> [b] -> Maybe [c]
 zipWithMaybe f [] [] = Just []
 zipWithMaybe f (x:xs) (y:ys) = (f x y :) <$> zipWithMaybe f xs ys
@@ -192,17 +194,15 @@ merge :: SList xs -> HList xs -> HList (Map [] xs) -> HList (Map [] xs)
 merge SNil Nil Nil = Nil
 merge (SCons s) (Cons x xs) (Cons ys yss) = Cons (x : ys) (merge s xs yss)
   
--- Splits an hlist in two sub-hlists, according to the given index as 'SList'.
+-- | Splits an hlist in two sub-hlists, according to the given index as 'SList'.
 split :: SList xs -> SList ys -> HList (xs :++: ys) -> (HList xs, HList ys)
 split SNil s hs = (Nil, hs)
 split (SCons s1) s2 (Cons h hs) = (Cons h hs1, hs2)
   where (hs1, hs2) = split s1 s2 hs
 
--- TODO use this maybe?
-split' :: SList xs -> HList (xs :++: ys) -> (HList xs, HList ys)
-split' SNil hs = (Nil, hs)
-split' (SCons s1) (Cons h hs) = (Cons h hs1, hs2)
-  where (hs1, hs2) = split' s1 hs
+--------------------------------------------------------------------------------
+-- Curry/Uncurry for functions over HList
+--------------------------------------------------------------------------------
 
 -- @'HFun' xs c@ is the type of a function taking @xs@ arguments
 -- and returning something of type @c@.
@@ -229,7 +229,7 @@ data SameLength (xs :: [ * ]) (ys :: [ * ]) where
   Zero :: SameLength '[] '[]
   One :: SameLength xs ys -> SameLength (x ': xs) (y ': ys)
 
--- @'zipWith'@ generalises @'zip'@ by zipping with the function given 
+-- | @'zipWith'@ generalises @'zip'@ by zipping with the function given 
 -- as the first argument, instead of a tupling function.
 -- Corresponds to @zipWith f xs ys@ for normal lists, however
 -- the proof @'SameLength' xs ys@ ensures that the two lists
@@ -253,7 +253,7 @@ hunzip (One p) (Cons (a, b) xs) =
   case hunzip p xs of
     (as, bs) -> (Cons a as, Cons b bs)
 
--- The property 'SameLength' is symmetric.
+-- | The property 'SameLength' is symmetric.
 -- We can switch the two indexed lists freely.
 sameLengthSym :: SameLength xs ys -> SameLength ys xs
 sameLengthSym Zero = Zero
@@ -299,6 +299,8 @@ rightIdentityAppend (SCons s) =
 
 --------------------------------------------------------------------------------
 -- Debugging
+--------------------------------------------------------------------------------
+
 instance Show (HList '[]) where
   show Nil = "Nil"
 

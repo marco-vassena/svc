@@ -11,9 +11,8 @@ import Data.DiffUtils.Diff3.Core
 import Data.DiffUtils.Diff3.TypeCheck
 import Data.TypeList.TList
 
--- User friendly entry point
--- TODO what kind of interface is better? ES3 or Either
--- TODO maybe even more friendly expecting directly raw types instead of DList ?
+-- | @diff3 x o y@ merges the new versions @x@ and @y@ 
+-- with the base object @o@.
 diff3 :: (Diff a, Diff b) => b -> a -> b -> Either [Conflict] (ES '[ a ] '[ b ])
 diff3 x o y = 
   let (ox, oy) = (gdiff o x, gdiff o y) in
@@ -28,6 +27,7 @@ diff3 x o y =
 proxyOf :: a -> Proxy a
 proxyOf _ = Proxy
 
+-- | Calls @diff3@ and if it succeds reconstruct the merged object.
 diff3Patch :: (Diff a, Diff b) => b -> a -> b -> Either [Conflict] b
 diff3Patch x o y = 
   case diff3 x o y of

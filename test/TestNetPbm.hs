@@ -1,5 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 
+-- Tests the NetPbm format with real examples.
+-- In particular checks whether the parser is different from the printer.
+
 module Main where
 
 import Data.Functor.Identity
@@ -18,7 +21,6 @@ import NetPbm hiding (main)
 import Utility
 import Debug.Trace
 
--- TODO refactor
 parse' :: Stream s Identity Char => Parsec s () a -> FilePath -> s -> a
 parse' p name content =
  case parse p name content of

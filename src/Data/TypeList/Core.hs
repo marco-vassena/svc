@@ -4,6 +4,8 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE PolyKinds #-}
 
+-- This module defines common list operations, for polykinded type-level lists.
+
 module Data.TypeList.Core where
 
 -- Type level append

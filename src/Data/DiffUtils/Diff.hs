@@ -7,13 +7,14 @@ module Data.DiffUtils.Diff (
   , patch
   , unpatch )where
 
-
 import Data.TypeList.TList
 import Data.DiffUtils.Diff.Core
 import Data.DiffUtils.Diff.DList
 
-patch :: Diff b => ES '[ a ] '[ b ] -> b
+-- Retrieves the raw target object of a singleton-edit script.
+patch :: Diff b => ES xs '[ b ] -> b
 patch = fromDTree . dHead . target 
 
-unpatch :: Diff a => ES '[ a ] '[ b ] -> a
+-- Retrieves the raw source object of a singleton-typed edit script.
+unpatch :: Diff a => ES '[ a ] ys -> a
 unpatch = fromDTree . dHead . source

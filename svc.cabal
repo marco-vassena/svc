@@ -18,17 +18,22 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:     src
                       
-                      -- TODO clean up this section, what needs to be exposed?
   exposed-modules:    
-        
-                      Data.DiffUtils, Data.DiffUtils.Diff, Data.DiffUtils.Diff3
+                      Data.DiffUtils, 
+                        Data.DiffUtils.Diff, 
+                        Data.DiffUtils.Diff3,
 
-                      -- Type level lists and similars
-                      Data.TypeList.HList, Data.TypeList.TList,
+                      -- Type Level Lists
+                      Data.TypeList.Core,
+                      Data.TypeList.SList,
+                      Data.TypeList.HList, 
+                      Data.TypeList.TList,
 
-                      -- Auxiliary iso staff
-                      Control.Isomorphism.Partial.Prim, Control.Isomorphism.Partial.Constructors,
-                      Control.Isomorphism.Partial.Base, 
+                      -- Partial isomorphisms
+                      Control.Isomorphism.Partial,
+                        Control.Isomorphism.Partial.Constructors,
+                        Control.Isomorphism.Partial.Prim, 
+                        Control.Isomorphism.Partial.Base, 
 
                       -- Formats modules
                       Format, 
@@ -39,34 +44,53 @@ library
                           Format.Syntax.Alternative,
                           Format.Syntax.Monad,
                           Format.Syntax.Help, 
-                          Format.Syntax.Try
+                          Format.Syntax.Try,
 
-                      Format.Parser, Format.Printer, Format.Printer.Naive, Format.Printer.Base, 
-                      Format.Parser.Naive, Format.Parser.UU, Format.Parser.Parsec, Format.Parser.Attoparsec,
-                      Format.Parser.Base, Format.Token, Format.Token.Char, Format.Combinator
-                      Format.Printer.GPrinter, Format.Parser.GParser,
+                      -- Token formats and combinators completely general
+                      Format.Token,
+                        Format.Token.Base,
+                        Format.Token.Char, 
+                  
+                      Format.Combinator,
+
+                      -- Parsing semantics
+                      Format.Parser, 
+                        Format.Parser.Base,
+                        Format.Parser.Naive,  
+                        Format.Parser.UU, 
+                        Format.Parser.Parsec, 
+                        Format.Parser.Attoparsec,
+                          -- Generic instances
+                        Format.Parser.GParser,
+                      
+                      -- Printing semantics
+                      Format.Printer, 
+                      Format.Printer.Base, 
+                      Format.Printer.Naive, 
+                      -- Generic instances
+                      Format.Printer.GPrinter,  
+
 
                       -- Version control
                       Repo
   
-  other-modules:      Format.Combinator.Base, Format.Combinator.Prim, 
+  other-modules:      
+                      -- Format combinators Internals
+                      Format.Combinator.Base, Format.Combinator.Prim, 
 
-                      -- DiffUtils internals
+                      -- DiffUtils Internals
                       Data.DiffUtils.Diff3.Core, Data.DiffUtils.Diff3.TypeCheck,
   
 
-                      -- Repository
+                      -- Repository Internals
                       Repo.Path, Repo.Head
 
   build-depends:      base >=4.7 && <4.8, mtl >=2.2, transformers >= 0.3, 
 
-                      -- Parser/Printer bindings
+                      -- Necessary to provide the bindings for some concrete parsing 
+                      -- libraries as an example.
                       bytestring >=0.10, text >=1.1, parsec >=3.1, 
                       uu-parsinglib, ListLike, attoparsec,
-
-                      -- GDiff
-                      instant-generics >= 0.4,
-                      gdiff-ig >= 0.2,
 
                       -- Repo
                       containers >= 0.5,

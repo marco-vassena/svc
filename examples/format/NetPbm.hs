@@ -27,8 +27,6 @@ import Format.Printer.Naive
 
 import Text.Parsec (Parsec, eof, parse)
 
-import Util
-
 whitespace :: (FormatC c m, AlternativeC c m Char) 
             => Format c m Char '[]
 whitespace = some (char ' ' <|> tab  <|> newline <|> comment)
@@ -46,7 +44,7 @@ data Pbm = Pbm Int Int [[Char]]
 -- | Partial isomorphism for 'Pbm'
 pbm :: Iso '[Int, Int, [[Char]]] '[Pbm]
 pbm = Iso (hsingleton . happly Pbm) f (SCons (SCons (SCons SNil))) (SCons SNil)
-  where f :: PFunction '[Pbm] '[Int, Int, [[Char]]]
+  where f :: HList '[Pbm] -> Maybe (HList '[Int, Int, [[Char]]])
         f (Cons (Pbm n m img) _) = Just $ Cons n (Cons m (Cons img Nil))
 --------------------------------------------------------------------------------
 
@@ -67,7 +65,7 @@ pbmRawFormat = pbmHeader >>= \(Cons n (Cons m _)) -> img n m
 -- | Recognizes the pbm header and the dimensions of the image
 pbmHeader :: (AlternativeC c m Char, FormatC c m ) 
           => Format c m Char '[Int, Int]
-pbmHeader = (string "P1" *> whitespace *> int <* whitespace) <*> int <* whitespace 
+pbmHeader = (string "P1" *> whitespace *> integer <* whitespace) <*> integer <* whitespace 
 
 -- | Recognizes a table of space-separated bits 
 img :: (FormatC c m, AlternativeC c m Char) 

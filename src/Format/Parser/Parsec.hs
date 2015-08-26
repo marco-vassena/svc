@@ -5,6 +5,8 @@
 
 module Format.Parser.Parsec where
 
+-- This module contains the hook instances for Parsec
+
 import Control.Isomorphism.Partial
 import Control.Applicative ((<$>), (<*>), pure)
 import Format.Parser.Base

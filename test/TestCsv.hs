@@ -1,3 +1,5 @@
+-- Tests that parser and printer are inverse for CSV tables
+
 module Main where
 
 import Data.List
@@ -8,8 +10,6 @@ import System.Exit
 import Csv (Csv(..), parseCsv, csvPrinter)
 import Utility
 
--- TODO port the printer to use efficient concatanation
--- and test with bigger inputs.
 nRows :: Gen Int
 nRows = choose (1, 25)
 

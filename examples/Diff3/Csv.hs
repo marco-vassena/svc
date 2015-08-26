@@ -24,15 +24,6 @@ r01, r02 :: ES '[Row] '[Row]
 r01 = gdiff r0 r1
 r02 = gdiff r0 r2
 
--- Same UpdUpd conflicts detected (but slightly different from GNU diff3).
--- The reason is that since we are dealing with arbitary tree, (rather than plain lists as
--- text files are), we match nodes with nodes (embedding), rather than trying to squeeze and
--- shuffle subtrees around.
--- [1,4, 4 <-> 5, 2 <-> 5, 3, 6]
---r012, r021 :: ES CsvF '[Row] '[Row]
---r012 = diff3 r01 r02
---r021 = diff3 r02 r01
-
 --------------------------------------------------------------------------------
 
 type Csv = [Row]
@@ -64,11 +55,8 @@ d03 = gdiff c0 c3
 --------------------------------------------------------------------------------
 -- Diff3 
 
--- TODO update examples, choose which interface to follow: diff3 or merge3?
-
--- returns the merged object if the merge is successful,
+-- Returns the merged object if the merge is successful,
 -- otherwise fails with error printing the conflicts.
-
 diff3Target :: (Diff a, Diff b) => b -> a -> b -> b
 diff3Target x o y = 
   case diff3 x o y of
@@ -87,34 +75,6 @@ c012 = mergeCsv c1 c0 c2
 c023 :: Csv
 c023 = mergeCsv c2 c0 c3
    
--- Changes merged with no conflicts
---d012 :: ES3 CsvF '[Csv] '[Csv]
---d012 = diff3 d01 d02
---
---c012 :: Csv
---c012 = case patch Proxy d012 (DCons c0 DNil) of
---        (DCons x DNil) -> x
---
---d021 :: ES3 CsvF '[Csv] '[Csv]
---d021 = diff3 d02 d01
---
---c021 :: Csv
---c021 = case patch Proxy d021 (DCons c0 DNil) of
---        (DCons x DNil) -> x
---
----- Example with UpdUpd conflicts
---d013 :: ES3 CsvF '[Csv] '[Csv]
---d013 = diff3 d02 d03
---
---d034 :: ES3 CsvF '[Csv] '[Csv]
---d034 = diff3 d03 d04
---  where d03 = gdiff c0 c3
---        d04 = gdiff c0 c4
---
---c034 :: Csv
---c034 = case patch Proxy d034 (DCons c0 DNil) of
---          DCons x DNil -> x
-
 --------------------------------------------------------------------------------
 -- List instance
 

@@ -20,7 +20,6 @@ import Tree
 import Utility
 
 -- @foldlTree@ and @foldrTree@ are shorthands for respecitvely @foldl branch@ and @foldr branch@
--- TODO maybe use explicitly foldl branch / foldr branch in order to show how they are equivalent
 
 -- Generates arbitrary trees values
 instance Arbitrary Tree where

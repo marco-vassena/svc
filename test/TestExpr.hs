@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell #-}
+-- Tests invertibility for an Expr language
 
 module Main where
 
@@ -36,9 +36,9 @@ exprGen n | n > 0 = oneof [varGen, litGen, subExpr]
 
 -- What is printed can be parsed back and it is the same of the input value
 -- A time limit of 0.5 seconds is given: since expr is defined recursively
--- failures might lead to a loop. For instance a variable not formatted
--- accordingly might trigger this when printed. 
--- (This is a limitation, not a bug)
+-- failures might lead to a loop. For instance an invalid variable identifier
+-- would make the printer loop.
+-- The generator used does not produce invalide identifiers.
 prop_leftId :: Expr -> Property
 prop_leftId input = within (5 * 10 ^ 5) (input == output)
   where output = runParser "" parseExpr (printWith printExpr input)

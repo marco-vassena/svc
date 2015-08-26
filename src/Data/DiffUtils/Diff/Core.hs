@@ -10,9 +10,7 @@ import Data.Type.Equality
 import Data.TypeList.Core
 import Data.DiffUtils.Diff.DList
 
---------------------------------------------------------------------------------
-
--- | A well-typed edit script that maps transforms xs values in ys values,
+-- | A well-typed edit script that transforms xs values in ys values,
 -- by means of insert, delete and update.
 data ES xs ys where
   -- | Inserts something new in the tree
@@ -25,22 +23,29 @@ data ES xs ys where
   End :: ES '[] '[]
 
 --------------------------------------------------------------------------------
--- TODO probably we want to store the cost with the edit script
+
+-- | Computes a measure of the dissimilarity between two objects 
+-- considering the edits needed to transform one into the other.
+-- TODO store cost with the edit script
 cost :: ES xs ys -> Double
 cost End = 0
 cost (Ins x xs) = 1 + cost xs
 cost (Del x xs) = 1 + cost xs
 cost (Upd f g xs) = distance f g + cost xs
 
--- Returns the best edit tree (least distance)
+-- | Returns the best edit tree (least distance)
 (&) :: ES xs ys -> ES xs ys -> ES xs ys
 x & y = if cost x <= cost y then x else y
 
 --------------------------------------------------------------------------------
 
+-- | Computes an edit script that transforms the first argument
+-- in the second.
 gdiff :: (Diff a, Diff b) => a -> b -> ES '[ a ] '[ b ]
 gdiff x y = getDiff $ diffT (toDList x) (toDList y)
 
+-- | Non-memoized version of @diffT@, available only
+-- for documentation purposes.
 diff :: DList xs -> DList ys -> ES xs ys
 diff DNil DNil = End
 diff (DCons (Node a as) xs) DNil = Del a $ diff (dappend as xs) DNil
@@ -57,21 +62,23 @@ diff (DCons x@(Node a as) xs) (DCons y@(Node b bs) ys) =
 -- Patch
 --------------------------------------------------------------------------------
 
--- Return the target object, equivalent to patch
+-- | Returns the target object, equivalent to patch
 target :: ES xs ys -> DList ys
 target (Ins x e) = insert x (target e)
 target (Del x e) = target e
 target (Upd x y e) = insert y (target e)
 target End = DNil
 
--- Returns the source object
+-- | Returns the source object
 source :: ES xs ys -> DList xs
 source (Ins x e) = source e
 source (Del x e) = insert x (source e)
 source (Upd x y e) = insert x (source e)
 source End = DNil
 
-
+-- | Applies a constructor to suitable arguments available in the given list.
+-- Returns the list obtained popping them and pushing the complete DTree
+-- instead.
 insert :: Diff a => F xs a -> DList (xs :++: ys) -> DList (a ': ys)
 insert f ds = DCons (Node f ds1) ds2
   where (ds1, ds2) = dsplit (reifyArgs f) ds
@@ -96,14 +103,14 @@ data EST xs ys where
      -> EST '[] (b ': ys)
   NN :: ES '[] '[] -> EST '[] '[]
 
--- Returns the edit script contained in an EST table.
+-- | Returns the edit script contained in an EST table.
 getDiff :: EST xs ys -> ES xs ys
 getDiff (CC _ _ e _ _ _) = e
 getDiff (CN _ e _) = e
 getDiff (NC _ e _) = e
 getDiff (NN e) = e
 
--- Memoized version of diff
+-- | Memoized version of diff
 diffT :: DList xs -> DList ys -> EST xs ys
 diffT DNil DNil = NN End
 diffT (DCons (Node a as) xs) DNil = CN a (Del a (getDiff d)) d 
@@ -115,6 +122,7 @@ diffT (DCons (Node a as) xs) (DCons (Node b bs) ys) = CC a b (best a b i d u) i 
         i = extendI a xs u
         d = extendD b ys u
 
+-- | Returns the best edit script between the three given table.
 best :: (Diff a, Diff b)
      => F as a -> F bs b
      -> EST (a ': xs) (bs :++: ys)
@@ -132,8 +140,6 @@ best f g i d c =
 --------------------------------------------------------------------------------
 -- Auxiliary functions and datatypes used in diffT.
 --------------------------------------------------------------------------------
-
--- TODO swap names
 
 data IES b xs ys where
   IES :: F zs b -> ES xs (b ': ys) -> EST xs (zs :++: ys) -> IES b xs ys
@@ -161,7 +167,6 @@ extendI f _ d@(CC _ _ _ _ _ _) =
   case extractI d of
     IES g e c -> CC f g (best f g i d c) i d c
       where i = extendI f undefined c
-
 
 extendD :: Diff a
         => F xs a -> DList ys -> EST zs (xs :++: ys) -> EST zs (a ': ys)

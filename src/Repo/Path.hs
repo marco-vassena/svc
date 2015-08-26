@@ -16,12 +16,13 @@ instance Hashable (ES xs ys) where
   -- Therefore I am using this dummy instance
   hashWithSalt x e = hashWithSalt x (show e)
 
--- A positive number that represents the length of a path from the Root.
+-- | A positive number that represents the length of a path from the Root.
 type Depth = Int
 
+-- | Tracks the changes between two revisions.
 type Delta a = ES '[ a ] '[ a ]
 
--- Kept abstract to enforce the invariants
+-- | Kept abstract to enforce the invariants
 data Path a = Root a
             | Node  (Path a) !Depth (Delta a)
             | Merge (Path a) (Path a) !Depth (Delta a)
@@ -29,48 +30,55 @@ data Path a = Root a
 
 instance Hashable a => Hashable (Path a) where
 
--- Returns the depth of a path
+--------------------------------------------------------------------------------
+-- | Returns the object stored in the last revision of a path.
+currentValue :: Diff a => Path a -> a
+currentValue (Root x) = x
+currentValue (Node _ _ e) = patch e
+currentValue (Merge _ _ _ e) = patch e
+
+-- | Returns the depth of a path
 depth :: Path a -> Depth
 depth (Root _) = 0
 depth (Node _ d _) = d
 depth (Merge _ _ d _) = d
 
--- Smart constructors, which maintain the invariant about depth.
+--------------------------------------------------------------------------------
+-- Smart constructors that maintain the invariant about depth.
+
 root :: a ->  Path a
 root = Root
 
 node ::  Path a -> Delta a ->  Path a
 node p = Node p (depth p + 1)
 
--- Merges The path with the lowest hash is always put to the left.
+-- Merges two paths.
+-- The path with the lowest hash is always put to the left.
 mergePaths :: Hashable a => Path a -> Path a -> Delta a ->  Path a
 mergePaths p1 p2 e | hash p1 <= hash p2 = Merge p1 p2 (max (depth p1) (depth p2) + 1) e
 mergePaths p1 p2 e | otherwise          = Merge p2 p1 (max (depth p1) (depth p2) + 1) e
 
-currentValue :: Diff a => Path a -> a
-currentValue (Root x) = x
-currentValue (Node _ _ e) = patch e
-currentValue (Merge _ _ _ e) = patch e
-
-
 --------------------------------------------------------------------------------
 
--- Wrapper of Path used to overload Hash-based operations.
+-- | Path wrapper to override @Eq@ and @Ord@ exploiting hash-based operations.
 newtype HPath a = HPath {hpath :: Path a}
 
--- Ord and Eq instance use the hash of the  Path a
+-- | Ord and Eq instance using hashes.
 instance Hashable a => Eq (HPath a) where
   HPath p == HPath q = hash p == hash q
 
 instance Hashable a => Ord (HPath a) where
   HPath p <= HPath q = hash p <= hash q
 
--- Returns all the subpaths of a path, grouped by depth level, in descending order.
+--------------------------------------------------------------------------------
+
+-- | Returns all the subpaths of a path, grouped by depth level, in descending order.
 levels :: Hashable a => Path a -> [(Depth, Set (HPath a))]
 levels r@(Root x)= [(depth r, S.singleton (HPath r))]
 levels n@(Node p d _) = (d, S.singleton (HPath n)) : levels p
 levels m@(Merge p1 p2 d _) = (d, S.singleton (HPath m)) : combine (levels p1) (levels p2)
 
+-- | Combines two sorted lists, taking the union of sets at the same depth.
 combine :: Hashable a => [(Depth, Set (HPath a))] -> [(Depth, Set (HPath a))] -> [(Depth, Set (HPath a))] 
 combine [] ds = ds
 combine ds [] = ds
@@ -82,6 +90,9 @@ combine a@((d1,xs):ds1) b@((d2,ys):ds2) =
 
 --------------------------------------------------------------------------------
 
+-- | A data type that represents the lowest-common-ancestor of two nodes.
+-- For the given definition of @Path@ there can be at most two ancestors
+-- equally low.
 data Lca a = One (Path a)
            | Two (Path a) (Path a)
   deriving Show

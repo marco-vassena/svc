@@ -19,15 +19,14 @@ import Format.Parser.UU
 import Text.ParserCombinators.UU.BasicInstances
 import Text.ParserCombinators.UU.Utils
 
-import Util
-
 --------------------------------------------------------------------------------
 -- | Csv specification as Grammar
 --------------------------------------------------------------------------------
+
 csvGrammar :: (Use Satisfy c m Char, AlternativeC c m Char, Use Help c m Char) 
            => Format c m Char '[Int, [Int], [Int], [[Int]]]
 csvGrammar = csvRow <*> many (char '\n' *> csvRow)
-  where csvRow = int <*> many (char ',' *> int)
+  where csvRow = integer <*> many (char ',' *> integer)
 
 --------------------------------------------------------------------------------
 
@@ -40,16 +39,17 @@ csv :: CIso '[ [[Int]] ] Csv
 csv = iso (happly Csv) proj (SCons SNil)
   where proj (Csv xss) = Just $ Cons xss Nil
 
+--------------------------------------------------------------------------------
+
 -- | A format that targets a raw HList '[ [[Int]] ]
-rawFormat :: (Use Satisfy c m Char, Use Help c m Char, AlternativeC c m Char) => Format c m Char '[ [[Int]] ]
+rawFormat :: (Use Satisfy c m Char, Use Help c m Char, AlternativeC c m Char) 
+          => Format c m Char '[ [[Int]] ]
 rawFormat = sepBy row newline
-  where row = sepBy1 int (char ',')
+  where row = sepBy1 integer (char ',')
 
 -- | A format that targets directly the CSV data type
 csvFormat :: (Use Satisfy c m Char, Use Help c m Char, AlternativeC c m Char) => SFormat c m Char Csv
 csvFormat = csv <$> rawFormat
-
--- TODO add utility functions to hide the packing/unpacking for singleton HList
 
 -- | We can target directly the user-defined data type
 csvParser :: Parser (HList '[ Csv ])

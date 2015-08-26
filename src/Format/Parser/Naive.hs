@@ -5,7 +5,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE UndecidableInstances #-}
 
--- A naive parser implementation
+-- A naive parser implementation used as an example
 
 module Format.Parser.Naive (
     module Format.Parser.Base
@@ -51,7 +51,7 @@ instance Monad (Parser i) where
  
 --------------------------------------------------------------------------------
 -- If the Parser is an instance of Alternative-Monad this is 
--- the only instance needed to use the Format framework.
+-- the only _manual_ instance needed to use the Format framework.
 instance ParseSatisfy (Parser i) i where
   parseSatisfy = pSatisfy
 

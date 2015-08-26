@@ -2,6 +2,8 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE DataKinds #-}
 
+-- | Singleton type for type-level lists.
+
 module Data.TypeList.SList (
     module Data.TypeList.Core
   , SList(..)
@@ -16,7 +18,7 @@ import Data.Proxy
 import Data.TypeList.Core
 
 
--- The singleton type of lists, which allows us to take a list as a
+-- | The singleton type of lists, which allows us to take a list as a
 -- term-level and a type-level argument at the same time.
 -- It is used to retrieve information about the shape of an
 -- 'HList' at runtime.
@@ -45,8 +47,9 @@ class Reify2 f where
   toSList2 :: f xs ys -> (SList xs, SList ys)
 
 --------------------------------------------------------------------------------
-
 class KnownSList xs where
+  -- Automatically retrieves the singleton type for type-level lists
+  -- known at compile time
   slist :: SList xs
 
 instance KnownSList '[] where

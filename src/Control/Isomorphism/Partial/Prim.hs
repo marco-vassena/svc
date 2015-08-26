@@ -48,14 +48,17 @@ iff i = Iso f g (sunapply i) (sunapply i)
   where f _  = apply i Nil
         g hs = unapply i hs >> return hs
 
+
+infixr 9 <.>
+
 -- | Compose two isomoprhism. Corresponds to (.) from Category.
 (<.>) :: Iso ys zs -> Iso xs ys -> Iso xs zs
 (<.>) g f = Iso (apply g . apply f) (unapply g >=> unapply f) (sapply f) (sunapply g)
 
-infixr 9 <.>
 
 
 infixr 3 ***
+
 -- | Joins two isomorphisms, appending inputs and outputs in order.
 (***) ::  Iso xs ys -> Iso zs ws -> Iso (xs :++: zs) (ys :++: ws)
 i *** j = Iso f g (sappend s1 s3) (sappend s2 s4)
@@ -109,6 +112,7 @@ zipper ::  SList as -> Iso (ZipWith (,) as (Map [] as)) (Map [] as)
 zipper SNil = identity SNil
 zipper (SCons s) = uncurry cons *** zipper s
 
+-- | Constant isomorphism, return always the given list.
 ignore :: HList xs -> Iso xs '[]
 ignore hs = Iso f g (toSList hs) SNil
   where f _ = Nil
@@ -117,6 +121,8 @@ ignore hs = Iso f g (toSList hs) SNil
 -- Generalized foldl.
 -- This signature corresponds to the usual:
 -- foldl :: (b -> a -> b) -> b -> [ a ] -> b
+-- It is defined as a primitive, because the definition of isomorphism
+-- is asymmetrical.
 foldl :: SList as -> Iso (bs :++: as) bs -> Iso (bs :++: (Map [] as)) bs
 foldl s1 i = Iso f g (sappend s2 s1') s2
   where s1' = smap proxyList s1
@@ -143,7 +149,8 @@ foldr s1 i = Iso f g (sappend s2 s1') s2
                 (es, hs) = hunfoldr s1 h ys
 
 --------------------------------------------------------------------------------
--- TODO maybe remove.
+-- Proofs about isomorphisms.
+--------------------------------------------------------------------------------
 
 -- | Isomorphisms are associative.
 associate :: SList xs 

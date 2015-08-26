@@ -3,6 +3,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PolyKinds #-}
 
+-- | This module provides a type-checker that transform a merged edit script
+-- in a fully well-typed edit script, whose target object is the merged object.
+
 module Data.DiffUtils.Diff3.TypeCheck where
 
 import Data.TypeList.TList
@@ -10,40 +13,42 @@ import Data.DiffUtils.Diff hiding (IES)
 import Data.DiffUtils.Diff3.Core
 import Data.Typeable
 
--- A simple wrapper for the type exected while type-checking.
+-- | A simple wrapper for the type exected while type-checking.
 newtype ExpectedType xs = ET (TList xs)
 
--- Represents a type inferred in typeCheck
+-- | Represents a type inferred in typeCheck
 data InferredType xs where
   INil :: InferredType '[]
   ICons :: Typeable x => Proxy x -> InferredType xs -> InferredType (x ': xs)
   Top :: InferredType xs -- Can be anything, because of previous type errors
 
--- Inferred type for an edit script
+-- | Inferred type for an edit script
 data IES xs where
   IES :: InferredType ys -> ES xs ys -> IES xs
 
--- Well typed edit script
+-- | Well typed edit script
 data WES xs where
   WES :: TList ys -> ES xs ys -> WES xs
 
--- Represents a failure in the type-checker algorithm.
+-- | Represents a failure in the type-checker algorithm.
 data TypeError where
-  -- TODO include slice of ES3 ?
   TyErr :: ExpectedType xs -> InferredType ys -> TypeError
 
--- Converts an InferredType in TList. 
+-- | Converts an InferredType in TList. 
 -- It fails with error if InferredType contains Top
 toTList :: InferredType xs -> TList xs
 toTList INil = TNil
 toTList (ICons p i) = TCons p (toTList i)
 toTList Top = error "toTList: InferredType contains Top"
 
+-- | Convert a @TList@ in an @InferredType@.
 toInferredType :: TList xs -> InferredType xs
 toInferredType TNil = INil
 toInferredType (TCons p t) = ICons p (toInferredType t)
 
 --------------------------------------------------------------------------------
+
+-- It represents the proof that two type unify.
 data Unify a b where
   Same :: Unify a a
   Failed :: Unify a b -- a and b are different
@@ -77,15 +82,16 @@ data Conflict = VConf (VConflict)
               | TConf (TypeError)
   deriving (Show)
 
--- Use type check and report left if there is at least one error.
+-- | Typechecks a merged edit script and either returns
+-- a well-typed edit script or a list of conflicts.
 typeCheck ::  ES3 xs -> Either [Conflict] (WES xs)
 typeCheck e = 
   case tyCheck e of
     ([]  , IES ty e') -> Right $ WES (toTList ty) e'
     (errs, _        ) -> Left errs
 
--- Exploiting laziness, we can pair a IES with type error.
--- The script IES is fully defined only if no errors are reported.
+-- | Typechecks an edit script and collects all the type errors and value conflicts.
+-- The script IES is fully defined only if no conflicts are reported.
 tyCheck ::  ES3 xs -> ([Conflict], IES xs)
 tyCheck End3 = ([], IES INil End)
 tyCheck (Cnf3 c e) = 
@@ -100,8 +106,6 @@ tyCheck (Ins3 x e) =
       let xs = argsTy x in
       case xs `isPrefixOfTy` ty of
         Just (Prefix xsys Same) -> (tyErr, IES (ICons Proxy xsys) (Ins x e'))
-        -- TODO better error message
-        -- TODO return part of the edit script, or just undefined?
         Just (Prefix xsys Failed) -> (tyErr, IES (ICons Proxy xsys) (Ins x undefined))
         Nothing -> (TConf (TyErr (ET xs) ty) : tyErr, IES (ICons Proxy Top) (Ins x undefined))
 tyCheck (Upd3 x y e) = 
@@ -110,8 +114,6 @@ tyCheck (Upd3 x y e) =
       let ys = argsTy y in
       case ys `isPrefixOfTy` ty of
         Just (Prefix yszs Same) -> (tyErr, IES (ICons Proxy yszs) (Upd x y e'))
-        -- TODO better error message
-        -- TODO return part of the edit script, or just undefined?
         Just (Prefix yszs Failed) -> (tyErr, IES (ICons Proxy yszs) (Upd x y undefined))
         Nothing -> (TConf (TyErr (ET ys) ty) : tyErr, IES (ICons Proxy Top) (Upd x y undefined))
 

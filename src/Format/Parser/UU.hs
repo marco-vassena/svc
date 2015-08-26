@@ -4,6 +4,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 
+-- This module contains the hook instances for uu-parsinglib
+
 module Format.Parser.UU where
 
 import Control.Isomorphism.Partial

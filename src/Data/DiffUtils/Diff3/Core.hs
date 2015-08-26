@@ -5,13 +5,16 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE PolyKinds #-}
 
+-- | This module defines the merged edit script data type,
+-- and the core merge algorithm.
+
 module Data.DiffUtils.Diff3.Core where
 
 import Data.TypeList.Core
 import Data.DiffUtils.Diff
 import Data.Type.Equality
 
--- An edit script @ES3 xs@ represents a merged edit script.
+-- | An edit script @ES3 xs@ represents a merged edit script.
 -- It is well-typed with respect to the source object, but
 -- it may be ill-typed with respect to the source object,
 -- or it might contain value-related conflicts.
@@ -23,13 +26,13 @@ data ES3 xs where
   -- | Replaces something in the original tree
   Upd3 :: Diff a => F xs a -> F ys a -> ES3 (xs :++: zs) -> ES3 (a ': zs)
   -- | A conflict between the two edit script
-  Cnf3 :: VConflict -> ES3 xs -> ES3 ys -- TODO remark that it is not worth to make this case well-typed
+  Cnf3 :: VConflict -> ES3 xs -> ES3 ys
   -- | Terminates the edit script
   End3 :: ES3 '[]
 
 -------------------------------------------------------------------------------- 
 
--- It represents value related conflicts.
+-- | It represents value related conflicts.
 -- Each constructor denotes the edits that caused the conflict.
 data VConflict where
   InsIns :: (Diff a, Diff b) => F xs a -> F ys b -> VConflict
@@ -73,17 +76,17 @@ merge3 (Del x e1) (Del y e2) =
   case aligned x y of
     (Refl, Refl) -> Del3 x (merge3 e1 e2) -- Idem
 merge3 (Ins x e1) (Ins y e2) =
-  case decEq x y of -- TODO can we abstract over this pattern
+  case decEq x y of
     Just Refl ->
       case x =?= y of
         Just Refl -> Ins3 x (merge3 e1 e2) -- Idem
-        Nothing           -> Cnf3 (InsIns x y) (merge3 e1 e2)
-    Nothing           -> Cnf3 (InsIns x y) (merge3 e1 e2)
+        Nothing   -> Cnf3 (InsIns x y) (merge3 e1 e2)
+    Nothing       -> Cnf3 (InsIns x y) (merge3 e1 e2)
 merge3 (Ins x e1) e2 = Ins3 x (merge3 e1 e2) -- Id2
 merge3 e1 (Ins y e2) = Ins3 y (merge3 e1 e2) -- Id1
 merge3 End End = End3
 
--- Checks whether the two witnesses are the same,
+-- Checks whether the two constructors are the same,
 -- and fails if this is not the case.
 aligned :: (Diff a, Diff b) => F xs a -> F ys b -> (xs :~: ys , a :~: b)
 aligned a b =
@@ -92,8 +95,10 @@ aligned a b =
       case a =?= b of
         Just Refl -> (Refl, Refl)
         _ -> error $ "Scripts not aligned: " ++ string a ++ " <-> " ++ string b
+    _ -> error $ "Scripts not aligned: " ++ string a ++ " <-> " ++ string b
 
 --------------------------------------------------------------------------------
+
 instance Show (ES3 xs) where
   show End3 = "End3"
   show (Ins3 x xs) = "Ins3 " ++ string x ++ " $ " ++ show xs
