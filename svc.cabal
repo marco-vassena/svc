@@ -118,21 +118,21 @@ test-suite test-format
 
 test-suite test-expr
   type:               exitcode-stdio-1.0
-  hs-source-dirs:     test, src, examples
+  hs-source-dirs:     test, src, examples/format
   main-is:            TestExpr.hs
   build-depends:      base >=4.7 && <4.8, QuickCheck, HUnit, bytestring, uu-parsinglib, ListLike
   default-language:   Haskell2010
 
 test-suite test-csv
   type:               exitcode-stdio-1.0
-  hs-source-dirs:     test, src, examples
+  hs-source-dirs:     test, src, examples/format
   main-is:            TestCsv.hs
   build-depends:      base >=4.7 && <4.8, QuickCheck, HUnit, bytestring, uu-parsinglib, ListLike
   default-language:   Haskell2010
 
 test-suite test-netpbm
   type:               exitcode-stdio-1.0
-  hs-source-dirs:     test, src, examples
+  hs-source-dirs:     test, src, examples/format
   main-is:            TestNetPbm.hs
   build-depends:      base >=4.7 && <4.8, QuickCheck, HUnit, parsec, bytestring, directory, transformers
   default-language:   Haskell2010
